@@ -1,16 +1,62 @@
 ActiveRecord::Simple
 
-The README is used to introduce the module and provide instructions on
-how to install the module, any machine dependencies it may have (for
-example C compilers and installed libraries) and any other information
-that should be provided before the module is installed.
+ActiveRecord::Simple - Simple to use lightweight implementation of
+ActiveRecord pattern.
 
-A README file is required for CPAN modules since CPAN extracts the README
-file from a module distribution so that people browsing the archive
-can use it to get an idea of the module's uses. It is usually a good idea
-to provide version information here so that people can decide whether
-fixes for the module are worth downloading.
+It is fast, don't have any depencies and realy easy to use.
 
+The basic setup of youre package should be:
+
+    package Model::Foo;
+
+    use base 'ActiveRecord::Simple';
+
+    __PACKAGE__->table_name('foo');
+    __PACKAGE__->columns(['id', 'bar', 'baz']);
+    __PACKAGE__->primary_key('id');
+
+    1;
+
+And then, use youre package in a program:
+
+    use Foo;
+
+    my $foo = Foo->new({ bar => 'value', baz => 'value' });
+    $foo->save();
+
+    # or
+    my $foo = Foo->find(1);
+    say $foo->bar;
+
+    # or
+    $foo->bar('new value')->save();
+
+    say $foo->bar;
+
+That's it. ActiveRecord::Simple provides all basic operation's for creating,
+reading, updating and deleting records in your database.
+
+ActiveRecord::Simple doesn't handle your database connection, but you may keep
+it in the special method "dbh":
+
+    Foo->dbh($dbh);
+
+    # or
+    ActiveRecord::Simple->dbh($dbh);
+
+    # or you can use a special function for it:
+    sub dbhandler {
+        unless ( $dbh->ping ) {
+            $dbh->connect("...");
+        }
+
+        return $dbh;
+    }
+
+    ActiveRecord::Simple->dbh( &dbhandler );
+
+See pod documentation of the module for more information about using
+ActiveRecord::Simple.
 
 INSTALLATION
 
@@ -28,20 +74,6 @@ perldoc command.
 
     perldoc ActiveRecord::Simple
 
-You can also look for information at:
-
-    RT, CPAN's request tracker (report bugs here)
-        http://rt.cpan.org/NoAuth/Bugs.html?Dist=ActiveRecord::Simple
-
-    AnnoCPAN, Annotated CPAN documentation
-        http://annocpan.org/dist/ActiveRecord::Simple
-
-    CPAN Ratings
-        http://cpanratings.perl.org/d/ActiveRecord::Simple
-
-    Search CPAN
-        http://search.cpan.org/dist/ActiveRecord::Simple/
-
 
 LICENSE AND COPYRIGHT
 
@@ -52,4 +84,3 @@ under the terms of either: the GNU General Public License as published
 by the Free Software Foundation; or the Artistic License.
 
 See http://dev.perl.org/licenses/ for more information.
-

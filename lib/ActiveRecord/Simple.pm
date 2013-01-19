@@ -7,7 +7,7 @@ use warnings;
 =head1 NAME
 
 ActiveRecord::Simple - Simple to use lightweight implementation of
-                       ActiveRecord pattern.
+ActiveRecord pattern.
 
 =head1 VERSION
 
