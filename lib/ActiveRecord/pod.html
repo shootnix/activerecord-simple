@@ -1,0 +1,370 @@
+<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>ActiveRecord::Simple - Simple to use lightweight implementation of
+                       ActiveRecord pattern.</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:root@localhost" />
+</head>
+
+<body style="background-color: white">
+
+
+<!-- INDEX BEGIN -->
+<div name="index">
+<p><a name="__index__"></a></p>
+
+<ul>
+
+	<li><a href="#name">NAME</a></li>
+	<li><a href="#version">VERSION</a></li>
+	<li><a href="#synopsis">SYNOPSIS</a></li>
+	<li><a href="#methods">METHODS</a></li>
+	<li><a href="#class_methods">Class Methods</a></li>
+	<ul>
+
+		<li><a href="#new">new</a></li>
+		<li><a href="#columns">columns</a></li>
+		<li><a href="#primary_key">primary_key</a></li>
+		<li><a href="#table_name">table_name</a></li>
+		<li><a href="#relations">relations</a></li>
+		<li><a href="#find">find</a></li>
+		<li><a href="#dbh">dbh</a></li>
+	</ul>
+
+	<li><a href="#object_methods">Object Methods</a></li>
+	<ul>
+
+		<li><a href="#save">save</a></li>
+		<li><a href="#delete">delete</a></li>
+		<li><a href="#is_exists_in_database">is_exists_in_database</a></li>
+		<li><a href="#to_hash">to_hash</a></li>
+		<li><a href="#is_defined">is_defined</a></li>
+		<li><a href="#fetch">fetch</a></li>
+	</ul>
+
+	<li><a href="#author">AUTHOR</a></li>
+	<li><a href="#bugs">BUGS</a></li>
+	<li><a href="#support">SUPPORT</a></li>
+	<li><a href="#acknowledgements">ACKNOWLEDGEMENTS</a></li>
+	<li><a href="#license_and_copyright">LICENSE AND COPYRIGHT</a></li>
+</ul>
+
+<hr name="index" />
+</div>
+<!-- INDEX END -->
+
+<p>
+</p>
+<h1><a name="name">NAME</a></h1>
+<p>ActiveRecord::Simple - Simple to use lightweight implementation of
+                       ActiveRecord pattern.</p>
+<p>
+</p>
+<hr />
+<h1><a name="version">VERSION</a></h1>
+<p>Version 0.21</p>
+<p>
+</p>
+<hr />
+<h1><a name="synopsis">SYNOPSIS</a></h1>
+<p>ActiveRecord::Simple is a simple lightweight implementation of ActiveRecord
+pattern. It is fast, very simple and very ligth. And it's very easy to use:</p>
+<pre>
+    package MyModel:Person;</pre>
+<pre>
+    use base 'ActiveRecord::Simple';</pre>
+<pre>
+    __PACKAGE__-&gt;table_name('persons');
+    __PACKAGE__-&gt;columns(['id', 'name']);
+    __PACKAGE__-&gt;primary_key('id');</pre>
+<pre>
+    1;</pre>
+<p>That's it! Now you are ready to use your active-record class in the application:</p>
+<pre>
+    use MyModel::Person;</pre>
+<pre>
+    # to create a new record:
+    my $person = MyModel::Person-&gt;new({ name =&gt; 'Foo' })-&gt;save();</pre>
+<pre>
+    # to update the record:
+    $person-&gt;name('Bar')-&gt;save();</pre>
+<pre>
+    # to find a record (by primary key):
+    my $person = MyModel::Person-&gt;find(1);</pre>
+<pre>
+    # to find records by parameters:
+    my @persons = MyModel::Person-&gt;find({ name =&gt; 'Foo' })-&gt;fetch();</pre>
+<pre>
+    # to find records by sql-condition:
+    my @persons = MyModel::Person-&gt;find('name = ?', 'Foo')-&gt;fetch();</pre>
+<pre>
+    # also you can do something like this:
+    my $persons = MyModel::Person-&gt;find('name = ?', 'Foo');
+    while ( my $person = $persons-&gt;fetch() ) {
+        say $person-&gt;name;
+    }</pre>
+<pre>
+    # Of course, you can add a relationships into your tables:
+    __PACKAGE__-&gt;relations({
+        cars =&gt; {
+            class       =&gt; 'MyModel::Car',
+            foreign_key =&gt; 'id_person',
+            type        =&gt; 'many',
+        },
+        wife =&gt; {
+            class       =&gt; 'MyModel::Wife',
+            foreign_key =&gt; 'id_person',
+            type        =&gt; 'one',
+        }
+    });</pre>
+<pre>
+    # And then, you're ready to do:
+    say $person-&gt;cars-&gt;fetch-&gt;id; # if the relation is one to many
+    say $person-&gt;wife-&gt;name; # if the relation is one to one</pre>
+<p>
+</p>
+<hr />
+<h1><a name="methods">METHODS</a></h1>
+<p>ActiveState::Simple provides different methods to make your work with
+data bit more easy. It contains only a basic set of operations, such as
+serching, creating, updating and deleting data.</p>
+<p>If you realy need more complicated solution, just try to find more ORM'ish
+classes on CPAN.</p>
+<p>
+</p>
+<hr />
+<h1><a name="class_methods">Class Methods</a></h1>
+<p>Class methods mean that you can't do something with a separate row of the table,
+but they need to manipulate of the table as a whole object. You may find a row
+in the table or keep database hanlde etc.</p>
+<p>
+</p>
+<h2><a name="new">new</a></h2>
+<p>...</p>
+<p>
+</p>
+<h2><a name="columns">columns</a></h2>
+<pre>
+    __PACKAGE__-&gt;columns([qw/id_person first_name second_name]);</pre>
+<p>Set names of the table columns and add accessors to object of the class. This
+method is reqired to use in the child (your model) classes.</p>
+<p>
+</p>
+<h2><a name="primary_key">primary_key</a></h2>
+<pre>
+    __PACKAGE__-&gt;primary_key('id_person');</pre>
+<p>Set name of the primary key. This method is reqired to use in the child
+(your model) classes.</p>
+<p>
+</p>
+<h2><a name="table_name">table_name</a></h2>
+<pre>
+    __PACKAGE__-&gt;table_name('persons');</pre>
+<p>Set name of the table. This method is reqired to use in the child (your model)
+classes.</p>
+<p>
+</p>
+<h2><a name="relations">relations</a></h2>
+<pre>
+    __PACKAGE__-&gt;relations({
+        cars =&gt; {
+            class =&gt; 'MyModel::Car',
+            foreign_key =&gt; 'id_person',
+            type =&gt; 'many'
+        },
+    });</pre>
+<p>It's not required methont and you are not required to use it, if you don't
+want to use relationship in youre tables and objects.
+However, if you need to, just keep this simple schema in youre mind:</p>
+<pre>
+    __PACKAGE__-&gt;relations({
+        [relation key] =&gt; {
+            class =&gt; [class name],
+            foreign_key =&gt; [column that refferers to the table],
+            type =&gt; [many or one]
+        },
+    })</pre>
+<pre>
+    [relation key] - this is a key that will be provide the access to instance
+    of the another class (which is specified in the option &quot;class&quot; below),
+    tied with this by relationships. These keys may be a few. To use this
+    thing, just do:</pre>
+<pre>
+    $package_instance-&gt;[relation key]-&gt;[any method of the related class];</pre>
+<p>
+</p>
+<h2><a name="find">find</a></h2>
+<p>There is many ways to find someone in youre tables using ActiveRecord::Simple:</p>
+<pre>
+    # by primary key:
+    my $person = MyModel::Person-&gt;find(1);</pre>
+<pre>
+    # by multiple primary keys
+    my @persons = MyModel::Person-&gt;find([1, 2, 5])-&gt;fetch();</pre>
+<pre>
+    # by simple condition:
+    my @persons = MyModel::Person-&gt;find({ name =&gt; 'Foo' })-&gt;fetch();</pre>
+<pre>
+    # by where-condtions:
+    my @persons = MyModel::Person-&gt;find('first_name = ? and id_person &gt; ?', 'Foo', 1);</pre>
+<p>If you want to get an instance of youre active-record class and know the
+primary key, you can do it, just put the primaty key as a parameter into the
+find method:</p>
+<pre>
+    my $person = MyModel::Person-&gt;find(1);</pre>
+<p>In that case, you will get only one instance (because can't be more than one rows
+in the table with the same values of primary keys).</p>
+<p>If you want to get a few instances by primary keys, you should put it as arrayref,
+and then fetch from resultset:</p>
+<pre>
+    my @persons = MyModel::Person-&gt;find([1, 2])-&gt;fetch();</pre>
+<pre>
+    # you don't have to fetch it immidiatly, of course:
+    my $resultset = MyModel::Person-&gt;find([1, 2]);
+    while ( my $person = $resultset-&gt;fetch() ) {
+        say $person-&gt;first_name;
+    }</pre>
+<p>To find some rows by simple condition, use a hashref:</p>
+<pre>
+    my @persons = MyModel::Person-&gt;find({ first_name =&gt; 'Foo' })-&gt;fetch();</pre>
+<p>Simple condition mean that you can use only this type of it:</p>
+<pre>
+    { first_name =&gt; 'Foo' } goes to &quot;first_type = 'Foo'&quot;;
+    { first_name =&gt; 'Foo', id_person =&gt; 1 } goes to &quot;first_type = 'Foo' and id_person = 1&quot;;</pre>
+<p>If you want to use a real sql where-condition, you should use this type of ...</p>
+<pre>
+    my $res = MyModel::Person-&gt;find('first_name = ? or id_person &gt; ?', 'Foo', 1);</pre>
+<p>
+</p>
+<h2><a name="dbh">dbh</a></h2>
+<p>Keeps a database connection handle. It's not a class method actually, this is
+an attribute of base class, so you can put youre database handler as in any
+your's class like this:</p>
+<pre>
+    Person-&gt;dbh($dbh);</pre>
+<p>Or even rigth in base class:</p>
+<pre>
+    ActiveRecord::Simple-&gt;dbh($dht);</pre>
+<p>This decision is up to you. Anyway, this is a singleton value, and keeps only
+once at the session.</p>
+<p>
+</p>
+<hr />
+<h1><a name="object_methods">Object Methods</a></h1>
+<p>Object methods usefull to manipulating single rows as a separate objects.</p>
+<p>
+</p>
+<h2><a name="save">save</a></h2>
+<p>To insert or update data in the table, uses only one method. It detects
+automatically what do you want to do with it. If youre object was created
+by new method and never been saved before, method will insert youre data.</p>
+<p>If you got the object by find method, save will mean &quot;update&quot;.</p>
+<pre>
+    my $person = MyModel::Person-&gt;new({
+        first_name =&gt; 'Foo',
+        secnd_name =&gt; 'Bar',
+    });</pre>
+<pre>
+    $person-&gt;save() # -&gt; insert</pre>
+<pre>
+    $person-&gt;first_name('Baz');
+    $person-&gt;save() # -&gt; now is update!</pre>
+<pre>
+    ### or</pre>
+<pre>
+    my $person = MyModel::Person-&gt;find(1);
+    $person-&gt;first_name('Baz');
+    $person-&gt;save() # update</pre>
+<p>
+</p>
+<h2><a name="delete">delete</a></h2>
+<pre>
+    $person-&gt;delete();</pre>
+<p>Delete row from table.</p>
+<p>
+</p>
+<h2><a name="is_exists_in_database">is_exists_in_database</a></h2>
+<p>Check existsing of a row with the same set of data that in object:</p>
+<pre>
+    my $person = MyModel::Person-&gt;new({
+        first_name =&gt; 'Foo',
+        secnd_name =&gt; 'Bar',
+    });</pre>
+<pre>
+    $person-&gt;save() unless $person-&gt;is_exists_in_database;</pre>
+<p>
+</p>
+<h2><a name="to_hash">to_hash</a></h2>
+<p>Convert objects data to simple perl hash:</p>
+<pre>
+    use JSON::XS;</pre>
+<pre>
+    say encode_json({ person =&gt; $peron-&gt;to_hash });</pre>
+<p>
+</p>
+<h2><a name="is_defined">is_defined</a></h2>
+<p>Check for defined of data in the row:</p>
+<pre>
+    my $person = MyModel::Person-&gt;find(1);
+    return unless $person-&gt;id_defined;</pre>
+<p>
+</p>
+<h2><a name="fetch">fetch</a></h2>
+<p>...</p>
+<p>
+</p>
+<hr />
+<h1><a name="author">AUTHOR</a></h1>
+<p>shootnix, <code>&lt;shootnix at cpan.org&gt;</code></p>
+<p>
+</p>
+<hr />
+<h1><a name="bugs">BUGS</a></h1>
+<p>Please report any bugs or feature requests to <code>bug-activerecord::simple at rt.cpan.org</code>, or through
+the web interface at <a href="http://rt.cpan.org/NoAuth/ReportBug.html?Queue=ActiveRecord::Simple">http://rt.cpan.org/NoAuth/ReportBug.html</a>.  I will be notified, and then you'll
+automatically be notified of progress on your bug as I make changes.</p>
+<p>
+</p>
+<hr />
+<h1><a name="support">SUPPORT</a></h1>
+<p>You can find documentation for this module with the perldoc command.</p>
+<pre>
+    perldoc ActiveRecord::Simple</pre>
+<p>You can also look for information at:</p>
+<ul>
+<li><strong><a name="tracker" class="item">RT: CPAN's request tracker (report bugs here)</a></strong>
+
+<p><a href="http://rt.cpan.org/NoAuth/Bugs.html?Dist=ActiveRecord::Simple">http://rt.cpan.org/NoAuth/Bugs.html</a></p>
+</li>
+<li><strong><a name="annocpan_annotated_cpan_documentation" class="item">AnnoCPAN: Annotated CPAN documentation</a></strong>
+
+<p><a href="http://annocpan.org/dist/ActiveRecord::Simple">http://annocpan.org/dist/ActiveRecord::Simple</a></p>
+</li>
+<li><strong><a name="cpan_ratings" class="item">CPAN Ratings</a></strong>
+
+<p><a href="http://cpanratings.perl.org/d/ActiveRecord::Simple">http://cpanratings.perl.org/d/ActiveRecord::Simple</a></p>
+</li>
+<li><strong><a name="search_cpan" class="item">Search CPAN</a></strong>
+
+<p><a href="http://search.cpan.org/dist/ActiveRecord::Simple/">http://search.cpan.org/dist/ActiveRecord::Simple/</a></p>
+</li>
+</ul>
+<p>
+</p>
+<hr />
+<h1><a name="acknowledgements">ACKNOWLEDGEMENTS</a></h1>
+<p>
+</p>
+<hr />
+<h1><a name="license_and_copyright">LICENSE AND COPYRIGHT</a></h1>
+<p>Copyright 2013 shootnix.</p>
+<p>This program is free software; you can redistribute it and/or modify it
+under the terms of either: the GNU General Public License as published
+by the Free Software Foundation; or the Artistic License.</p>
+<p>See <a href="http://dev.perl.org/licenses/">http://dev.perl.org/licenses/</a> for more information.</p>
+
+</body>
+
+</html>
