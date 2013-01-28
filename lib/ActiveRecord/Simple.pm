@@ -669,7 +669,7 @@ just creates a new record in memory.
     __PACKAGE__->columns([qw/id_person first_name second_name]);
 
 Set names of the table columns and add accessors to object of the class. This
-method is reqired to use in the child (your model) classes.
+method is required to use in the child (your model) classes.
 
 =head2 primary_key
 
