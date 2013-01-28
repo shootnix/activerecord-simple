@@ -1,4 +1,5 @@
 ActiveRecord::Simple
+====================
 
 ActiveRecord::Simple - Simple to use lightweight implementation of
 ActiveRecord pattern.
@@ -60,6 +61,7 @@ See pod documentation of the module for more information about using
 ActiveRecord::Simple.
 
 INSTALLATION
+============
 
 To install this module, run the following commands:
 
@@ -69,6 +71,7 @@ To install this module, run the following commands:
 	make install
 
 SUPPORT AND DOCUMENTATION
+=========================
 
 After installing, you can find documentation for this module with the
 perldoc command.
@@ -76,6 +79,7 @@ perldoc command.
     perldoc ActiveRecord::Simple
 
 LICENSE AND COPYRIGHT
+=====================
 
 Copyright (C) 2013 shootnix
 
