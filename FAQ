@@ -1,3 +1,23 @@
-1. Почему так мало?
-2. Почему система допускает, чтобы я ошибался (в именах полей базы, акцессорах)?
-3. Почему модуль не хендлит подключение к базе сам?
+1. Why ActiveRecord::Simple implements so few methods?
+------------------------------------------------------
+
+First, because of the speed. Second, there is no need to create what is not to
+be used all the time. We use search, create, delete and update. But we don't
+use any sophisticated search every day, so why not write it yourself? ;-)
+
+
+2. Why does ActiveRecord::Simple allow me to getting wrong (names of database fields, setters etc)?
+---------------------------------------------------------------------------------------------------
+
+Because of Perl allows. Perl doesn't have native types of variables, structures
+or anything else like that. The implementation of this in a separate module
+would be a mistake, imho. If you want the type checking, just use another programming
+language.
+
+3. Why a module does not handle a database connection itself?
+-------------------------------------------------------------
+
+We have many ways to handle oure database connections, so why we should limit
+our choice? ;-) When you use mod_perl, you can use Apache::DBI. In other systems,
+such as prefork, you may use something else. You can even write the class that
+fit to you perfectly.
