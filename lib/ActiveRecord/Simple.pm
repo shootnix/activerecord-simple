@@ -570,10 +570,22 @@ sub to_hash {
 
 1;
 
-=head1 SYNOPSIS
+__END__;
+
+=head1 NAME
+
+ActiveRecord::Simple
+
+=head1 VERSION
+
+0.21
+
+=head1 DESCRIPTION
 
 ActiveRecord::Simple is a simple lightweight implementation of ActiveRecord
-pattern. It is fast, very simple and very ligth. And it's very easy to use:
+pattern. It's fast, very simple and very ligth.
+
+=head1 SYNOPSIS
 
     package MyModel:Person;
 
@@ -585,7 +597,7 @@ pattern. It is fast, very simple and very ligth. And it's very easy to use:
 
     1;
 
-That's it! Now you are ready to use your active-record class in the application:
+That's it! Now you're ready to use your active-record class in the application:
 
     use MyModel::Person;
 
@@ -598,7 +610,7 @@ That's it! Now you are ready to use your active-record class in the application:
     # to find a record (by primary key):
     my $person = MyModel::Person->find(1);
 
-    # to find records by parameters:
+    # to find many records by parameters:
     my @persons = MyModel::Person->find({ name => 'Foo' })->fetch();
 
     # to find records by sql-condition:
@@ -610,7 +622,7 @@ That's it! Now you are ready to use your active-record class in the application:
         say $person->name;
     }
 
-    # Of course, you can add a relationships into your tables:
+    # You can add any relationships to your tables:
     __PACKAGE__->relations({
         cars => {
             class       => 'MyModel::Car',
@@ -624,28 +636,33 @@ That's it! Now you are ready to use your active-record class in the application:
         }
     });
 
-    # And then, you're ready to do:
+    # And then, you're ready to go:
     say $person->cars->fetch->id; # if the relation is one to many
     say $person->wife->name; # if the relation is one to one
 
 =head1 METHODS
 
-ActiveState::Simple provides different methods to make your work with
-data bit more easy. It contains only a basic set of operations, such as
-serching, creating, updating and deleting data.
+ActiveState::Simple provides a variety of techniques to make your work with
+data little easier. It contains only a basic set of operations, such as
+serch, create, update and delete data.
 
-If you realy need more complicated solution, just try to find more ORM'ish
-classes on CPAN.
+If you realy need more complicated solution, just try to expand on it with your
+own methods.
 
 =head1 Class Methods
 
 Class methods mean that you can't do something with a separate row of the table,
 but they need to manipulate of the table as a whole object. You may find a row
-in the table or keep database hanlde etc.
+in the table or keep database hanlder etc.
 
 =head2 new
 
-...
+Creates a new object, one row of the data.
+
+    MyModel::Person->new({ name => 'Foo', second_name => 'Bar' });
+
+It's a constructor of your class and it doesn't save a data in the database,
+just creates a new record in memory.
 
 =head2 columns
 
@@ -678,9 +695,9 @@ classes.
         },
     });
 
-It's not required methont and you are not required to use it, if you don't
-want to use relationship in youre tables and objects.
-However, if you need to, just keep this simple schema in youre mind:
+It's not a required method and you don't have to use it if you don't want to use
+any relationships in youre tables and objects. However, if you need to,
+just keep this simple schema in youre mind:
 
     __PACKAGE__->relations({
         [relation key] => {
@@ -692,15 +709,14 @@ However, if you need to, just keep this simple schema in youre mind:
 
     [relation key] - this is a key that will be provide the access to instance
     of the another class (which is specified in the option "class" below),
-    tied with this by relationships. These keys may be a few. To use this
-    thing, just do:
+    associated with this relationship. Allowed to use as many keys as you need:
 
-    $package_instance->[relation key]->[any method of the related class];
+    $package_instance->[relation key]->[any method from the related class];
 
 
 =head2 find
 
-There is many ways to find someone in youre tables using ActiveRecord::Simple:
+There are several ways to find someone in your database using ActiveRecord::Simple:
 
     # by primary key:
     my $person = MyModel::Person->find(1);
@@ -714,14 +730,14 @@ There is many ways to find someone in youre tables using ActiveRecord::Simple:
     # by where-condtions:
     my @persons = MyModel::Person->find('first_name = ? and id_person > ?', 'Foo', 1);
 
-If you want to get an instance of youre active-record class and know the
-primary key, you can do it, just put the primaty key as a parameter into the
+If you want to get an instance of youre active-record class and if you know the
+primary key, you can do it, just put the primary key as a parameter into the
 find method:
 
     my $person = MyModel::Person->find(1);
 
-In that case, you will get only one instance (because can't be more than one rows
-in the table with the same values of primary keys).
+In this case, you will get only one instance (because can't be more than one rows
+in the table with the same values of the primary key).
 
 If you want to get a few instances by primary keys, you should put it as arrayref,
 and then fetch from resultset:
@@ -738,21 +754,22 @@ To find some rows by simple condition, use a hashref:
 
     my @persons = MyModel::Person->find({ first_name => 'Foo' })->fetch();
 
-Simple condition mean that you can use only this type of it:
+Simple condition means that you can use only this type of it:
 
     { first_name => 'Foo' } goes to "first_type = 'Foo'";
     { first_name => 'Foo', id_person => 1 } goes to "first_type = 'Foo' and id_person = 1";
 
-If you want to use a real sql where-condition, you should use this type of ...
+If you want to use a real sql where-condition:
 
     my $res = MyModel::Person->find('first_name = ? or id_person > ?', 'Foo', 1);
+    # select * from persons where first_name = "Foo" or id_person > 1;
 
 
 =head2 dbh
 
-Keeps a database connection handle. It's not a class method actually, this is
-an attribute of base class, so you can put youre database handler as in any
-your's class like this:
+Keeps a database connection handler. It's not a class method actually, this is
+an attribute of the base class and you can put your database handler in any
+class:
 
     Person->dbh($dbh);
 
@@ -769,11 +786,11 @@ Object methods usefull to manipulating single rows as a separate objects.
 
 =head2 save
 
-To insert or update data in the table, uses only one method. It detects
-automatically what do you want to do with it. If youre object was created
-by new method and never been saved before, method will insert youre data.
+To insert or update data in the table, use only one method. It detects
+automatically what do you want to do with it. If your object was created
+by the new method and never has been saved before, method will insert your data.
 
-If you got the object by find method, save will mean "update".
+If you took the object using the find method, "save" will mean "update".
 
     my $person = MyModel::Person->new({
         first_name => 'Foo',
@@ -783,7 +800,7 @@ If you got the object by find method, save will mean "update".
     $person->save() # -> insert
 
     $person->first_name('Baz');
-    $person->save() # -> now is update!
+    $person->save() # -> now it's update!
 
     ### or
 
@@ -795,11 +812,11 @@ If you got the object by find method, save will mean "update".
 
     $person->delete();
 
-Delete row from table.
+Delete row from the table.
 
 =head2 is_exists_in_database
 
-Check existsing of a row with the same set of data that in object:
+Checks for a record in the database corresponding to the object:
 
     my $person = MyModel::Person->new({
         first_name => 'Foo',
@@ -810,7 +827,7 @@ Check existsing of a row with the same set of data that in object:
 
 =head2 to_hash
 
-Convert objects data to simple perl hash:
+Convert objects data to the simple perl hash:
 
     use JSON::XS;
 
@@ -818,14 +835,23 @@ Convert objects data to simple perl hash:
 
 =head2 is_defined
 
-Check for defined of data in the row:
+Checks weather an object is defined:
 
     my $person = MyModel::Person->find(1);
     return unless $person->id_defined;
 
 =head2 fetch
 
-...
+When you use the "find" method to get a few rows from the table, you get the
+meta-object with a several objects inside. To use all of them or only a part,
+use the "fetch" method:
+
+    my @persons = MyModel::Person->find('id_person != ?', 1)->fetch();
+
+You can also specify how many objects you want to use:
+
+    my @persons = MyModel::Person->find('id_person != ?', 1)->fetch(2);
+    # fetching only 2 objects.
 
 =head1 AUTHOR
 
@@ -833,9 +859,8 @@ shootnix, C<< <shootnix at cpan.org> >>
 
 =head1 BUGS
 
-Please report any bugs or feature requests to C<bug-activerecord::simple at rt.cpan.org>, or through
-the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=ActiveRecord::Simple>.  I will be notified, and then you'll
-automatically be notified of progress on your bug as I make changes.
+Please report any bugs or feature requests to C<shootnix@cpan.org>, or through
+the github: https://github.com/shootnix/activerecord-simple/issues
 
 =head1 SUPPORT
 
@@ -846,26 +871,13 @@ You can find documentation for this module with the perldoc command.
 
 You can also look for information at:
 
-=over 4
+=over 1
 
-=item * RT: CPAN's request tracker (report bugs here)
+=item * Github wiki:
 
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=ActiveRecord::Simple>
-
-=item * AnnoCPAN: Annotated CPAN documentation
-
-L<http://annocpan.org/dist/ActiveRecord::Simple>
-
-=item * CPAN Ratings
-
-L<http://cpanratings.perl.org/d/ActiveRecord::Simple>
-
-=item * Search CPAN
-
-L<http://search.cpan.org/dist/ActiveRecord::Simple/>
+L<https://github.com/shootnix/activerecord-simple/wiki>
 
 =back
-
 
 =head1 ACKNOWLEDGEMENTS
 

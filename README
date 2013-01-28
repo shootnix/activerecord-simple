@@ -17,7 +17,7 @@ The basic setup of youre package should be:
 
     1;
 
-And then, use youre package in a program:
+And then, you can use your package in a program:
 
     use Foo;
 
@@ -33,18 +33,19 @@ And then, use youre package in a program:
 
     say $foo->bar;
 
-That's it. ActiveRecord::Simple provides all basic operation's for creating,
-reading, updating and deleting records in your database.
+That's it. ActiveState::Simple provides a variety of techniques to make your work with
+data little easier. It contains only a basic set of operations, such as
+serch, create, update and delete data.
 
 ActiveRecord::Simple doesn't handle your database connection, but you may keep
-it in the special method "dbh":
+it in the special method (class attribute) "dbh":
 
     Foo->dbh($dbh);
 
     # or
     ActiveRecord::Simple->dbh($dbh);
 
-    # or you can use a special function for it:
+    # or you can use a special function, like this:
     sub dbhandler {
         unless ( $dbh->ping ) {
             $dbh->connect("...");
@@ -73,7 +74,6 @@ After installing, you can find documentation for this module with the
 perldoc command.
 
     perldoc ActiveRecord::Simple
-
 
 LICENSE AND COPYRIGHT
 
