@@ -8,9 +8,7 @@ WriteMakefile(
     AUTHOR              => q{shootnix <shootnix@cpan.org>},
     VERSION_FROM        => 'lib/ActiveRecord/Simple.pm',
     ABSTRACT_FROM       => 'lib/ActiveRecord/Simple.pm',
-    ($ExtUtils::MakeMaker::VERSION >= 6.3002
-      ? ('LICENSE'=> 'perl')
-      : ()),
+    LICENSE             => 'perl',
     PL_FILES            => {},
     PREREQ_PM => {
         'Test::More' => 0,

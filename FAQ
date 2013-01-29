@@ -1,5 +1,5 @@
-1. Why ActiveRecord::Simple implements so few methods?
-------------------------------------------------------
+1. Why does ActiveRecord::Simple implement so few methods?
+----------------------------------------------------------
 
 First, because of the speed. Second, there is no need to create what is not to
 be used all the time. We use search, create, delete and update. But we don't

@@ -838,7 +838,7 @@ Convert objects data to the simple perl hash:
 Checks weather an object is defined:
 
     my $person = MyModel::Person->find(1);
-    return unless $person->id_defined;
+    return unless $person->is_defined;
 
 =head2 fetch
 
