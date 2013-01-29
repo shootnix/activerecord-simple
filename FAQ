@@ -14,10 +14,10 @@ or anything else like that. The implementation of this in a separate module
 would be a mistake, imho. If you want the type checking, just use another programming
 language.
 
-3. Why a module does not handle a database connection itself?
--------------------------------------------------------------
+3. Why the module doesn't handle a database connection itself?
+--------------------------------------------------------------
 
-We have many ways to handle oure database connections, so why we should limit
+We have many ways to handle our database connections, so why we should limit
 our choice? ;-) When you use mod_perl, you can use Apache::DBI. In other systems,
 such as prefork, you may use something else. You can even write the class that
 fit to you perfectly.
