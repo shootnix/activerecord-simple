@@ -70,7 +70,7 @@ sub new {
         use strict 'refs';
     }
 
-    $param->{is_recorded} = undef;
+    $param->{isin_database} = undef;
 
     return bless $param || {}, $class;
 }
@@ -177,7 +177,7 @@ sub save {
     }
 
     my $result;
-    if ( $self->{is_recorded} ) {
+    if ( $self->{isin_database} ) {
 	$result = $self->update($save_param);
     }
     else {
@@ -193,7 +193,7 @@ sub insert {
     return unless $self->dbh && $param;
 
     my $table_name      = $self->get_table_name;
-    my @field_names     = sort keys %$param;
+    my @field_names     = grep { defined $param->{$_} } sort keys %$param;
     my $primary_key     = $self->get_primary_key;
 
     my $field_names_str = join q/, /, map { q/"/ . $_ . q/"/ } @field_names;
@@ -239,7 +239,7 @@ sub insert {
     }
 
     $self->$primary_key($pkey_val);
-    $self->{is_recorded} = 1;
+    $self->{isin_database} = 1;
 
     return $pkey_val;
 }
@@ -289,7 +289,7 @@ sub delete {
     my $res = undef;
     my $driver_name = $self->dbh->{Driver}{Name};
     if ( $self->dbh->do(quote_string($sql, $driver_name), undef, $self->{$pkey}) ) {
-	$self->{is_recorded} = undef;
+	$self->{isin_database} = undef;
 	delete $self->{$pkey};
 
 	$res = 1;
@@ -311,7 +311,7 @@ sub find {
         if ( $resultset && ref $resultset eq 'ARRAY' && scalar @$resultset > 0 ) {
             for my $param (@$resultset) {
 		my $obj = $class->new($param);
-		$obj->{is_recorded} = 1;
+		$obj->{isin_database} = 1;
                 push @bulk_objects, $obj;
             }
         }
@@ -329,7 +329,7 @@ sub find {
 	if ( $resultset && ref $resultset eq 'ARRAY' && scalar @$resultset > 0 ) {
 	    for my $paramset (@$resultset) {
 		my $obj = $class->new($paramset);
-		$obj->{is_recorded} = 1;
+		$obj->{isin_database} = 1;
 		push @bulk_objects, $obj;
 	    }
 	}
@@ -347,7 +347,7 @@ sub find {
             if ( $resultset && ref $resultset eq 'ARRAY' && scalar @$resultset > 0 ) {
                 for my $param (@$resultset) {
 		    my $obj = $class->new($param);
-		    $obj->{is_recorded} = 1;
+		    $obj->{isin_database} = 1;
                     push @bulk_objects, $obj;
                 }
             }
@@ -361,7 +361,7 @@ sub find {
             my $pkeyval = $param[0];
             $resultset = $self->find_one_by_primary_key($pkeyval);
             $self->fill_params($resultset);
-            $self->{is_recorded} = 1;
+            $self->{isin_database} = 1;
         }
     }
 
