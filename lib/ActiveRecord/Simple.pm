@@ -11,11 +11,11 @@ ActiveRecord pattern.
 
 =head1 VERSION
 
-Version 0.21
+Version 0.22
 
 =cut
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 
 use Data::Dumper;
 use utf8;
@@ -852,6 +852,60 @@ You can also specify how many objects you want to use:
 
     my @persons = MyModel::Person->find('id_person != ?', 1)->fetch(2);
     # fetching only 2 objects.
+
+=head1 Private Methods
+
+Most of this methods you can't use directly in your code.
+
+=head2 fill_params
+
+Fill parameters.
+
+=head2 find_many_by_condition
+
+One of the "find" methods.
+
+=head2 find_many_by_params
+
+One of the "find" methods.
+
+=head2 find_many_by_primary_keys
+
+One of the "find" methods.
+
+=head2 find_one_by_primary_key
+
+One of the "find" methods.
+
+=head2 get_all
+
+You can get a whole table as a hashref:
+
+    my $table = Person->get_all();
+
+You also may specify which rows you want to use:
+
+    my $table = Person->get_all(['name']);
+
+=head2 insert
+
+Insert (save).
+
+=head2 mk_accessors
+
+This method makes accessors.
+
+=head2 mk_attribute_getter
+
+This method makes attribute getter.
+
+=head2 quote_string
+
+Quote string.
+
+=head2 update
+
+Update (save).
 
 =head1 AUTHOR
 
