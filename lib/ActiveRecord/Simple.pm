@@ -15,7 +15,7 @@ Version 0.22
 
 =cut
 
-our $VERSION = '0.22';
+our $VERSION = '0.23';
 
 use Data::Dumper;
 use utf8;
@@ -209,7 +209,7 @@ sub _insert {
         };
 
 	$pkey_val = $self->dbh->selectrow_array(
-	    quote_string($sql_stm, $self->dbh->{Driver}{Name}),
+	    _quote_string($sql_stm, $self->dbh->{Driver}{Name}),
 	    undef,
 	    @bind
 	);
@@ -857,23 +857,23 @@ You can also specify how many objects you want to use:
 
 Most of this methods you can't use directly in your code.
 
-=head2 fill_params
+=head2 _fill_params
 
 Fill parameters.
 
-=head2 find_many_by_condition
+=head2 _find_many_by_condition
 
 One of the "find" methods.
 
-=head2 find_many_by_params
+=head2 _find_many_by_params
 
 One of the "find" methods.
 
-=head2 find_many_by_primary_keys
+=head2 _find_many_by_primary_keys
 
 One of the "find" methods.
 
-=head2 find_one_by_primary_key
+=head2 _find_one_by_primary_key
 
 One of the "find" methods.
 
@@ -887,7 +887,7 @@ You also may specify which rows you want to use:
 
     my $table = Person->get_all(['name']);
 
-=head2 insert
+=head2 _insert
 
 Insert (save).
 
@@ -895,15 +895,15 @@ Insert (save).
 
 This method makes accessors.
 
-=head2 mk_attribute_getter
+=head2 _mk_attribute_getter
 
 This method makes attribute getter.
 
-=head2 quote_string
+=head2 _quote_string
 
 Quote string.
 
-=head2 update
+=head2 _update
 
 Update (save).
 
