@@ -24,6 +24,11 @@ sub my_db_handler {
 ActiveRecord::Simple->dbh(&my_db_handler);
 #Person->dbh(&my_db_handler);
 
+my $person = Person->new();
+$person->insert({ first_name => 'Foo111', second_name => 'Bar222' })->save();
+
+=c
+
 my $person = Person->new({
     first_name  => 'Foo',
     second_name => 'Bar'

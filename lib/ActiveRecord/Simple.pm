@@ -27,7 +27,7 @@ my $dbhandler = undef;
 sub new {
     my ($class, $param) = @_;
 
-    $class->mk_accessors( $class->get_columns );
+    $class->_mk_accessors( $class->get_columns );
 
     if ( $class->can('get_relations') ) {
         my $relations = $class->get_relations;
@@ -75,7 +75,7 @@ sub new {
     return bless $param || {}, $class;
 }
 
-sub mk_accessors {
+sub _mk_accessors {
     my ($class, $fields) = @_;
 
     my $super = caller;
@@ -104,28 +104,28 @@ sub mk_accessors {
 sub columns {
     my ($class, $columns) = @_;
 
-    $class->mk_attribute_getter('get_columns', $columns);
+    $class->_mk_attribute_getter('get_columns', $columns);
 }
 
 sub primary_key {
     my ($class, $primary_key) = @_;
 
-    $class->mk_attribute_getter('get_primary_key', $primary_key);
+    $class->_mk_attribute_getter('get_primary_key', $primary_key);
 }
 
 sub table_name {
     my ($class, $table_name) = @_;
 
-    $class->mk_attribute_getter('get_table_name', $table_name);
+    $class->_mk_attribute_getter('get_table_name', $table_name);
 }
 
 sub relations {
     my ($class, $relations) = @_;
 
-    $class->mk_attribute_getter('get_relations', $relations);
+    $class->_mk_attribute_getter('get_relations', $relations);
 }
 
-sub mk_attribute_getter {
+sub _mk_attribute_getter {
     my ($class, $method_name, $return) = @_;
 
     my $pkg_method_name = $class . '::' . $method_name;
@@ -145,7 +145,7 @@ sub dbh {
     return $dbhandler;
 }
 
-sub quote_string {
+sub _quote_string {
     my ($string, $driver_name) = @_;
 
     $driver_name ||= 'Pg';
@@ -178,16 +178,16 @@ sub save {
 
     my $result;
     if ( $self->{isin_database} ) {
-	$result = $self->update($save_param);
+	$result = $self->_update($save_param);
     }
     else {
-        $result = $self->insert($save_param);
+        $result = $self->_insert($save_param);
     }
 
     return $result;
 }
 
-sub insert {
+sub _insert {
     my ($self, $param) = @_;
 
     return unless $self->dbh && $param;
@@ -221,7 +221,7 @@ sub insert {
         };
 
 	my $sth = $self->dbh->prepare(
-	    quote_string($sql_stm, $self->dbh->{Driver}{Name})
+	    _quote_string($sql_stm, $self->dbh->{Driver}{Name})
 	);
         $sth->execute(@bind);
 
@@ -244,7 +244,7 @@ sub insert {
     return $pkey_val;
 }
 
-sub update {
+sub _update {
     my ($self, $param) = @_;
 
     return unless $self->dbh && $param;
@@ -264,7 +264,7 @@ sub update {
     };
 
     return $self->dbh->do(
-	quote_string($sql_stm, $self->dbh->{Driver}{Name}),
+	_quote_string($sql_stm, $self->dbh->{Driver}{Name}),
 	undef,
 	@bind
     );
@@ -288,7 +288,7 @@ sub delete {
 
     my $res = undef;
     my $driver_name = $self->dbh->{Driver}{Name};
-    if ( $self->dbh->do(quote_string($sql, $driver_name), undef, $self->{$pkey}) ) {
+    if ( $self->dbh->do(_quote_string($sql, $driver_name), undef, $self->{$pkey}) ) {
 	$self->{isin_database} = undef;
 	delete $self->{$pkey};
 
@@ -305,7 +305,7 @@ sub find {
     my $self = $class->new();
 
     if ( ref $param[0] eq 'HASH' ) {
-        $resultset = $self->find_many_by_params( $param[0] );
+        $resultset = $self->_find_many_by_params( $param[0] );
 
         my @bulk_objects;
         if ( $resultset && ref $resultset eq 'ARRAY' && scalar @$resultset > 0 ) {
@@ -323,7 +323,7 @@ sub find {
     }
     elsif ( ref $param[0] eq 'ARRAY' ) {
 	my $pkeyvals = $param[0];
-	my $resultset = $self->find_many_by_primary_keys($pkeyvals);
+	my $resultset = $self->_find_many_by_primary_keys($pkeyvals);
 
 	my @bulk_objects;
 	if ( $resultset && ref $resultset eq 'ARRAY' && scalar @$resultset > 0 ) {
@@ -341,7 +341,7 @@ sub find {
     }
     else {
         if ( scalar @param > 1 ) {
-            $resultset = $self->find_many_by_condition(@param);
+            $resultset = $self->_find_many_by_condition(@param);
 
             my @bulk_objects;
             if ( $resultset && ref $resultset eq 'ARRAY' && scalar @$resultset > 0 ) {
@@ -359,8 +359,8 @@ sub find {
         }
         else {
             my $pkeyval = $param[0];
-            $resultset = $self->find_one_by_primary_key($pkeyval);
-            $self->fill_params($resultset);
+            $resultset = $self->_find_one_by_primary_key($pkeyval);
+            $self->_fill_params($resultset);
             $self->{isin_database} = 1;
         }
     }
@@ -383,7 +383,7 @@ sub fetch {
     }
 }
 
-sub fill_params {
+sub _fill_params {
     my ($self, $params) = @_;
 
     return unless $params;
@@ -396,7 +396,7 @@ sub fill_params {
     return $self;
 }
 
-sub find_many_by_primary_keys {
+sub _find_many_by_primary_keys {
     my ($self, $pkeyvals) = @_;
 
     return unless $pkeyvals && ref $pkeyvals eq 'ARRAY' && scalar @$pkeyvals > 0;
@@ -412,12 +412,12 @@ sub find_many_by_primary_keys {
     };
 
     return $self->dbh->selectall_arrayref(
-	quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
+	_quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
 	{ Slice => {} }
     );
 }
 
-sub find_many_by_condition {
+sub _find_many_by_condition {
     my ($self, @param) = @_;
 
     return unless $self->dbh;
@@ -432,13 +432,13 @@ sub find_many_by_condition {
     };
 
     return $self->dbh->selectall_arrayref(
-	quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
+	_quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
 	{ Slice => {} },
 	@param
     );
 }
 
-sub find_many_by_params {
+sub _find_many_by_params {
     my ($self, $param) = @_;
 
     return unless $self->dbh && $param;
@@ -454,13 +454,13 @@ sub find_many_by_params {
     };
 
     return $self->dbh->selectall_arrayref(
-	quote_string($sql_stm, $self->dbh->{Driver}{Name}),
+	_quote_string($sql_stm, $self->dbh->{Driver}{Name}),
 	{ Slice => {} },
 	@bind
     );
 }
 
-sub find_one_by_primary_key {
+sub _find_one_by_primary_key {
     my ($self, $pkeyval) = @_;
 
     return unless $self->dbh;
@@ -475,7 +475,7 @@ sub find_one_by_primary_key {
     };
 
     return $self->dbh->selectrow_hashref(
-	quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
+	_quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
 	undef,
 	$pkeyval
     );
@@ -514,7 +514,7 @@ sub is_exists_in_database {
     };
 
     return $self->dbh->selectrow_array(
-	quote_string($sql, $self->dbh->{Driver}{Name}),
+	_quote_string($sql, $self->dbh->{Driver}{Name}),
 	undef,
 	@bind
     );
@@ -543,7 +543,7 @@ sub get_all {
     };
 
     return $class->dbh->selectall_arrayref(
-	quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
+	_quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
 	{ Slice => {} }
     );
 }
@@ -891,7 +891,7 @@ You also may specify which rows you want to use:
 
 Insert (save).
 
-=head2 mk_accessors
+=head2 _mk_accessors
 
 This method makes accessors.
 

@@ -15,4 +15,14 @@ __PACKAGE__->relations({
     }
 });
 
+#sub insert {
+#    my ($self, $params) = @_;
+#
+#    my $obj = __PACKAGE__->new($params);
+#
+#    return $obj;
+#}
+
+sub insert { __PACKAGE__->new($_[1]) }
+
 1;
