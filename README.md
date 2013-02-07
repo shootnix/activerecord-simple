@@ -4,9 +4,9 @@ ActiveRecord::Simple
 ActiveRecord::Simple - Simple to use lightweight implementation of
 ActiveRecord pattern.
 
-It is fast, don't have any depencies and realy easy to use.
+It is fast, don't have any dependencies and realy easy to use.
 
-The basic setup of youre package should be:
+The basic setup of your package should be:
 
     package Model::Foo;
 
@@ -36,7 +36,7 @@ And then, you can use your package in a program:
 
 That's it. ActiveState::Simple provides a variety of techniques to make your work with
 data little easier. It contains only a basic set of operations, such as
-serch, create, update and delete data.
+search, create, update and delete data.
 
 ActiveRecord::Simple doesn't handle your database connection, but you may keep
 it in the special method (class attribute) "dbh":
