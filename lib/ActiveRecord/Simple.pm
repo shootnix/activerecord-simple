@@ -301,6 +301,8 @@ sub delete {
 sub find {
     my ($class, @param) = @_;
 
+    say '>> find';
+
     my $resultset;
     my $self = $class->new();
 
