@@ -583,7 +583,7 @@ ActiveRecord::Simple
 =head1 DESCRIPTION
 
 ActiveRecord::Simple is a simple lightweight implementation of ActiveRecord
-pattern. It's fast, very simple and very ligth.
+pattern. It's fast, very simple and very light.
 
 =head1 SYNOPSIS
 
@@ -644,7 +644,7 @@ That's it! Now you're ready to use your active-record class in the application:
 
 ActiveState::Simple provides a variety of techniques to make your work with
 data little easier. It contains only a basic set of operations, such as
-serch, create, update and delete data.
+search, create, update and delete data.
 
 If you realy need more complicated solution, just try to expand on it with your
 own methods.
@@ -653,7 +653,7 @@ own methods.
 
 Class methods mean that you can't do something with a separate row of the table,
 but they need to manipulate of the table as a whole object. You may find a row
-in the table or keep database hanlder etc.
+in the table or keep database handler etc.
 
 =head2 new
 
@@ -675,14 +675,14 @@ method is required to use in the child (your model) classes.
 
     __PACKAGE__->primary_key('id_person');
 
-Set name of the primary key. This method is reqired to use in the child
+Set name of the primary key. This method is required to use in the child
 (your model) classes.
 
 =head2 table_name
 
     __PACKAGE__->table_name('persons');
 
-Set name of the table. This method is reqired to use in the child (your model)
+Set name of the table. This method is required to use in the child (your model)
 classes.
 
 =head2 relations
@@ -696,7 +696,7 @@ classes.
     });
 
 It's not a required method and you don't have to use it if you don't want to use
-any relationships in youre tables and objects. However, if you need to,
+any relationships in your tables and objects. However, if you need to,
 just keep this simple schema in youre mind:
 
     __PACKAGE__->relations({
@@ -730,7 +730,7 @@ There are several ways to find someone in your database using ActiveRecord::Simp
     # by where-condtions:
     my @persons = MyModel::Person->find('first_name = ? and id_person > ?', 'Foo', 1);
 
-If you want to get an instance of youre active-record class and if you know the
+If you want to get an instance of your active-record class and if you know the
 primary key, you can do it, just put the primary key as a parameter into the
 find method:
 
