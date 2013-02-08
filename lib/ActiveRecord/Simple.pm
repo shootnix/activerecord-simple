@@ -11,11 +11,11 @@ ActiveRecord pattern.
 
 =head1 VERSION
 
-Version 0.22
+Version 0.24
 
 =cut
 
-our $VERSION = '0.23';
+our $VERSION = '0.24';
 
 use Data::Dumper;
 use utf8;
@@ -32,13 +32,16 @@ sub new {
     if ( $class->can('get_relations') ) {
         my $relations = $class->get_relations;
 	no strict 'refs';
+
         RELNAME:
         for my $relname ( keys %{ $relations } ) {
             my $pkg_method_name = $class . '::' . $relname;
+
             next RELNAME if $class->can($pkg_method_name);
 
             *{$pkg_method_name} = sub {
                 my $self = shift;
+
                 unless ( $self->{"relation_instance_$relname"} ) {
                     my $relation = $class->get_relations->{$relname};
                     my $pkey = $self->get_primary_key;
@@ -52,7 +55,7 @@ sub new {
                         $self->{"relation_instance_$relname"} =
 			    $relation->{class}->find(
                                 "$fkey = ?",
-                                $self->$pkey
+                                $self->$fkey
                             )->fetch();
                     }
                     elsif ( $type eq 'many' ) {
@@ -300,8 +303,6 @@ sub delete {
 
 sub find {
     my ($class, @param) = @_;
-
-    say '>> find';
 
     my $resultset;
     my $self = $class->new();
