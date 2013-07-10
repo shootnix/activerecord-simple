@@ -398,6 +398,90 @@ sub delete {
 sub find {
     my ($class, @param) = @_;
 
+    my $self = $class->new();
+    if (scalar @param == 1 && !ref $param[0]) {
+        #my $self = $class->new();
+        my $resultset = $self->_find_one_by_primary_key($param[0]);
+
+        $self->_fill_params($resultset);
+        $self->{isin_database} = 1;
+    }
+    else {
+        ### ... prepare the request
+        $self->{prep_request_method} = undef;
+        $self->{prep_request_params} = \@param;
+
+        if (ref $param[0] && ref $param[0] eq 'HASH') {
+            $self->{prep_request_method} = '_find_many_by_params';
+        }
+        elsif (ref $param[0] && ref $param[0] eq 'ARRAY') {
+            $self->{prep_request_method} = '_find_many_by_primary_keys';
+        }
+        else {
+            $self->{prep_request_method} = '_find_many_by_condition';
+        }
+    }
+
+    return $self;
+}
+
+sub fetch {
+    my ($self, $limit) = @_;
+
+    my $resultset = $self->_find_many_by_prepared_statement();
+
+    my @bulk_objects;
+    if (defined $resultset && ref $resultset eq 'ARRAY' && scalar @$resultset > 0) {
+        my $class = ref $self;
+        for my $object_data (@$resultset) {
+            my $obj = $class->new($object_data);
+            $obj->{isin_database} = 1;
+            push @bulk_objects, $obj;
+        }
+    }
+    else {
+        push @bulk_objects, $self;
+    }
+
+    $self->{_objects} = \@bulk_objects;
+
+    $self->get($limit);
+}
+
+sub order_by {
+    my ($self, @param) = @_;
+
+    return if not defined $self->{prep_request_method};
+
+    $self->{prep_order_by} = \@param;
+
+    return $self;
+}
+
+sub desc {
+    my ($self, @param) = @_;
+
+    return if not defined $self->{prep_request_method};
+
+    $self->{prep_desc} = \@param;
+
+    return $self;
+}
+
+sub asc {
+    my ($self, @param) = @_;
+
+    return if not defined $self->{prep_request_method};
+
+    $self->{prep_asc} = \@param;
+
+    return $self;
+}
+
+=old
+sub find {
+    my ($class, @param) = @_;
+
     my $resultset;
     my $self = $class->new();
 
@@ -465,8 +549,9 @@ sub find {
 
     return $self;
 }
+=cut
 
-sub fetch {
+sub get {
     my ($self, $time) = @_;
 
     return unless $self->{_objects} && ref $self->{_objects} eq 'ARRAY';
@@ -494,6 +579,19 @@ sub _fill_params {
     return $self;
 }
 
+sub _find_many_by_prepared_statement {
+    my ($self) = @_;
+
+    return unless $self->{prep_request_method} && $self->{prep_request_params};
+
+    my $method = $self->{prep_request_method};
+    my @params = @{ $self->{prep_request_params} };
+
+    my $resultset = $self->$method(@params);
+
+    return $resultset;
+}
+
 sub _find_many_by_primary_keys {
     my ($self, $pkeyvals) = @_;
 
@@ -509,10 +607,44 @@ sub _find_many_by_primary_keys {
 	    "$pkey" in ($whereinstr)
     };
 
+    $self->_add_result_ordering($sql_stmt) if defined $self->{prep_order_by};
+
     return $self->dbh->selectall_arrayref(
 	_quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
 	{ Slice => {} }
     );
+}
+
+sub _add_result_ordering {
+    my ($self, $sql_stmt) = @_;
+
+    if (defined $self->{prep_order_by}) {
+        $$sql_stmt .= ' order by ';
+        $$sql_stmt .= join q/, /, map { q/"/.$_.q/"/ } @{ $self->{prep_order_by} };
+    }
+
+    if (defined $self->{prep_desc}) {
+        $$sql_stmt .= ' desc';
+    }
+
+    if (defined $self->{prep_asc}) {
+        $$sql_stmt .= ' asc';
+    }
+
+    $self->_clean_prep_data(); ## todo: rename method
+}
+
+# todo: code refactoring
+sub _clean_prep_data {
+    my ($self) = @_;
+
+    delete $self->{prep_request_method};
+    delete $self->{prep_request_params};
+    delete $self->{prep_order_by};
+    delete $self->{prep_desc};
+    delete $self->{prep_asc};
+
+    return 1;
 }
 
 sub _find_many_by_condition {
@@ -528,6 +660,8 @@ sub _find_many_by_condition {
         where
             $wherestr
     };
+
+    $self->_add_result_ordering(\$sql_stmt) if defined $self->{prep_order_by};
 
     return $self->dbh->selectall_arrayref(
 	_quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
@@ -545,14 +679,16 @@ sub _find_many_by_params {
     my $where_str = join q/ and /, map { q/"/ . $_ . q/"/ .' = ?' } sort keys %$param;
     my @bind = values %$param;
 
-    my $sql_stm = qq{
+    my $sql_stmt = qq{
         select * from "$table_name"
         where
             $where_str
     };
 
+    $self->_add_result_ordering(\$sql_stmt) if defined $self->{prep_order_by};
+
     return $self->dbh->selectall_arrayref(
-	_quote_string($sql_stm, $self->dbh->{Driver}{Name}),
+	_quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
 	{ Slice => {} },
 	@bind
     );
@@ -573,6 +709,8 @@ sub _find_one_by_primary_key {
         where
             "$pkey" = ?
     };
+
+    $self->_add_result_ordering(\$sql_stmt) if defined $self->{prep_order_by};
 
     return $self->dbh->selectrow_hashref(
 	_quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
@@ -676,7 +814,7 @@ ActiveRecord::Simple
 
 =head1 VERSION
 
-0.21
+0.25
 
 =head1 DESCRIPTION
 
@@ -723,14 +861,14 @@ That's it! Now you're ready to use your active-record class in the application:
     # You can add any relationships to your tables:
     __PACKAGE__->relations({
         cars => {
-            class       => 'MyModel::Car',
-            foreign_key => 'id_person',
-            type        => 'many',
+            class => 'MyModel::Car',
+            key   => 'id_person',
+            type  => 'many',
         },
         wife => {
-            class       => 'MyModel::Wife',
-            foreign_key => 'id_person',
-            type        => 'one',
+            class => 'MyModel::Wife',
+            key   => 'id_person',
+            type  => 'one',
         }
     });
 
@@ -773,7 +911,7 @@ method is required to use in the child (your model) classes.
 
     __PACKAGE__->primary_key('id_person');
 
-Set name of the primary key. This method is required to use in the child
+Set name of the primary key. This method is not required to use in the child
 (your model) classes.
 
 =head2 table_name
@@ -788,8 +926,8 @@ classes.
     __PACKAGE__->relations({
         cars => {
             class => 'MyModel::Car',
-            foreign_key => 'id_person',
-            type => 'many'
+            key   => 'id_person',
+            type  => 'many'
         },
     });
 
@@ -800,8 +938,8 @@ just keep this simple schema in youre mind:
     __PACKAGE__->relations({
         [relation key] => {
             class => [class name],
-            foreign_key => [column that refferers to the table],
-            type => [many or one]
+            key   => [column that refferers to the table],
+            type  => [many or one]
         },
     })
 

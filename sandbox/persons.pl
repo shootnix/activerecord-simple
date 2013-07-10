@@ -27,6 +27,8 @@ ActiveRecord::Simple->dbh(&my_db_handler);
 my $person = Person->new();
 $person->insert({ first_name => 'Foo111', second_name => 'Bar222' })->save();
 
+#Person->find({ name => 'Foo' });
+
 =c
 
 my $person = Person->new({

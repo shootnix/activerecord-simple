@@ -67,6 +67,18 @@ Artist->dbh($dbh);
 };
 
 {
+    ok 1, '~ cd ~';
+    ok my $album = CD->find({ title => 'Zooropa' })->fetch;
+    is $album->title, 'Zooropa';
+
+    ok $album = CD->find({ title => 'Zooropa', release => '1993' })->fetch;
+    is $album->title, 'Zooropa';
+
+    ok my @discs = CD->find('id > ? order by title', 1)->fetch();
+    is $discs[0]->title, 'Boy';
+}
+
+{
     ok 1, '~ artist <-> label ~';
     ok my $metallica = Artist->find({ name => 'Metallica' })->fetch;
     is $metallica->name, 'Metallica';
@@ -133,6 +145,12 @@ Artist->dbh($dbh);
     ok my $cd = $song->albums->fetch(1);
     is $cd->title, 'Load';
 }
+
+{
+    ok 1, '~ new fetch ~';
+    ok my @cd = CD->find('id > ?', 1)->order_by('title', 'id')->fetch();
+}
+
 
 =c
 ok my $artist = Artist->find({ name => 'Metallica' })->fetch();
