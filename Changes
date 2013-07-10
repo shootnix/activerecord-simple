@@ -7,5 +7,10 @@ Revision history for ActiveRecord::Simple
         * Many bug fixes
         * Improved relations
         + Added test suite (see sandbox)
-        + Added relation type many-to-many   
+        + Added relation type many-to-many
+
+0.30    10.07.2013
+        * Minor bug bixes
+        + Added ordering methods "order_by", "asc" and "desc"
+   
 

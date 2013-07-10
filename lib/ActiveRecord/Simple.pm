@@ -11,11 +11,11 @@ ActiveRecord pattern.
 
 =head1 VERSION
 
-Version 0.25
+Version 0.30
 
 =cut
 
-our $VERSION = '0.25';
+our $VERSION = '0.30';
 
 use utf8;
 use Encode;
@@ -920,6 +920,10 @@ If you want to use a real sql where-condition:
     my $res = MyModel::Person->find('first_name = ? or id_person > ?', 'Foo', 1);
     # select * from persons where first_name = "Foo" or id_person > 1;
 
+You can use the ordering of results, such as ORDER BY, ASC and DESC:
+
+    my @persons = MyModel::Person->find('age > ?', 21)->order_by('name')->desc->fetch();
+    my @persons = MyModel::Person->find('age > ?', 21)->order_by('name', 'age')->fetch();
 
 =head2 dbh
 

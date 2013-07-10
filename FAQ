@@ -35,3 +35,10 @@ And then in your script:
     my $log = MyLog::DB->new();
     $log->insert({ date => 'now()', 'text' => 'login' });
     $log->insert({ date => 'now()', 'text' => 'logout' });
+
+5. May I use the ordering of my searching results?
+--------------------------------------------------
+
+Yes. Just run ordering methods (order_by, desc, asc) right before you fetching it:
+
+    my @persons = MyModel::Person->find('age > ?', 21)->order_by('name')->desc->fetch();
