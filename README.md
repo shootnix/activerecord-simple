@@ -34,7 +34,7 @@ And then, you can use your package in a program:
 
     say $foo->bar;
 
-That's it. ActiveState::Simple provides a variety of techniques to make your work with
+That's it. ActiveRecord::Simple provides a variety of techniques to make your work with
 data little easier. It contains only a basic set of operations, such as
 search, create, update and delete data.
 
