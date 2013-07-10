@@ -124,9 +124,11 @@ Artist->dbh($dbh);
     ok my $r2 = Rating->find({ range => 3 })->fetch;
     ok !$r2->is_defined;
 }
+
 {
     ok 1, '~ artist <- arist_cd -> cd ~';
     ok my $artist = Artist->find({ name => 'Metallica' })->fetch;
+
     ok my @albums = $artist->albums->fetch();
     is scalar @albums, 2;
 
@@ -149,10 +151,17 @@ Artist->dbh($dbh);
 {
     ok 1, '~ new fetch ~';
     ok my @cd = CD->find('id > ?', 1)->order_by('title', 'id')->fetch();
+    ok @cd = CD->find('id > ?', 2)->fetch();
+    ok @cd = CD->find({ title => 'Load' })->fetch();
+    ok scalar @cd == 1;
+
+    ok @cd = CD->find([1, 2, 3])->fetch();
+    ok scalar @cd == 3;
+
+    ok my $cd = CD->find(1);
+    is $cd->title, 'Load';
 }
 
-
-=c
 ok my $artist = Artist->find({ name => 'Metallica' })->fetch();
 is $artist->label->name, 'EMI';
 
@@ -160,8 +169,7 @@ ok my $label = Label->find({ name => 'EMI' })->fetch();
 is $label->name, 'EMI';
 
 while ( my $artist = $label->artists->fetch() ) {
-    ok $artist->is_defined;
-    say $artist->name;
+    ok $artist->is_defined, 'artist for label ' . $label->name . ': ' . $artist->name;
 }
-=cut
+
 done_testing;

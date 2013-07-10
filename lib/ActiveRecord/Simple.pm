@@ -284,15 +284,12 @@ sub _insert {
 
     return unless $self->dbh && $param;
 
-    #say Dumper $param;
-
     my $table_name      = $self->get_table_name;
     my @field_names     = grep { defined $param->{$_} } sort keys %$param;
     my $primary_key;
     if ( $self->can('get_primary_key') ) {
         $primary_key = $self->get_primary_key;
     }
-    #my $primary_key     = $self->get_primary_key;
 
     my $field_names_str = join q/, /, map { q/"/ . $_ . q/"/ } @field_names;
     my $values          = join q/, /, map { '?' } @field_names;
@@ -304,7 +301,6 @@ sub _insert {
         values ($values)
     };
 
-    #say 'SQL: ' . $sql_stm;
     if ( $self->dbh->{Driver}->{Name} eq 'Pg' ) {
         $sql_stm .= ' returning ' . $primary_key if $primary_key;
 
@@ -428,6 +424,10 @@ sub find {
 sub fetch {
     my ($self, $limit) = @_;
 
+    if (defined $self->{_objects}) {
+        return $self->get($limit);
+    }
+
     my $resultset = $self->_find_many_by_prepared_statement();
 
     my @bulk_objects;
@@ -477,79 +477,6 @@ sub asc {
 
     return $self;
 }
-
-=old
-sub find {
-    my ($class, @param) = @_;
-
-    my $resultset;
-    my $self = $class->new();
-
-    if ( ref $param[0] eq 'HASH' ) {
-        $resultset = $self->_find_many_by_params( $param[0] );
-
-        my @bulk_objects;
-        if ( $resultset && ref $resultset eq 'ARRAY' && scalar @$resultset > 0 ) {
-            for my $param (@$resultset) {
-		my $obj = $class->new($param);
-		$obj->{isin_database} = 1;
-                push @bulk_objects, $obj;
-            }
-        }
-        else {
-            push @bulk_objects, $self;
-        }
-
-        $self->{_objects} = \@bulk_objects;
-    }
-    elsif ( ref $param[0] eq 'ARRAY' ) {
-	my $pkeyvals = $param[0];
-	my $resultset = $self->_find_many_by_primary_keys($pkeyvals);
-
-	my @bulk_objects;
-	if ( $resultset && ref $resultset eq 'ARRAY' && scalar @$resultset > 0 ) {
-	    for my $paramset (@$resultset) {
-		my $obj = $class->new($paramset);
-		$obj->{isin_database} = 1;
-		push @bulk_objects, $obj;
-	    }
-	}
-	else {
-	    push @bulk_objects, $self;
-	}
-
-	$self->{_objects} = \@bulk_objects;
-    }
-    else {
-        if ( scalar @param > 1 ) {
-            $resultset = $self->_find_many_by_condition(@param);
-
-            my @bulk_objects;
-            if ( $resultset && ref $resultset eq 'ARRAY' && scalar @$resultset > 0 ) {
-                for my $param (@$resultset) {
-		    my $obj = $class->new($param);
-		    $obj->{isin_database} = 1;
-                    push @bulk_objects, $obj;
-                }
-            }
-            else {
-                push @bulk_objects, $self;
-            }
-
-            $self->{_objects} = \@bulk_objects;
-        }
-        else {
-            my $pkeyval = $param[0];
-            $resultset = $self->_find_one_by_primary_key($pkeyval);
-
-            $self->_fill_params($resultset);
-            $self->{isin_database} = 1;
-        }
-    }
-
-    return $self;
-}
-=cut
 
 sub get {
     my ($self, $time) = @_;
@@ -631,20 +558,13 @@ sub _add_result_ordering {
         $$sql_stmt .= ' asc';
     }
 
-    $self->_clean_prep_data(); ## todo: rename method
+    $self->_delete_keys(qr/^prep\_/);
 }
 
-# todo: code refactoring
-sub _clean_prep_data {
-    my ($self) = @_;
+sub _delete_keys {
+    my ($self, $rx) = @_;
 
-    delete $self->{prep_request_method};
-    delete $self->{prep_request_params};
-    delete $self->{prep_order_by};
-    delete $self->{prep_desc};
-    delete $self->{prep_asc};
-
-    return 1;
+    map { delete $self->{$_} if $_ =~ $rx } keys %$self;
 }
 
 sub _find_many_by_condition {
