@@ -425,7 +425,7 @@ sub fetch {
     my ($self, $limit) = @_;
 
     if (defined $self->{_objects}) {
-        return $self->get($limit);
+        return $self->_get($limit);
     }
 
     my $resultset = $self->_find_many_by_prepared_statement();
@@ -445,7 +445,7 @@ sub fetch {
 
     $self->{_objects} = \@bulk_objects;
 
-    $self->get($limit);
+    $self->_get($limit);
 }
 
 sub order_by {
@@ -478,7 +478,7 @@ sub asc {
     return $self;
 }
 
-sub get {
+sub _get {
     my ($self, $time) = @_;
 
     return unless $self->{_objects} && ref $self->{_objects} eq 'ARRAY';
@@ -925,6 +925,29 @@ You can use the ordering of results, such as ORDER BY, ASC and DESC:
     my @persons = MyModel::Person->find('age > ?', 21)->order_by('name')->desc->fetch();
     my @persons = MyModel::Person->find('age > ?', 21)->order_by('name', 'age')->fetch();
 
+=head2 order_by
+
+Order your results by specified fields:
+
+    my @persons = MyModel::Person->find({ city => 'NY' })->order_by('name')->fetch();
+
+This method uses as many fields as you want:
+
+    my @fields = ('name', 'age', 'zip');
+    my @persons = MyModel::Person->find({ city => 'NY' })->order_by(@fields)->fetch();
+
+=head2 asc
+
+Use this attribute to order your results ascending:
+
+    MyModel::Person->find([1, 3, 5, 2])->order_by('id')->asc->fetch();
+
+=head2 desc
+
+Use this attribute to order your results ascending:
+
+    MyModel::Person->find([1, 3, 5, 2])->order_by('id')->desc->fetch();
+
 =head2 dbh
 
 Keeps a database connection handler. It's not a class method actually, this is
@@ -1013,30 +1036,6 @@ You can also specify how many objects you want to use:
     my @persons = MyModel::Person->find('id_person != ?', 1)->fetch(2);
     # fetching only 2 objects.
 
-=head1 Private Methods
-
-Most of this methods you can't use directly in your code.
-
-=head2 _fill_params
-
-Fill parameters.
-
-=head2 _find_many_by_condition
-
-One of the "find" methods.
-
-=head2 _find_many_by_params
-
-One of the "find" methods.
-
-=head2 _find_many_by_primary_keys
-
-One of the "find" methods.
-
-=head2 _find_one_by_primary_key
-
-One of the "find" methods.
-
 =head2 get_all
 
 You can get a whole table as a hashref:
@@ -1046,26 +1045,6 @@ You can get a whole table as a hashref:
 You also may specify which rows you want to use:
 
     my $table = Person->get_all(['name']);
-
-=head2 _insert
-
-Insert (save).
-
-=head2 _mk_accessors
-
-This method makes accessors.
-
-=head2 _mk_attribute_getter
-
-This method makes attribute getter.
-
-=head2 _quote_string
-
-Quote string.
-
-=head2 _update
-
-Update (save).
 
 =head1 AUTHOR
 

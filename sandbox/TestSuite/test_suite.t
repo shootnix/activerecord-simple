@@ -162,6 +162,12 @@ Artist->dbh($dbh);
     is $cd->title, 'Load';
 }
 
+{
+    ok 1, '~ get_all method ~';
+    ok my $cdtable = CD->get_all();
+    is ref $cdtable, 'ARRAY';
+}
+
 ok my $artist = Artist->find({ name => 'Metallica' })->fetch();
 is $artist->label->name, 'EMI';
 
