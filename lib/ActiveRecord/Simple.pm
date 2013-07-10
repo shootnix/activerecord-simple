@@ -869,6 +869,15 @@ just keep this simple schema in youre mind:
 
     $package_instance->[relation key]->[any method from the related class];
 
+=head2 get_all
+
+You can get a whole table as an arrayref of hashref's:
+
+    my $table = Person->get_all();
+
+You also may specify which rows you want to use:
+
+    my $table = Person->get_all(['name']);
 
 =head2 find
 
@@ -1035,16 +1044,6 @@ You can also specify how many objects you want to use:
 
     my @persons = MyModel::Person->find('id_person != ?', 1)->fetch(2);
     # fetching only 2 objects.
-
-=head2 get_all
-
-You can get a whole table as a hashref:
-
-    my $table = Person->get_all();
-
-You also may specify which rows you want to use:
-
-    my $table = Person->get_all(['name']);
 
 =head1 AUTHOR
 
