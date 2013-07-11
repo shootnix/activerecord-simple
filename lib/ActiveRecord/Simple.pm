@@ -11,11 +11,11 @@ ActiveRecord pattern.
 
 =head1 VERSION
 
-Version 0.30
+Version 0.31
 
 =cut
 
-our $VERSION = '0.30';
+our $VERSION = '0.31';
 
 use utf8;
 use Encode;
@@ -61,7 +61,7 @@ sub new {
                         $type .= $rel_opts->{type} if $rel_opts_class eq $class;
                     }
 
-                    if ( $type ~~ ['one_to_many', 'one_to_one'] ) {
+                    if ( $type eq 'one_to_many' or $type eq 'one_to_one' ) {
                         my ($pkey, $fkey_val);
                         if ( $rel_class->can('get_primary_key') ) {
                             $pkey = $rel_class->get_primary_key;
@@ -78,7 +78,7 @@ sub new {
                             $fkey_val
                         )->fetch();
                     }
-                    elsif ( $type ~~ ['many_to_one'] ) {
+                    elsif ( $type eq 'many_to_one' ) {
                         unless ( $self->can('get_primary_key') ) {
                             return $rel_class->new();
                         }
@@ -90,13 +90,12 @@ sub new {
 				$self->$pkey,
 			    );
                     }
-                    elsif ( $type ~~ ['many_to_many'] ) {
+                    elsif ( $type eq 'many_to_many' ) {
                         $self->{"relation_instance_$relname"} =
                             $rel_class->_find_many_to_many({
                                 root_class => $class,
                                 m_class    => ( %{ $rel->{class} } )[0],
                                 self       => $self,
-                                #middle_class_name => ( %{ $rel->{class} } )[0],
                             });
                     }
                 }
@@ -131,23 +130,22 @@ sub _find_many_to_many {
     }
 
     my $connected_table_name = $class->get_table_name;
-    my @sql_tokens = (
-        'select',
-        "$connected_table_name\.*",
-        'from',
-        $param->{m_class}->get_table_name,
-        'join',
-        $connected_table_name,
-        'on',
-        $connected_table_name . '.' . $class->get_primary_key,
-        '=',
-        $param->{m_class}->get_table_name . '.' . $class_opts->{key},
-        'where',
-        $root_class_opts->{key},
-        '=',
-        $param->{self}->{ $param->{root_class}->get_primary_key },
-    );
-    my $sql_stm = join q/ /, @sql_tokens;
+    my $sql_stm;
+    $sql_stm .=
+        'select ' .
+        "$connected_table_name\.*" .
+        ' from ' .
+        $param->{m_class}->get_table_name .
+        ' join ' .
+        $connected_table_name .
+        ' on ' .
+        $connected_table_name . '.' . $class->get_primary_key .
+        ' = ' .
+        $param->{m_class}->get_table_name . '.' . $class_opts->{key} .
+        ' where ' .
+        $root_class_opts->{key} .
+        ' = ' .
+        $param->{self}->{ $param->{root_class}->get_primary_key };
 
     my $container_class = $class->new();
     my $resultset = $class->dbh->selectall_arrayref($sql_stm, { Slice => {} });
@@ -395,15 +393,13 @@ sub find {
     my ($class, @param) = @_;
 
     my $self = $class->new();
-    if (scalar @param == 1 && !ref $param[0]) {
-        #my $self = $class->new();
+    if (scalar @param == 1 && ! ref $param[0]) {
         my $resultset = $self->_find_one_by_primary_key($param[0]);
 
         $self->_fill_params($resultset);
         $self->{isin_database} = 1;
     }
     else {
-        ### ... prepare the request
         $self->{prep_request_method} = undef;
         $self->{prep_request_params} = \@param;
 
@@ -424,12 +420,9 @@ sub find {
 sub fetch {
     my ($self, $limit) = @_;
 
-    if (defined $self->{_objects}) {
-        return $self->_get($limit);
-    }
+    return $self->_get($limit) if defined $self->{_objects};
 
     my $resultset = $self->_find_many_by_prepared_statement();
-
     my @bulk_objects;
     if (defined $resultset && ref $resultset eq 'ARRAY' && scalar @$resultset > 0) {
         my $class = ref $self;
@@ -459,11 +452,11 @@ sub order_by {
 }
 
 sub desc {
-    my ($self, @param) = @_;
+    my ($self) = @_;
 
     return if not defined $self->{prep_request_method};
 
-    $self->{prep_desc} = \@param;
+    $self->{prep_desc} = 1;
 
     return $self;
 }
@@ -473,7 +466,7 @@ sub asc {
 
     return if not defined $self->{prep_request_method};
 
-    $self->{prep_asc} = \@param;
+    $self->{prep_asc} = 1;
 
     return $self;
 }
@@ -534,7 +527,7 @@ sub _find_many_by_primary_keys {
 	    "$pkey" in ($whereinstr)
     };
 
-    $self->_add_result_ordering($sql_stmt) if defined $self->{prep_order_by};
+    $self->_add_result_ordering(\$sql_stmt) if defined $self->{prep_order_by};
 
     return $self->dbh->selectall_arrayref(
 	_quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
@@ -620,7 +613,6 @@ sub _find_one_by_primary_key {
     return unless $self->dbh;
 
     my $table_name = $self->get_table_name;
-    #return unless $self->can('get_primary_key');
 
     my $pkey = $self->get_primary_key;
 
@@ -734,7 +726,7 @@ ActiveRecord::Simple
 
 =head1 VERSION
 
-0.25
+0.31
 
 =head1 DESCRIPTION
 

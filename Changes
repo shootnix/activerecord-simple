@@ -13,4 +13,5 @@ Revision history for ActiveRecord::Simple
         * Minor bug bixes
         + Added ordering methods "order_by", "asc" and "desc"
    
-
+0.31    11.07.2013
+        * Fixes
