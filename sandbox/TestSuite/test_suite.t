@@ -169,14 +169,32 @@ Artist->dbh($dbh);
 }
 
 {
-    ok 1, '~ EXPERIMENTAL ~';
+    ok 1, '~ use_smart_saving ~';
     ok my $cd = CD->find(1);
 
     ok $cd->is_smart_saving_turned_on;
+    ok $cd->save();
 
-    ok my $artist = Artist->find(1);
-    #ok !$artist->is_smart_saving_turned_on;
-    #say Dumper $cd->to_hash;
+    $cd->title('Bla-bla-bla');
+    is $cd->title, 'Bla-bla-bla';
+
+    ok $cd->save(), 'save';
+
+    ok my $artist = Artist->find(1), 'artist find';
+    ok $artist->save();
+}
+
+{
+    ok 1, '~ bench smart saving ~';
+
+    use Time::HiRes qw/tv_interval gettimeofday/;
+
+    my $artist = Artist->find(1);
+    my $t1 = [gettimeofday];
+    $artist->save() for 1..10;
+    my $t2 = [gettimeofday];
+
+    say tv_interval $t1, $t2;
 }
 
 #my $unfetched = Artist->find([1, 2]);

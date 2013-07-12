@@ -10,16 +10,17 @@ ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord 
 
 =head1 VERSION
 
-Version 0.32
+Version 0.33
 
 =cut
 
-our $VERSION = '0.32';
+our $VERSION = '0.33';
 
 use utf8;
 use Encode;
 use Module::Load;
 use Carp;
+use Storable qw/freeze/;
 
 my $dbhandler = undef;
 
@@ -205,10 +206,10 @@ sub table_name {
     $class->_mk_attribute_getter('get_table_name', $table_name);
 }
 
-sub smart_saving {
-    my ($class, $is_turned_on) = @_;
+sub use_smart_saving {
+    my ($class) = @_;
 
-    $class->_mk_attribute_getter('is_smart_saving_turned_on', $is_turned_on);
+    $class->_mk_attribute_getter('is_smart_saving_turned_on', 1);
 }
 
 sub relations {
@@ -264,6 +265,11 @@ sub save {
     if ( $self->can('get_primary_key') ) {
         $pkey   = $self->get_primary_key;
     }
+
+    return 1 if defined $self->{snapshoot}
+                && $self->{snapshoot} eq freeze($self->to_hash);
+
+    #say 'SAVE!';
 
     FIELD:
     for my $field (@$fields) {
@@ -403,7 +409,8 @@ sub find {
 
         $self->_fill_params($resultset);
         if ($self->can('is_smart_saving_turned_on') && $self->is_smart_saving_turned_on == 1) {
-            say 'Yes!';
+            #say 'Yes!';
+            $self->{snapshoot} = freeze($resultset);
         }
 
         $self->{isin_database} = 1;
@@ -736,7 +743,7 @@ ActiveRecord::Simple
 
 =head1 VERSION
 
-0.32
+0.33
 
 =head1 DESCRIPTION
 
@@ -870,6 +877,13 @@ just keep this simple schema in youre mind:
     associated with this relationship. Allowed to use as many keys as you need:
 
     $package_instance->[relation key]->[any method from the related class];
+
+=head2 use_smart_saving
+
+Check the changes of object's data before saving in the database. Won't save
+if data didn't change.
+
+    __PACKAGE__->use_smart_saving;
 
 =head2 get_all
 

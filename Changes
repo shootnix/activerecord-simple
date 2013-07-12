@@ -18,3 +18,6 @@ Revision history for ActiveRecord::Simple
 
 0.32    12.07.2013 
         * Fixed typos
+
+0.33    12.07.2013
+        + [EXPERIMENTAL] Added a new method "use_smart_saving".
