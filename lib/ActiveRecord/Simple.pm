@@ -730,7 +730,7 @@ ActiveRecord::Simple
 
 =head1 DESCRIPTION
 
-ActiveRecord::Simple is a simple lightweight implementation of ActiveRecord
+ActiveRecord::Simple is a simple lightweight implementation of ActiveRecord 
 pattern. It's fast, very simple and very light.
 
 =head1 SYNOPSIS

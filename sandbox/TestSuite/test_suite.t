@@ -175,18 +175,4 @@ while (my $artist = $unfetched->fetch()) {
     say $artist->name;
 }
 
-
-#my @artists = $unfetched->fetch();
-#say Dumper \@artists;
-
-#ok my $artist = Artist->find({ name => 'Metallica' })->fetch();
-#is $artist->label->name, 'EMI';
-#
-#ok my $label = Label->find({ name => 'EMI' })->fetch();
-#is $label->name, 'EMI';
-#
-#while ( my $artist = $label->artists->fetch() ) {
-#    ok $artist->is_defined, 'artist for label ' . $label->name . ': ' . $artist->name;
-#}
-
 done_testing;

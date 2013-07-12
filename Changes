@@ -15,3 +15,6 @@ Revision history for ActiveRecord::Simple
    
 0.31    11.07.2013
         * Fixes
+
+0.32    12.07.2013 
+        * Fixed typos

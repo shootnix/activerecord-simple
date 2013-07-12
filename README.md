@@ -1,8 +1,7 @@
 ActiveRecord::Simple
 ====================
 
-ActiveRecord::Simple - Simple to use lightweight implementation of
-ActiveRecord pattern.
+ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord pattern.
 
 It is fast, don't have any dependencies and realy easy to use.
 
