@@ -23,4 +23,6 @@ __PACKAGE__->relations({
     },
 });
 
+#__PACKAGE__->check_before_update(1);
+
 1;

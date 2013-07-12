@@ -27,4 +27,6 @@ __PACKAGE__->relations({
     }
 });
 
+__PACKAGE__->smart_saving(1);
+
 1;

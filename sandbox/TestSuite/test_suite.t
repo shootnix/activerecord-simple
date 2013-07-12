@@ -168,11 +168,22 @@ Artist->dbh($dbh);
     is ref $cdtable, 'ARRAY';
 }
 
-my $unfetched = Artist->find([1, 2]);
-$unfetched->order_by('name')->desc;
+{
+    ok 1, '~ EXPERIMENTAL ~';
+    ok my $cd = CD->find(1);
 
-while (my $artist = $unfetched->fetch()) {
-    say $artist->name;
+    ok $cd->is_smart_saving_turned_on;
+
+    ok my $artist = Artist->find(1);
+    #ok !$artist->is_smart_saving_turned_on;
+    #say Dumper $cd->to_hash;
 }
+
+#my $unfetched = Artist->find([1, 2]);
+#$unfetched->order_by('name')->desc;
+#
+#while (my $artist = $unfetched->fetch()) {
+#    say $artist->name;
+#}
 
 done_testing;

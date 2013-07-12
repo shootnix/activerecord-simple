@@ -6,8 +6,7 @@ use warnings;
 
 =head1 NAME
 
-ActiveRecord::Simple - Simple to use lightweight implementation of
-ActiveRecord pattern.
+ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord pattern.
 
 =head1 VERSION
 
@@ -206,6 +205,12 @@ sub table_name {
     $class->_mk_attribute_getter('get_table_name', $table_name);
 }
 
+sub smart_saving {
+    my ($class, $is_turned_on) = @_;
+
+    $class->_mk_attribute_getter('is_smart_saving_turned_on', $is_turned_on);
+}
+
 sub relations {
     my ($class, $relations) = @_;
 
@@ -397,6 +402,10 @@ sub find {
         my $resultset = $self->_find_one_by_primary_key($param[0]);
 
         $self->_fill_params($resultset);
+        if ($self->can('is_smart_saving_turned_on') && $self->is_smart_saving_turned_on == 1) {
+            say 'Yes!';
+        }
+
         $self->{isin_database} = 1;
     }
     else {
@@ -698,6 +707,7 @@ sub get_all {
 
 # param:
 #     only_defined_fields => 1
+###  TODO: refactor this
 sub to_hash {
     my ($self, $param) = @_;
 
@@ -730,7 +740,7 @@ ActiveRecord::Simple
 
 =head1 DESCRIPTION
 
-ActiveRecord::Simple is a simple lightweight implementation of ActiveRecord 
+ActiveRecord::Simple is a simple lightweight implementation of ActiveRecord
 pattern. It's fast, very simple and very light.
 
 =head1 SYNOPSIS
