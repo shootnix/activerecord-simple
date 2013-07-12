@@ -106,7 +106,7 @@ sub new {
         use strict 'refs';
     }
 
-    $param->{isin_database} = undef;
+    #$param->{isin_database} = undef;
 
     return bless $param || {}, $class;
 }
@@ -258,6 +258,8 @@ sub save {
     my ($self) = @_;
 
     return unless $self->dbh;
+    return if $self->can('is_lazy_saving_turned_on')
+         && $self->is_lazy_saving_turned_on == 1;
 
     my $save_param = {};
     my $fields = $self->get_columns;
@@ -268,8 +270,6 @@ sub save {
 
     return 1 if defined $self->{snapshoot}
                 && $self->{snapshoot} eq freeze($self->to_hash);
-
-    #say 'SAVE!';
 
     FIELD:
     for my $field (@$fields) {
@@ -409,7 +409,6 @@ sub find {
 
         $self->_fill_params($resultset);
         if ($self->can('is_smart_saving_turned_on') && $self->is_smart_saving_turned_on == 1) {
-            #say 'Yes!';
             $self->{snapshoot} = freeze($resultset);
         }
 
@@ -439,12 +438,20 @@ sub fetch {
     return $self->_get($limit) if defined $self->{_objects};
 
     my $resultset = $self->_find_many_by_prepared_statement();
+
     my @bulk_objects;
     if (defined $resultset && ref $resultset eq 'ARRAY' && scalar @$resultset > 0) {
         my $class = ref $self;
         for my $object_data (@$resultset) {
-            my $obj = $class->new($object_data);
+            my $obj = $class->new();
+            $obj->_fill_params($object_data);
+
+            if ($obj->can('is_smart_saving_turned_on') && $obj->is_smart_saving_turned_on == 1) {
+                $obj->{snapshoot} = freeze($object_data);
+            }
+
             $obj->{isin_database} = 1;
+
             push @bulk_objects, $obj;
         }
     }
@@ -732,6 +739,17 @@ sub to_hash {
 
     return $attrs;
 }
+
+#sub DESTROY {
+#    my ($self) = @_;
+#
+#    if ($self->can('is_lazy_saving_turned_on')) {
+#        say 'OFF';
+#        $self->is_lazy_saving_turned_on(0); ### switching off
+#    }
+#
+#    $self->save();
+#}
 
 1;
 

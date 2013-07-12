@@ -170,28 +170,42 @@ Artist->dbh($dbh);
 
 {
     ok 1, '~ use_smart_saving ~';
-    ok my $cd = CD->find(1);
+    #ok my $cd = CD->find(1);
+    #
+    #ok $cd->is_smart_saving_turned_on;
+    #ok $cd->save();
+    #
+    #$cd->title('Bla-bla-bla');
+    #is $cd->title, 'Bla-bla-bla';
+    #
+    #ok $cd->save(), 'save';
+    #
+    #ok my $artist = Artist->find(1), 'artist find';
+    #ok $artist->save();
 
-    ok $cd->is_smart_saving_turned_on;
-    ok $cd->save();
-
-    $cd->title('Bla-bla-bla');
-    is $cd->title, 'Bla-bla-bla';
-
-    ok $cd->save(), 'save';
-
-    ok my $artist = Artist->find(1), 'artist find';
-    ok $artist->save();
+    ok my @a = Artist->find('id >= ?', 1)->fetch();
+    my $metallica = $a[0];
+    say $metallica->name;
+    ok $metallica->save;
+    #say $a[0]->{snapshoot};
+    #for my $a (@a) {
+    #    ok $a->save(), 'test save for ' . $a->name;
+    #}
 }
 
+=c
 {
     ok 1, '~ bench smart saving ~';
 
     use Time::HiRes qw/tv_interval gettimeofday/;
 
-    my $artist = Artist->find(1);
     my $t1 = [gettimeofday];
-    $artist->save() for 1..10;
+
+    for (1..10) {
+        my $artist = Artist->find(1);
+        $artist->save();
+    }
+
     my $t2 = [gettimeofday];
 
     say tv_interval $t1, $t2;
@@ -203,5 +217,6 @@ Artist->dbh($dbh);
 #while (my $artist = $unfetched->fetch()) {
 #    say $artist->name;
 #}
+=cut
 
 done_testing;
