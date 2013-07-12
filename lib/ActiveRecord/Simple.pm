@@ -825,7 +825,7 @@ That's it! Now you're ready to use your active-record class in the application:
 
 =head1 METHODS
 
-ActiveState::Simple provides a variety of techniques to make your work with
+ActiveRecord::Simple provides a variety of techniques to make your work with
 data little easier. It contains only a basic set of operations, such as
 search, create, update and delete data.
 
