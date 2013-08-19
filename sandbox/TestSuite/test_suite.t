@@ -193,6 +193,14 @@ Artist->dbh($dbh);
     #}
 }
 
+{
+    ok 1, '~ log level ~';
+    is( Artist->_log_level(), 1 );
+    my $artist = Artist->new();
+    ok $artist->_log_level();
+}
+
+
 =c
 {
     ok 1, '~ bench smart saving ~';

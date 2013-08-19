@@ -22,6 +22,8 @@ use Module::Load;
 use Carp;
 use Storable qw/freeze/;
 
+use Data::Dumper;
+
 my $dbhandler = undef;
 
 sub new {
@@ -106,10 +108,34 @@ sub new {
         use strict 'refs';
     }
 
-    #$param->{isin_database} = undef;
+    $class->use_smart_saving(0);
 
     return bless $param || {}, $class;
 }
+
+#sub ERROR {
+#    my ($msg) = @_;
+#
+#    return if _log_level() == 0;
+#
+#    say '[error]: ' . $msg;
+#}
+#
+#sub WARN {
+#    my ($msg) = @_;
+#
+#    return if _log_level() <= 1;
+#
+#    say '[warn]: ' . $msg;
+#}
+#
+#sub TRACE {
+#    my ($msg) = @_;
+#
+#    return if _log_level() <= 2;
+#
+#    say '[trace]: ' . $msg;
+#}
 
 sub _find_many_to_many {
     my ($class, $param) = @_;
@@ -175,7 +201,7 @@ sub _mk_accessors {
 	next FIELD if $class->can($pkg_accessor_name);
 	*{$pkg_accessor_name} = sub {
 	    if ( scalar @_ > 1 ) {
-		$_[0]->{$f} = $_[1];
+                $_[0]->{$f} = $_[1];
 
 		return $_[0];
 	    }
@@ -207,9 +233,11 @@ sub table_name {
 }
 
 sub use_smart_saving {
-    my ($class) = @_;
+    my ($class, $is_on) = @_;
 
-    $class->_mk_attribute_getter('is_smart_saving_turned_on', 1);
+    $is_on = 1 if not defined $is_on;
+
+    $class->_mk_attribute_getter('smart_saving_used', $is_on);
 }
 
 sub relations {
@@ -258,8 +286,9 @@ sub save {
     my ($self) = @_;
 
     return unless $self->dbh;
-    return if $self->can('is_lazy_saving_turned_on')
-         && $self->is_lazy_saving_turned_on == 1;
+
+    return 1 if $self->smart_saving_used
+        and $self->{snapshoot} eq freeze $self->to_hash;
 
     my $save_param = {};
     my $fields = $self->get_columns;
@@ -267,9 +296,6 @@ sub save {
     if ( $self->can('get_primary_key') ) {
         $pkey   = $self->get_primary_key;
     }
-
-    return 1 if defined $self->{snapshoot}
-                && $self->{snapshoot} eq freeze($self->to_hash);
 
     FIELD:
     for my $field (@$fields) {
@@ -284,6 +310,9 @@ sub save {
     else {
         $result = $self->_insert($save_param);
     }
+    $self->{need_to_save} = 0 if $result;
+
+    say 'DB!';
 
     return $result;
 }
@@ -408,7 +437,7 @@ sub find {
         my $resultset = $self->_find_one_by_primary_key($param[0]);
 
         $self->_fill_params($resultset);
-        if ($self->can('is_smart_saving_turned_on') && $self->is_smart_saving_turned_on == 1) {
+        if ($self->smart_saving_used) {
             $self->{snapshoot} = freeze($resultset);
         }
 
@@ -740,16 +769,16 @@ sub to_hash {
     return $attrs;
 }
 
-#sub DESTROY {
-#    my ($self) = @_;
-#
-#    if ($self->can('is_lazy_saving_turned_on')) {
-#        say 'OFF';
-#        $self->is_lazy_saving_turned_on(0); ### switching off
-#    }
-#
-#    $self->save();
-#}
+sub _log_level {
+    # 0 - no errors, logs and traces
+    # 1 - only errors
+    # 2 - errors and warnings
+    # 3 - errors, warnings and traces
+
+    my $log_level = $ENV{ACTIVERECORD_SIMPLE_LOGLEVEL} // 1;
+
+    return $log_level;
+}
 
 1;
 
