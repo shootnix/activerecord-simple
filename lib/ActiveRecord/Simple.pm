@@ -25,6 +25,7 @@ use Storable qw/freeze/;
 use Data::Dumper;
 
 my $dbhandler = undef;
+my $TRACE     = defined $ENV{ACTIVE_RECORD_SIMPLE_TRACE} ? 1 : undef;
 
 sub new {
     my ($class, $param) = @_;
@@ -264,6 +265,7 @@ sub save {
     return unless $self->dbh;
 
     return 1 if $self->smart_saving_used
+        and defined $self->{snapshoot}
         and $self->{snapshoot} eq freeze $self->to_hash;
 
     my $save_param = {};
@@ -287,8 +289,6 @@ sub save {
         $result = $self->_insert($save_param);
     }
     $self->{need_to_save} = 0 if $result;
-
-    say 'DB!';
 
     return $result;
 }
@@ -318,16 +318,22 @@ sub _insert {
     if ( $self->dbh->{Driver}->{Name} eq 'Pg' ) {
         $sql_stm .= ' returning ' . $primary_key if $primary_key;
 
+        do {
+            my $SQL_REQUEST = _quote_string($sql_stm, $self->dbh->{Driver}{Name});
+            carp $SQL_REQUEST
+        } if $TRACE;
+
 	$pkey_val = $self->dbh->selectrow_array(
-	    _quote_string($sql_stm, $self->dbh->{Driver}{Name}),
-	    undef,
-	    @bind
-	);
+            _quote_string($sql_stm, $self->dbh->{Driver}{name}),
+            undef, @bind
+        );
     }
     else {
-	my $sth = $self->dbh->prepare(
-	    _quote_string($sql_stm, $self->dbh->{Driver}{Name})
-	);
+        do {
+            my $SQL_REQUEST = _quote_string($sql_stm, $self->dbh->{Driver}{Name});
+            carp $SQL_REQUEST
+        } if $TRACE;
+	my $sth = $self->dbh->prepare(_quote_string($sql_stm, $self->dbh->{Driver}{Name}));
         $sth->execute(@bind);
 
 	if ( $primary_key && defined $self->{$primary_key} ) {
@@ -369,11 +375,15 @@ sub _update {
         where
             $primary_key = ?
     };
+    do {
+        my $SQL_REQUEST = _quote_string($sql_stm, $self->dbh->{Driver}{Name});
+        carp $SQL_REQUEST;
+    } if $TRACE;
 
     return $self->dbh->do(
-	_quote_string($sql_stm, $self->dbh->{Driver}{Name}),
-	undef,
-	@bind
+        _quote_string($sql_stm, $self->dbh->{Driver}{Name}),
+        undef,
+        @bind
     );
 }
 
@@ -395,6 +405,10 @@ sub delete {
 
     my $res = undef;
     my $driver_name = $self->dbh->{Driver}{Name};
+    do {
+        my $SQL_REQUEST = _quote_string($sql, $driver_name);
+        carp $SQL_REQUEST;
+    } if $TRACE;
     if ( $self->dbh->do(_quote_string($sql, $driver_name), undef, $self->{$pkey}) ) {
 	$self->{isin_database} = undef;
 	delete $self->{$pkey};
@@ -556,10 +570,14 @@ sub _find_many_by_primary_keys {
     };
 
     $self->_add_result_ordering(\$sql_stmt) if defined $self->{prep_order_by};
+    do {
+        my $SQL_REQUEST = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
+        carp $SQL_REQUEST;
+    } if $TRACE;
 
     return $self->dbh->selectall_arrayref(
-	_quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
-	{ Slice => {} }
+        _quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
+        { Slice => {} }
     );
 }
 
@@ -604,6 +622,11 @@ sub _find_many_by_condition {
 
     $self->_add_result_ordering(\$sql_stmt) if defined $self->{prep_order_by};
 
+    do {
+        my $SQL_REQUEST = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
+        carp $SQL_REQUEST;
+    } if $TRACE;
+
     return $self->dbh->selectall_arrayref(
 	_quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
 	{ Slice => {} },
@@ -628,6 +651,11 @@ sub _find_many_by_params {
 
     $self->_add_result_ordering(\$sql_stmt) if defined $self->{prep_order_by};
 
+    do {
+        my $SQL_REQUEST = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
+        carp $SQL_REQUEST;
+    } if $TRACE;
+
     return $self->dbh->selectall_arrayref(
 	_quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
 	{ Slice => {} },
@@ -651,6 +679,11 @@ sub _find_one_by_primary_key {
     };
 
     $self->_add_result_ordering(\$sql_stmt) if defined $self->{prep_order_by};
+
+    do {
+        my $SQL_REQUEST = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
+        carp $SQL_REQUEST;
+    } if $TRACE;
 
     return $self->dbh->selectrow_hashref(
 	_quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
@@ -689,6 +722,11 @@ sub is_exists_in_database {
             $where_str
     };
 
+    do {
+        my $SQL_REQUEST = _quote_string($sql, $self->dbh->{Driver}{Name});
+        carp $SQL_REQUEST;
+    } if $TRACE;
+
     return $self->dbh->selectrow_array(
 	_quote_string($sql, $self->dbh->{Driver}{Name}),
 	undef,
@@ -718,6 +756,11 @@ sub get_all {
 	select $columns from "$table_name" order by "$pkey"
     };
 
+    do {
+        my $SQL_REQUEST = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
+        carp $SQL_REQUEST;
+    } if $TRACE;
+
     return $class->dbh->selectall_arrayref(
 	_quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
 	{ Slice => {} }
@@ -743,17 +786,6 @@ sub to_hash {
     }
 
     return $attrs;
-}
-
-sub _log_level {
-    # 0 - no errors, logs and traces
-    # 1 - only errors
-    # 2 - errors and warnings
-    # 3 - errors, warnings and traces
-
-    my $log_level = $ENV{ACTIVERECORD_SIMPLE_LOGLEVEL} // 1;
-
-    return $log_level;
 }
 
 1;
@@ -1083,6 +1115,12 @@ You can also specify how many objects you want to use:
 
     my @persons = MyModel::Person->find('id_person != ?', 1)->fetch(2);
     # fetching only 2 objects.
+
+=head1 TRACING QUERIES
+
+   use ACTIVE_RECORD_SIMPLE_TRACE=1 environment variable:
+
+   $ ACTIVE_RECORD_SIMPLE_TRACE=1 perl myscript.pl
 
 =head1 AUTHOR
 

@@ -23,4 +23,5 @@ Revision history for ActiveRecord::Simple
         + [EXPERIMENTAL] Added a new method "use_smart_saving".
 
 0.34	21.08.2013
+        + Added tracing queries
         * Minor fixes

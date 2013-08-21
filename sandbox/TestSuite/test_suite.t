@@ -187,17 +187,12 @@ Artist->dbh($dbh);
     my $metallica = $a[0];
     say $metallica->name;
     ok $metallica->save;
-    #say $a[0]->{snapshoot};
-    #for my $a (@a) {
-    #    ok $a->save(), 'test save for ' . $a->name;
-    #}
 }
 
 {
-    ok 1, '~ log level ~';
-    is( Artist->_log_level(), 1 );
-    my $artist = Artist->new();
-    ok $artist->_log_level();
+    ok 1, '~ ordering ~';
+    my $artists = Artist->find('id != ?', 100)->order_by('name')->desc();
+    ok $artists->fetch();
 }
 
 
@@ -219,7 +214,7 @@ Artist->dbh($dbh);
     say tv_interval $t1, $t2;
 }
 
-#my $unfetched = Artist->find([1, 2]);
+$my $unfetched = Artist->find([1, 2]);
 #$unfetched->order_by('name')->desc;
 #
 #while (my $artist = $unfetched->fetch()) {
