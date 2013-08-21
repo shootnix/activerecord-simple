@@ -170,18 +170,6 @@ Artist->dbh($dbh);
 
 {
     ok 1, '~ use_smart_saving ~';
-    #ok my $cd = CD->find(1);
-    #
-    #ok $cd->is_smart_saving_turned_on;
-    #ok $cd->save();
-    #
-    #$cd->title('Bla-bla-bla');
-    #is $cd->title, 'Bla-bla-bla';
-    #
-    #ok $cd->save(), 'save';
-    #
-    #ok my $artist = Artist->find(1), 'artist find';
-    #ok $artist->save();
 
     ok my @a = Artist->find('id >= ?', 1)->fetch();
     my $metallica = $a[0];

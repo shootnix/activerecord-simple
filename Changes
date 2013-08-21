@@ -24,4 +24,5 @@ Revision history for ActiveRecord::Simple
 
 0.34	21.08.2013
         + Added tracing queries
+        + Added some tests
         * Minor fixes

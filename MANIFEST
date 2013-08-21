@@ -9,3 +9,4 @@ t/manifest.t
 t/pod-coverage.t
 t/pod.t
 t/accessors.t
+t/basic.t

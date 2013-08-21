@@ -2,6 +2,7 @@
 
 use strict;
 use warnings;
+no warnings 'redefine';
 use 5.010;
 
 use FindBin '$Bin';

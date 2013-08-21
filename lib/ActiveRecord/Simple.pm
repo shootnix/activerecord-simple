@@ -30,10 +30,10 @@ my $TRACE     = defined $ENV{ACTIVE_RECORD_SIMPLE_TRACE} ? 1 : undef;
 sub new {
     my ($class, $param) = @_;
 
-    $class->_mk_accessors( $class->get_columns );
+    $class->_mk_accessors($class->get_columns());
 
-    if ( $class->can('get_relations') ) {
-        my $relations = $class->get_relations;
+    if ($class->can('get_relations')) {
+        my $relations = $class->get_relations();
 
 	no strict 'refs';
 
@@ -151,6 +151,11 @@ sub _find_many_to_many {
         $param->{self}->{ $param->{root_class}->get_primary_key };
 
     my $container_class = $class->new();
+    do {
+        my $SQL_REQUEST = _quote_string($sql_stm, $class->dbh->{Driver}{Name});
+        carp $SQL_REQUEST;
+    } if $TRACE;
+
     my $resultset = $class->dbh->selectall_arrayref($sql_stm, { Slice => {} });
     my @bulk_objects;
     for my $params (@$resultset) {
