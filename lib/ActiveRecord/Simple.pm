@@ -315,7 +315,7 @@ sub _insert {
         values ($values)
     };
 
-    if ( $self->dbh->{Driver}->{Name} eq 'Pg' ) {
+    if ( $self->dbh->{Driver}{Name} eq 'Pg' ) {
         $sql_stm .= ' returning ' . $primary_key if $primary_key;
 
         do {

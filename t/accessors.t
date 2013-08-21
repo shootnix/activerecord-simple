@@ -3,9 +3,11 @@
 use strict;
 use warnings;
 
+use FindBin '$Bin';
+use lib "$Bin/../lib";
+
 package t::class;
 
-use lib '../lib';
 use base 'ActiveRecord::Simple';
 
 __PACKAGE__->table_name('t');
