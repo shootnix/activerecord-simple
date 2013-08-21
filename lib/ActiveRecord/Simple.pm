@@ -113,30 +113,6 @@ sub new {
     return bless $param || {}, $class;
 }
 
-#sub ERROR {
-#    my ($msg) = @_;
-#
-#    return if _log_level() == 0;
-#
-#    say '[error]: ' . $msg;
-#}
-#
-#sub WARN {
-#    my ($msg) = @_;
-#
-#    return if _log_level() <= 1;
-#
-#    say '[warn]: ' . $msg;
-#}
-#
-#sub TRACE {
-#    my ($msg) = @_;
-#
-#    return if _log_level() <= 2;
-#
-#    say '[trace]: ' . $msg;
-#}
-
 sub _find_many_to_many {
     my ($class, $param) = @_;
 
