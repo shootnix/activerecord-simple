@@ -12,11 +12,11 @@ __PACKAGE__->columns(['id', 'name', 'label_id']);
 __PACKAGE__->primary_key('id');
 
 __PACKAGE__->relations({
-    label => {
-        class => 'Label',
-        type  => 'one',
-        key   => 'label_id',
-    },
+    #label => {
+    #    class => 'Label',
+    #    type  => 'one',
+    #    key   => 'label_id',
+    #},
     rating => {
         class => 'Rating',
         type => 'one',

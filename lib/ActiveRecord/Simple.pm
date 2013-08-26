@@ -22,8 +22,6 @@ use Module::Load;
 use Carp;
 use Storable qw/freeze/;
 
-use Data::Dumper;
-
 my $dbhandler = undef;
 my $TRACE     = defined $ENV{ACTIVE_RECORD_SIMPLE_TRACE} ? 1 : undef;
 
@@ -470,7 +468,7 @@ sub fetch {
             my $obj = $class->new();
             $obj->_fill_params($object_data);
 
-            if ($obj->can('is_smart_saving_turned_on') && $obj->is_smart_saving_turned_on == 1) {
+            if ($obj->smart_saving_used) {
                 $obj->{snapshoot} = freeze($object_data);
             }
 

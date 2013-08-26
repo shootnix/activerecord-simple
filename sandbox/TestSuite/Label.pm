@@ -16,7 +16,12 @@ __PACKAGE__->relations({
         class => 'Artist',
         type  => 'many',
         key   => 'label_id'
-    }
+    },
+    cd => {
+        class => 'CD',
+        type  => 'one',
+        key   => 'label_id',
+    },
 });
 
 1;
