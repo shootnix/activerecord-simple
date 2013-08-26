@@ -267,9 +267,13 @@ sub save {
 
     return unless $self->dbh;
 
+    say 'got save!';
+
     return 1 if $self->smart_saving_used
         and defined $self->{snapshoot}
         and $self->{snapshoot} eq freeze $self->to_hash;
+
+    say '>';
 
     my $save_param = {};
     my $fields = $self->get_columns;
@@ -789,6 +793,14 @@ sub to_hash {
     }
 
     return $attrs;
+}
+
+sub DESTROY {
+    my ($self) = @_;
+
+    if ($self->smart_saving_used) {
+        $self->save() unless exists $self->{'_objects'};
+    }
 }
 
 1;
