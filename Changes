@@ -26,3 +26,7 @@ Revision history for ActiveRecord::Simple
         + Added tracing queries
         + Added some tests
         * Minor fixes
+
+0.35	26.08.2013
+	+ Added new "update-on-destroy" feature.
+

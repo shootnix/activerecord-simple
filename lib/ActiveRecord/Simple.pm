@@ -10,11 +10,11 @@ ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord 
 
 =head1 VERSION
 
-Version 0.34
+Version 0.35
 
 =cut
 
-our $VERSION = '0.34';
+our $VERSION = '0.35';
 
 use utf8;
 use Encode;
@@ -950,8 +950,13 @@ just keep this simple schema in youre mind:
 
 =head2 use_smart_saving
 
-Check the changes of object's data before saving in the database. Won't save
-if data didn't change.
+This method provides two features:
+
+   1. Check the changes of object's data before saving in the database.
+      Won't save if data didn't change.
+
+   2. Automatic save on object destroy (You don't need use "save()" method
+      anymore).
 
     __PACKAGE__->use_smart_saving;
 
