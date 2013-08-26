@@ -30,6 +30,8 @@ __PACKAGE__->use_smart_saving;
 
 1;
 
+package t::class3;
+
 package MockDBI;
 
 sub selectrow_array { 1 }

@@ -267,13 +267,9 @@ sub save {
 
     return unless $self->dbh;
 
-    say 'got save!';
-
     return 1 if $self->smart_saving_used
         and defined $self->{snapshoot}
         and $self->{snapshoot} eq freeze $self->to_hash;
-
-    say '>';
 
     my $save_param = {};
     my $fields = $self->get_columns;
@@ -813,7 +809,7 @@ ActiveRecord::Simple
 
 =head1 VERSION
 
-0.33
+0.35
 
 =head1 DESCRIPTION
 
