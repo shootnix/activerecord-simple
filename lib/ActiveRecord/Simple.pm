@@ -323,7 +323,8 @@ sub _insert {
 
         do {
             my $SQL_REQUEST = _quote_string($sql_stm, $self->dbh->{Driver}{Name});
-            carp $SQL_REQUEST
+            carp $SQL_REQUEST;
+            carp 'bind: ' . join q/, /, @bind;
         } if $TRACE;
 
 	$pkey_val = $self->dbh->selectrow_array(
@@ -334,7 +335,8 @@ sub _insert {
     else {
         do {
             my $SQL_REQUEST = _quote_string($sql_stm, $self->dbh->{Driver}{Name});
-            carp $SQL_REQUEST
+            carp $SQL_REQUEST;
+            carp 'bind: ' . join q/, /, @bind;
         } if $TRACE;
 	my $sth = $self->dbh->prepare(_quote_string($sql_stm, $self->dbh->{Driver}{Name}));
         $sth->execute(@bind);
@@ -381,6 +383,7 @@ sub _update {
     do {
         my $SQL_REQUEST = _quote_string($sql_stm, $self->dbh->{Driver}{Name});
         carp $SQL_REQUEST;
+        carp 'bind: ' . join q/, /, @bind;
     } if $TRACE;
 
     return $self->dbh->do(
@@ -628,6 +631,7 @@ sub _find_many_by_condition {
     do {
         my $SQL_REQUEST = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
         carp $SQL_REQUEST;
+        carp 'bind: ' . join q/, /, @param;
     } if $TRACE;
 
     return $self->dbh->selectall_arrayref(
@@ -643,7 +647,7 @@ sub _find_many_by_params {
     return unless $self->dbh && $param;
 
     my $table_name = $self->get_table_name;
-    my $where_str = join q/ and /, map { q/"/ . $_ . q/"/ .' = ?' } sort keys %$param;
+    my $where_str = join q/ and /, map { q/"/ . $_ . q/"/ .' = ?' } keys %$param;
     my @bind = values %$param;
 
     my $sql_stmt = qq{
@@ -657,6 +661,7 @@ sub _find_many_by_params {
     do {
         my $SQL_REQUEST = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
         carp $SQL_REQUEST;
+        carp 'bind: ' . join q/, /, @bind;
     } if $TRACE;
 
     return $self->dbh->selectall_arrayref(
@@ -728,6 +733,7 @@ sub is_exists_in_database {
     do {
         my $SQL_REQUEST = _quote_string($sql, $self->dbh->{Driver}{Name});
         carp $SQL_REQUEST;
+        carp 'bind: ' . join q/, /, @bind;
     } if $TRACE;
 
     return $self->dbh->selectrow_array(
