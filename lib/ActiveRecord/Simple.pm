@@ -10,11 +10,11 @@ ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord 
 
 =head1 VERSION
 
-Version 0.35
+Version 0.40
 
 =cut
 
-our $VERSION = '0.35';
+our $VERSION = '0.40';
 
 use utf8;
 use Encode;
@@ -429,32 +429,23 @@ sub find {
     my ($class, @param) = @_;
 
     my $self = $class->new();
-    if (scalar @param == 1 && ! ref $param[0]) {
-        say '111';
-        #my $resultset = $self->_find_one_by_primary_key($param[0]);
-        #
-        #$self->_fill_params($resultset);
-        #if ($self->smart_saving_used) {
-        #    $self->{snapshoot} = freeze($resultset);
-        #}
-        #
-        #$self->{isin_database} = 1;
+    $self->{prep_request_method} = undef;
+    $self->{prep_request_params} = \@param;
+
+    if (!ref $param[0] && scalar @param == 1) {
         $self->{prep_request_method} = '_find_one_by_primary_key';
-        $self->{prep_request_params} = \@param;
+    }
+    elsif (!ref $param[0] && scalar @param == 0) {
+        $self->{prep_request_method} = '_find_all';
+    }
+    elsif (ref $param[0] && ref $param[0] eq 'HASH') {
+        $self->{prep_request_method} = '_find_many_by_params';
+    }
+    elsif (ref $param[0] && ref $param[0] eq 'ARRAY') {
+        $self->{prep_request_method} = '_find_many_by_primary_keys';
     }
     else {
-        $self->{prep_request_method} = undef;
-        $self->{prep_request_params} = \@param;
-
-        if (ref $param[0] && ref $param[0] eq 'HASH') {
-            $self->{prep_request_method} = '_find_many_by_params';
-        }
-        elsif (ref $param[0] && ref $param[0] eq 'ARRAY') {
-            $self->{prep_request_method} = '_find_many_by_primary_keys';
-        }
-        else {
-            $self->{prep_request_method} = '_find_many_by_condition';
-        }
+        $self->{prep_request_method} = '_find_many_by_condition';
     }
 
     return $self;
@@ -488,6 +479,7 @@ sub fetch {
         my $class = ref $self;
         my $obj = $class->new();
         $obj->_fill_params($resultset);
+        $obj->{isin_database} = 1;
 
         push @bulk_objects, $obj;
     }
@@ -526,6 +518,26 @@ sub asc {
     return if not defined $self->{prep_request_method};
 
     $self->{prep_asc} = 1;
+
+    return $self;
+}
+
+sub limit {
+    my ($self, $limit) = @_;
+
+    return if not defined $self->{prep_request_method};
+
+    $self->{prep_limit} = $limit;
+
+    return $self;
+}
+
+sub offset {
+    my ($self, $offset) = @_;
+
+    return if not defined $self->{prep_request_method};
+
+    $self->{prep_offset} = $offset;
 
     return $self;
 }
@@ -571,6 +583,27 @@ sub _find_many_by_prepared_statement {
     return $resultset;
 }
 
+sub _find_all {
+    my ($self) = @_;
+
+    my $table_name = $self->get_table_name;
+    my $sql_stmt = qq{
+        select * from "$table_name"
+    };
+
+    $self->_finish_sql_stmt(\$sql_stmt);
+    do {
+        my $SQL_REQUEST = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
+        carp $SQL_REQUEST;
+    } if $TRACE;
+
+    return
+        $self->dbh->selectall_arrayref(
+            _quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
+            { Slice => {} }
+        );
+}
+
 sub _find_many_by_primary_keys {
     my ($self, $pkeyvals) = @_;
 
@@ -581,24 +614,25 @@ sub _find_many_by_primary_keys {
     my $whereinstr = join ', ', @$pkeyvals;
 
     my $sql_stmt = qq{
-	select * from "$table_name"
-	where
-	    "$pkey" in ($whereinstr)
+	    select * from "$table_name"
+	    where
+	        "$pkey" in ($whereinstr)
     };
 
-    $self->_add_result_ordering(\$sql_stmt) if defined $self->{prep_order_by};
+    $self->_finish_sql_stmt(\$sql_stmt);
     do {
         my $SQL_REQUEST = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
         carp $SQL_REQUEST;
     } if $TRACE;
 
-    return $self->dbh->selectall_arrayref(
-        _quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
-        { Slice => {} }
-    );
+    return
+        $self->dbh->selectall_arrayref(
+            _quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
+            { Slice => {} }
+        );
 }
 
-sub _add_result_ordering {
+sub _finish_sql_stmt {
     my ($self, $sql_stmt) = @_;
 
     if (defined $self->{prep_order_by}) {
@@ -612,6 +646,14 @@ sub _add_result_ordering {
 
     if (defined $self->{prep_asc}) {
         $$sql_stmt .= ' asc';
+    }
+
+    if (defined $self->{prep_limit}) {
+        $$sql_stmt .= ' limit ' . $self->{prep_limit};
+    }
+
+    if (defined $self->{prep_offset}) {
+        $$sql_stmt .= ' offset ' . $self->{prep_offset};
     }
 
     $self->_delete_keys(qr/^prep\_/);
@@ -637,7 +679,7 @@ sub _find_many_by_condition {
             $wherestr
     };
 
-    $self->_add_result_ordering(\$sql_stmt) if defined $self->{prep_order_by};
+    $self->_finish_sql_stmt(\$sql_stmt);
 
     do {
         my $SQL_REQUEST = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
@@ -667,7 +709,7 @@ sub _find_many_by_params {
             $where_str
     };
 
-    $self->_add_result_ordering(\$sql_stmt) if defined $self->{prep_order_by};
+    $self->_finish_sql_stmt(\$sql_stmt);
 
     do {
         my $SQL_REQUEST = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
@@ -697,7 +739,7 @@ sub _find_one_by_primary_key {
             "$pkey" = ?
     };
 
-    $self->_add_result_ordering(\$sql_stmt) if defined $self->{prep_order_by};
+    $self->_finish_sql_stmt(\$sql_stmt);
 
     do {
         my $SQL_REQUEST = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
@@ -748,42 +790,9 @@ sub is_exists_in_database {
     } if $TRACE;
 
     return $self->dbh->selectrow_array(
-	_quote_string($sql, $self->dbh->{Driver}{Name}),
-	undef,
-	@bind
-    );
-}
-
-# attrs:
-#     table fields
-sub get_all {
-    my ($class, $attrs) = @_;
-
-    my $self = $class->new();
-
-    my $columns;
-    if ( $attrs && ref $attrs eq 'ARRAY' && scalar @$attrs ) {
-	$columns = join ', ', map { q/"/.$_.q/"/ } @$attrs;
-    }
-    else {
-	$columns = '*';
-    }
-
-    my $table_name = $self->get_table_name;
-    my $pkey = $self->get_primary_key;
-
-    my $sql_stmt = qq{
-	select $columns from "$table_name" order by "$pkey"
-    };
-
-    do {
-        my $SQL_REQUEST = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
-        carp $SQL_REQUEST;
-    } if $TRACE;
-
-    return $class->dbh->selectall_arrayref(
-	_quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
-	{ Slice => {} }
+	    _quote_string($sql, $self->dbh->{Driver}{Name}),
+	    undef,
+	    @bind
     );
 }
 
@@ -823,7 +832,7 @@ sub DESTROY {
     my ($self) = @_;
 
     if ($self->smart_saving_used) {
-        $self->save() unless exists $self->{'_objects'};
+        $self->save() if not exists $self->{'_objects'};
     }
 }
 
@@ -837,7 +846,7 @@ ActiveRecord::Simple
 
 =head1 VERSION
 
-0.35
+0.40
 
 =head1 DESCRIPTION
 

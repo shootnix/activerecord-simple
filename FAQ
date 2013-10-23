@@ -42,3 +42,11 @@ And then in your script:
 Yes. Just run ordering methods (order_by, desc, asc) right before you fetching it:
 
     my @persons = MyModel::Person->find('age > ?', 21)->order_by('name')->desc->fetch();
+
+6. May I use limit and offset in my searching results?
+------------------------------------------------------
+
+Yes. There are two methods: limit and offset:
+
+   my @two_persons = MyModel::Person->find()->limit(2)->offset(1)->fetch();
+

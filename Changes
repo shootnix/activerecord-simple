@@ -30,5 +30,11 @@ Revision history for ActiveRecord::Simple
 0.35	26.08.2013
 	+ Added new "update-on-destroy" feature.
 
-0.36    23.08.2013
+0.40    23.08.2013
+        + Added  methods: limit, offset
+        + Method "find" now works with no arguments (returns all records from db)
+        - Deleted method "get_all"
+        * Bugfixes
         * Method find() with primary key goes to be named get()
+        * Tests fixes
+        * Improved documentation

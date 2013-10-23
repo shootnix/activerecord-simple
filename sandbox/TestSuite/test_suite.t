@@ -101,7 +101,7 @@ Artist->dbh($dbh);
     }
 
     ### Another ways for search
-    ok my $a1 = Artist->find( $metallica->id );
+    ok my $a1 = Artist->find($metallica->id)->fetch;
     is $a1->name, 'Metallica';
 
     ok my ($a2, $a3) = Artist->find([$metallica->id, $u2->id])->fetch;
@@ -158,14 +158,8 @@ Artist->dbh($dbh);
     ok @cd = CD->find([1, 2, 3])->fetch();
     ok scalar @cd == 3;
 
-    ok my $cd = CD->find(1);
+    ok my $cd = CD->find(1)->fetch;
     is $cd->title, 'Load';
-}
-
-{
-    ok 1, '~ get_all method ~';
-    ok my $cdtable = CD->get_all();
-    is ref $cdtable, 'ARRAY';
 }
 
 {
@@ -173,7 +167,6 @@ Artist->dbh($dbh);
 
     ok my @a = Artist->find('id >= ?', 1)->fetch();
     my $metallica = $a[0];
-    say $metallica->name;
     ok $metallica->save;
 }
 
@@ -183,6 +176,14 @@ Artist->dbh($dbh);
     ok $artists->fetch();
 }
 
+{
+    pass '~ limit, offset ~';
+    my @artists = Artist->find()->limit(1)->fetch;
+    is scalar @artists, 1;
+
+    my $a = Artist->find()->limit(1)->offset(1)->fetch;
+    is $a->name, 'U2';
+}
 
 =c
 {
