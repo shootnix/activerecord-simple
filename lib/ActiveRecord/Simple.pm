@@ -430,14 +430,17 @@ sub find {
 
     my $self = $class->new();
     if (scalar @param == 1 && ! ref $param[0]) {
-        my $resultset = $self->_find_one_by_primary_key($param[0]);
-
-        $self->_fill_params($resultset);
-        if ($self->smart_saving_used) {
-            $self->{snapshoot} = freeze($resultset);
-        }
-
-        $self->{isin_database} = 1;
+        say '111';
+        #my $resultset = $self->_find_one_by_primary_key($param[0]);
+        #
+        #$self->_fill_params($resultset);
+        #if ($self->smart_saving_used) {
+        #    $self->{snapshoot} = freeze($resultset);
+        #}
+        #
+        #$self->{isin_database} = 1;
+        $self->{prep_request_method} = '_find_one_by_primary_key';
+        $self->{prep_request_params} = \@param;
     }
     else {
         $self->{prep_request_method} = undef;
@@ -460,7 +463,7 @@ sub find {
 sub fetch {
     my ($self, $limit) = @_;
 
-    return $self->_get($limit) if defined $self->{_objects};
+    return $self->_get_slice($limit) if defined $self->{_objects};
 
     my $resultset = $self->_find_many_by_prepared_statement();
 
@@ -480,13 +483,21 @@ sub fetch {
             push @bulk_objects, $obj;
         }
     }
+    elsif (defined $resultset && ref $resultset eq 'HASH') {
+        #$self->_fill_params($resultset);
+        my $class = ref $self;
+        my $obj = $class->new();
+        $obj->_fill_params($resultset);
+
+        push @bulk_objects, $obj;
+    }
     else {
         push @bulk_objects, $self;
     }
 
     $self->{_objects} = \@bulk_objects;
 
-    $self->_get($limit);
+    $self->_get_slice($limit);
 }
 
 sub order_by {
@@ -519,7 +530,7 @@ sub asc {
     return $self;
 }
 
-sub _get {
+sub _get_slice {
     my ($self, $time) = @_;
 
     return unless $self->{_objects} && ref $self->{_objects} eq 'ARRAY';
@@ -776,6 +787,17 @@ sub get_all {
     );
 }
 
+sub get {
+    my ($class, $pkeyval) = @_;
+
+    #my $resultset = $class->_find_one_by_primary_key($pkeyval);
+    my $self = $class->new();
+    my $resultset = $self->_find_one_by_primary_key($pkeyval);
+    $self->_fill_params($resultset);
+
+    return $self;
+}
+
 # param:
 #     only_defined_fields => 1
 ###  TODO: refactor this
@@ -845,7 +867,7 @@ That's it! Now you're ready to use your active-record class in the application:
     $person->name('Bar')->save();
 
     # to find a record (by primary key):
-    my $person = MyModel::Person->find(1);
+    my $person = MyModel::Person->get(1);
 
     # to find many records by parameters:
     my @persons = MyModel::Person->find({ name => 'Foo' })->fetch();
@@ -977,25 +999,16 @@ You also may specify which rows you want to use:
 There are several ways to find someone in your database using ActiveRecord::Simple:
 
     # by primary key:
-    my $person = MyModel::Person->find(1);
+    my $person = MyModel::Person->find(1)->fetch;
 
     # by multiple primary keys
-    my @persons = MyModel::Person->find([1, 2, 5])->fetch();
+    my @persons = MyModel::Person->find([1, 2, 5])->fetch;
 
     # by simple condition:
-    my @persons = MyModel::Person->find({ name => 'Foo' })->fetch();
+    my @persons = MyModel::Person->find({ name => 'Foo' })->fetch;
 
     # by where-condtions:
     my @persons = MyModel::Person->find('first_name = ? and id_person > ?', 'Foo', 1);
-
-If you want to get an instance of your active-record class and if you know the
-primary key, you can do it, just put the primary key as a parameter into the
-find method:
-
-    my $person = MyModel::Person->find(1);
-
-In this case, you will get only one instance (because can't be more than one rows
-in the table with the same values of the primary key).
 
 If you want to get a few instances by primary keys, you should put it as arrayref,
 and then fetch from resultset:
@@ -1026,6 +1039,14 @@ You can use the ordering of results, such as ORDER BY, ASC and DESC:
 
     my @persons = MyModel::Person->find('age > ?', 21)->order_by('name')->desc->fetch();
     my @persons = MyModel::Person->find('age > ?', 21)->order_by('name', 'age')->fetch();
+
+=head2 get
+
+This is shortcut method for "find":
+
+    my $person = MyModel::Person->get(1);
+    ### is the same:
+    my $person = MyModel::Person->find(1)->fetch;
 
 =head2 order_by
 

@@ -12,11 +12,11 @@ Revision history for ActiveRecord::Simple
 0.30    10.07.2013
         * Minor bug bixes
         + Added ordering methods "order_by", "asc" and "desc"
-   
+
 0.31    11.07.2013
         * Fixes
 
-0.32    12.07.2013 
+0.32    12.07.2013
         * Fixed typos
 
 0.33    12.07.2013
@@ -30,3 +30,5 @@ Revision history for ActiveRecord::Simple
 0.35	26.08.2013
 	+ Added new "update-on-destroy" feature.
 
+0.36    23.08.2013
+        * Method find() with primary key goes to be named get()

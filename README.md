@@ -25,7 +25,7 @@ And then, you can use your package in a program:
     $foo->save();
 
     # or
-    my $foo = Foo->find(1);
+    my $foo = Foo->get(1);
     say $foo->bar;
 
     # or

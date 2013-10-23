@@ -28,6 +28,6 @@ __PACKAGE__->relations({
     }
 });
 
-__PACKAGE__->use_smart_saving;
+#__PACKAGE__->use_smart_saving;
 
 1;
