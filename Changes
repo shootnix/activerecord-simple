@@ -30,7 +30,7 @@ Revision history for Perl module ActiveRecord::Simple
 0.35	2013-08-26
         + Added new "update-on-destroy" feature.
 
-0.40    2013-08-23
+0.40    2013-10-23
         + Added  methods: limit, offset
         + Method "find" now works with no arguments
           (returns all records from db)
@@ -39,4 +39,9 @@ Revision history for Perl module ActiveRecord::Simple
         * Method find() with primary key goes to be named get()
         * Tests fixes
         * Improved documentation
+
+0.41	2013-10-24
+	* Code cleanup
+	* Bux fixes
+	* Typo fixes
 
