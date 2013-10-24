@@ -1,40 +1,42 @@
-Revision history for ActiveRecord::Simple
+Revision history for Perl module ActiveRecord::Simple
 
-0.21    16.01.2013
+0.21    2013-01-16
         First public release.
 
-0.25    10.02.2013
+0.25    2013-02-10
         * Many bug fixes
         * Improved relations
         + Added test suite (see sandbox)
         + Added relation type many-to-many
 
-0.30    10.07.2013
+0.30    2013-07-10
         * Minor bug bixes
         + Added ordering methods "order_by", "asc" and "desc"
 
-0.31    11.07.2013
+0.31    2013-07-11
         * Fixes
 
-0.32    12.07.2013
+0.32    2013-07-12
         * Fixed typos
 
-0.33    12.07.2013
+0.33    2013-07-12
         + [EXPERIMENTAL] Added a new method "use_smart_saving".
 
-0.34	21.08.2013
+0.34	2013-08-21
         + Added tracing queries
         + Added some tests
         * Minor fixes
 
-0.35	26.08.2013
-	+ Added new "update-on-destroy" feature.
+0.35	2013-08-26
+        + Added new "update-on-destroy" feature.
 
-0.40    23.08.2013
+0.40    2013-08-23
         + Added  methods: limit, offset
-        + Method "find" now works with no arguments (returns all records from db)
+        + Method "find" now works with no arguments
+          (returns all records from db)
         - Deleted method "get_all"
         * Bugfixes
         * Method find() with primary key goes to be named get()
         * Tests fixes
         * Improved documentation
+
