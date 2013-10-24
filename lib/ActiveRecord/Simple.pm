@@ -1007,6 +1007,10 @@ You also may specify which rows you want to use:
 
 There are several ways to find someone in your database using ActiveRecord::Simple:
 
+    # by "nothing"
+    # just leave attributes blank to recieve all rows from the database:
+    my @all_persons = MyModel::Person->find()->fetch;
+
     # by primary key:
     my $person = MyModel::Person->find(1)->fetch;
 
@@ -1076,9 +1080,21 @@ Use this attribute to order your results ascending:
 
 =head2 desc
 
-Use this attribute to order your results ascending:
+Use this attribute to order your results descending:
 
     MyModel::Person->find([1, 3, 5, 2])->order_by('id')->desc->fetch();
+
+=head2 limit
+
+Use this attribute to limit results of your requests:
+
+    MyModel::Person->find()->limit(10)->fetch; # select only 10 rows
+
+=head2 offset
+
+Offset of results:
+
+    MyModel::Person->find()->offset(10)->fetch; # all next after 10 rows
 
 =head2 dbh
 
