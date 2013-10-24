@@ -44,7 +44,7 @@ sub new {
             *{$pkg_method_name} = sub {
                 my $self = shift;
 
-                unless ( $self->{"relation_instance_$relname"} ) {
+                if (!$self->{"relation_instance_$relname"}) {
                     my $rel  = $class->get_relations->{$relname};
                     my $fkey = $rel->{foreign_key} || $rel->{key};
 
@@ -55,16 +55,16 @@ sub new {
 
                     load $rel_class;
 
-                    while ( my ($rel_key, $rel_opts) = each %{ $rel_class->get_relations } ) {
-                        my $rel_opts_class = ( ref $rel_opts->{class} eq 'HASH' ) ?
-                            ( %{ $rel_opts->{class} } )[1]
+                    while (my ($rel_key, $rel_opts) = each %{ $rel_class->get_relations }) {
+                        my $rel_opts_class = (ref $rel_opts->{class} eq 'HASH') ?
+                            (%{ $rel_opts->{class} })[1]
                             : $rel_opts->{class};
                         $type .= $rel_opts->{type} if $rel_opts_class eq $class;
                     }
 
-                    if ( $type eq 'one_to_many' or $type eq 'one_to_one' ) {
+                    if ($type eq 'one_to_many' or $type eq 'one_to_one') {
                         my ($pkey, $fkey_val);
-                        if ( $rel_class->can('get_primary_key') ) {
+                        if ($rel_class->can('get_primary_key')) {
                             $pkey = $rel_class->get_primary_key;
                             $fkey_val = $self->$fkey;
                         }
@@ -74,28 +74,21 @@ sub new {
                             $fkey_val = $self->$self_pkey;
                         }
 
-                        $self->{"relation_instance_$relname"} = $rel_class->find(
-                            "$pkey = ?",
-                            $fkey_val
-                        )->fetch();
+                        $self->{"relation_instance_$relname"} =
+                            $rel_class->find("$pkey = ?", $fkey_val)->fetch;
                     }
-                    elsif ( $type eq 'many_to_one' ) {
-                        unless ( $self->can('get_primary_key') ) {
-                            return $rel_class->new();
-                        }
+                    elsif ($type eq 'many_to_one') {
+                        return $rel_class->new() if not $self->can('get_primary_key');
 
                         my $pkey = $self->get_primary_key;
-                        $self->{"relation_instance_$relname"} =
-			    $rel_class->find(
-				"$fkey = ?",
-				$self->$pkey,
-			    );
+                        $self->{"relation_instance_$relname"}
+                            = $rel_class->find("$fkey = ?", $self->$pkey);
                     }
                     elsif ( $type eq 'many_to_many' ) {
                         $self->{"relation_instance_$relname"} =
                             $rel_class->_find_many_to_many({
                                 root_class => $class,
-                                m_class    => ( %{ $rel->{class} } )[0],
+                                m_class    => (%{ $rel->{class} })[0],
                                 self       => $self,
                             });
                     }
@@ -230,18 +223,16 @@ sub _mk_attribute_getter {
     my ($class, $method_name, $return) = @_;
 
     my $pkg_method_name = $class . '::' . $method_name;
-    unless ( $class->can($pkg_method_name) ) {
-	no strict 'refs';
-	*{$pkg_method_name} = sub { $return };
+    if ( !$class->can($pkg_method_name) ) {
+	    no strict 'refs';
+	    *{$pkg_method_name} = sub { $return };
     }
 }
 
 sub dbh {
     my ($self, $dbh) = @_;
 
-    if ($dbh) {
-        $dbhandler = $dbh;
-    }
+    $dbhandler = $dbh if defined $dbh;
 
     return $dbhandler;
 }
@@ -249,11 +240,11 @@ sub dbh {
 sub _quote_string {
     my ($string, $driver_name) = @_;
 
-    $driver_name ||= 'Pg';
+    $driver_name //= 'Pg';
     my $quotes_map = {
         Pg     => q/"/,
-	mysql  => q/`/,
-	SQLite => q/`/,
+	    mysql  => q/`/,
+	    SQLite => q/`/,
     };
     my $quote = $quotes_map->{$driver_name};
 
@@ -273,20 +264,17 @@ sub save {
 
     my $save_param = {};
     my $fields = $self->get_columns;
-    my $pkey;
-    if ( $self->can('get_primary_key') ) {
-        $pkey   = $self->get_primary_key;
-    }
+    my $pkey = ($self->can('get_primary_key')) ? $self->get_primary_key : undef;
 
     FIELD:
     for my $field (@$fields) {
-        next FIELD if $pkey && $field eq $pkey && !$self->{$pkey};
+        next FIELD if defined $pkey && $field eq $pkey && !$self->{$pkey};
         $save_param->{$field} = $self->{$field};
     }
 
     my $result;
-    if ( $self->{isin_database} ) {
-	$result = $self->_update($save_param);
+    if ($self->{isin_database}) {
+	    $result = $self->_update($save_param);
     }
     else {
         $result = $self->_insert($save_param);
@@ -301,12 +289,9 @@ sub _insert {
 
     return unless $self->dbh && $param;
 
-    my $table_name      = $self->get_table_name;
-    my @field_names     = grep { defined $param->{$_} } sort keys %$param;
-    my $primary_key;
-    if ( $self->can('get_primary_key') ) {
-        $primary_key = $self->get_primary_key;
-    }
+    my $table_name  = $self->get_table_name;
+    my @field_names  = grep { defined $param->{$_} } sort keys %$param;
+    my $primary_key = ($self->can('get_primary_key')) ? $self->get_primary_key : undef;
 
     my $field_names_str = join q/, /, map { q/"/ . $_ . q/"/ } @field_names;
     my $values          = join q/, /, map { '?' } @field_names;
@@ -327,7 +312,7 @@ sub _insert {
             carp 'bind: ' . join q/, /, @bind;
         } if $TRACE;
 
-	$pkey_val = $self->dbh->selectrow_array(
+	    $pkey_val = $self->dbh->selectrow_array(
             _quote_string($sql_stm, $self->dbh->{Driver}{name}),
             undef, @bind
         );
@@ -338,23 +323,18 @@ sub _insert {
             carp $SQL_REQUEST;
             carp 'bind: ' . join q/, /, @bind;
         } if $TRACE;
-	my $sth = $self->dbh->prepare(_quote_string($sql_stm, $self->dbh->{Driver}{Name}));
+	    my $sth = $self->dbh->prepare(_quote_string($sql_stm, $self->dbh->{Driver}{Name}));
         $sth->execute(@bind);
 
-	if ( $primary_key && defined $self->{$primary_key} ) {
-	    $pkey_val = $self->{$primary_key};
-	}
-	else {
-	    $pkey_val = $self->dbh->last_insert_id(
-	        undef,
-		undef,
-		$table_name,
-		undef
-	    );
-	}
+	    if ( $primary_key && defined $self->{$primary_key} ) {
+	        $pkey_val = $self->{$primary_key};
+    	}
+	    else {
+	        $pkey_val = $self->dbh->last_insert_id(undef, undef, $table_name, undef);
+    	}
     }
 
-    if ( $primary_key && $self->can($primary_key) && $pkey_val ) {
+    if (defined $primary_key && $self->can($primary_key) && $pkey_val) {
         $self->$primary_key($pkey_val);
     }
     $self->{isin_database} = 1;
@@ -416,10 +396,10 @@ sub delete {
         carp $SQL_REQUEST;
     } if $TRACE;
     if ( $self->dbh->do(_quote_string($sql, $driver_name), undef, $self->{$pkey}) ) {
-	$self->{isin_database} = undef;
-	delete $self->{$pkey};
+	    $self->{isin_database} = undef;
+	    delete $self->{$pkey};
 
-	$res = 1;
+	    $res = 1;
     }
 
     return $res;
@@ -475,7 +455,6 @@ sub fetch {
         }
     }
     elsif (defined $resultset && ref $resultset eq 'HASH') {
-        #$self->_fill_params($resultset);
         my $class = ref $self;
         my $obj = $class->new();
         $obj->_fill_params($resultset);
@@ -549,7 +528,6 @@ sub _get_slice {
 
     if (wantarray) {
         $time ||= scalar @{ $self->{_objects} };
-
         return splice @{ $self->{_objects} }, 0, $time;
     }
     else {
@@ -756,6 +734,7 @@ sub _find_one_by_primary_key {
 sub is_defined {
     my ($self) = @_;
 
+    #return keys %{ $self->to_hash };
     return grep { defined $self->{$_} } @{ $self->get_columns };
 }
 
@@ -799,7 +778,6 @@ sub is_exists_in_database {
 sub get {
     my ($class, $pkeyval) = @_;
 
-    #my $resultset = $class->_find_one_by_primary_key($pkeyval);
     my $self = $class->new();
     my $resultset = $self->_find_one_by_primary_key($pkeyval);
     $self->_fill_params($resultset);

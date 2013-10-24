@@ -34,7 +34,6 @@ Artist->dbh($dbh);
     ok $artist2->save();
 
     ok my $rating = Rating->new();
-
     ok !$rating->is_defined;
 
     ok $rating->insert({ range => 1, artist_id => $artist1->id });
@@ -93,7 +92,6 @@ Artist->dbh($dbh);
     ok my $label = Label->find({ name => 'EMI' })->fetch;
     is $label->name, 'EMI';
     my @artists = $label->artists->fetch();
-
     is scalar @artists, 2;
 
     for my $artist (@artists) {
