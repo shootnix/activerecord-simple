@@ -413,7 +413,9 @@ sub find {
     $self->{prep_request_params} = \@param;
 
     if (!ref $param[0] && scalar @param == 1) {
-        $self->{prep_request_method} = '_find_one_by_primary_key';
+        #$self->{prep_request_method} = '_find_one_by_primary_key';
+        # find one by primary key
+
     }
     elsif (!ref $param[0] && scalar @param == 0) {
         $self->{prep_request_method} = '_find_all';

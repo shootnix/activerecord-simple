@@ -183,6 +183,16 @@ Artist->dbh($dbh);
     is $a->name, 'U2';
 }
 
+{
+    pass '~ fetch ~';
+    my $res = Artist->find();
+    while (my @artists = $res->fetch(3)) {
+        for my $artist (@artists) {
+            say $artist->name;
+        }
+    }
+}
+
 =c
 {
     ok 1, '~ bench smart saving ~';
