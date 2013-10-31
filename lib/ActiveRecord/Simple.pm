@@ -409,25 +409,73 @@ sub find {
     my ($class, @param) = @_;
 
     my $self = $class->new();
-    $self->{prep_request_method} = undef;
-    $self->{prep_request_params} = \@param;
+
+    my $table_name = $self->get_table_name;
+    my $pkey       = $self->get_primary_key;
 
     if (!ref $param[0] && scalar @param == 1) {
-        #$self->{prep_request_method} = '_find_one_by_primary_key';
         # find one by primary key
+        my $sql_stmt = qq{
+            select * from "$table_name"
+                where
+                    "$pkey" = ?
+        };
+        $self->_finish_sql_stmt(\$sql_stmt);
 
+        $self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Drive}{Name});
+        $self->{'BIND'} = \@param
     }
     elsif (!ref $param[0] && scalar @param == 0) {
-        $self->{prep_request_method} = '_find_all';
+        # find all
+        my $sql_stmt = qq{
+            select * from "$table_name"
+        };
+        $self->_finish_sql_stmt(\$sql_stmt);
+
+        $self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
+        $self->{'BIND'} = undef;
     }
     elsif (ref $param[0] && ref $param[0] eq 'HASH') {
-        $self->{prep_request_method} = '_find_many_by_params';
+        # find many by params
+        my $where_str = join q/ and /, map { q/"/ . $_ . q/"/ .' = ?' } keys %$param;
+        my @bind = values %$param;
+
+        my $sql_stmt = qq{
+            select * from "$table_name"
+            where
+                $where_str
+        };
+        $self->_finish_sql_stmt(\$sql_stmt);
+
+        $self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
+        $self->{'BIND'} = \@bind;
     }
     elsif (ref $param[0] && ref $param[0] eq 'ARRAY') {
-        $self->{prep_request_method} = '_find_many_by_primary_keys';
+        # find many by primary keys
+        my $whereinstr = join ', ', @$param;
+
+        my $sql_stmt = qq{
+            select * from "$table_name"
+            where
+                "$pkey" in ($whereinstr)
+        };
+        $self->_finish_sql_stmt(\$sql_stmt);
+
+        $self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
+        $self->{'BIND'} = undef;
     }
     else {
-        $self->{prep_request_method} = '_find_many_by_condition';
+        # find many by condition
+        my $wherestr = shift @param;
+        my $sql_stmt = qq{
+            select * from "$table_name"
+            where
+                $wherestr
+        };
+        $self->_finish_sql_stmt(\$sql_stmt);
+
+        $self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
+        $self->{'BIND'} = \@param;
     }
 
     return $self;
@@ -436,11 +484,15 @@ sub find {
 sub fetch {
     my ($self, $limit) = @_;
 
-    return $self->_get_slice($limit) if defined $self->{_objects};
+    return $self->_get_slice($limit)
+        if defined $self->{_objects}
+            && ref $self->{_objects} eq 'ARRAY'
+            && scalar @{ $self->{_objects} } > 0;
 
-    my $resultset = $self->_find_many_by_prepared_statement();
+    my @objects;
+    my $resultset =
+        $self->dbh->selectall_arrayref($self->{'SQL'}, { Slice => {} }, @{ $self->{'BIND'} });
 
-    my @bulk_objects;
     if (defined $resultset && ref $resultset eq 'ARRAY' && scalar @$resultset > 0) {
         my $class = ref $self;
         for my $object_data (@$resultset) {
@@ -453,22 +505,14 @@ sub fetch {
 
             $obj->{isin_database} = 1;
 
-            push @bulk_objects, $obj;
+            push @objects, $obj;
         }
     }
-    elsif (defined $resultset && ref $resultset eq 'HASH') {
-        my $class = ref $self;
-        my $obj = $class->new();
-        $obj->_fill_params($resultset);
-        $obj->{isin_database} = 1;
-
-        push @bulk_objects, $obj;
-    }
     else {
-        push @bulk_objects, $self;
+        push @objects, $self;
     }
 
-    $self->{_objects} = \@bulk_objects;
+    $self->{_objects} = \@objects;
 
     $self->_get_slice($limit);
 }
