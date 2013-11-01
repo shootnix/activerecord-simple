@@ -410,8 +410,8 @@ sub find {
 
     my $self = $class->new();
 
-    my $table_name = $self->get_table_name;
-    my $pkey       = $self->get_primary_key;
+    my $table_name = ($self->can('get_table_name'))  ? $self->get_table_name  : undef;
+    my $pkey       = ($self->can('get_primary_key')) ? $self->get_primary_key : undef;
 
     if (!ref $param[0] && scalar @param == 1) {
         # find one by primary key
@@ -420,9 +420,8 @@ sub find {
                 where
                     "$pkey" = ?
         };
-        $self->_finish_sql_stmt(\$sql_stmt);
 
-        $self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Drive}{Name});
+        $self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
         $self->{'BIND'} = \@param
     }
     elsif (!ref $param[0] && scalar @param == 0) {
@@ -430,7 +429,6 @@ sub find {
         my $sql_stmt = qq{
             select * from "$table_name"
         };
-        $self->_finish_sql_stmt(\$sql_stmt);
 
         $self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
         $self->{'BIND'} = undef;
@@ -445,7 +443,6 @@ sub find {
             where
                 $where_str
         };
-        $self->_finish_sql_stmt(\$sql_stmt);
 
         $self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
         $self->{'BIND'} = \@bind;
@@ -459,7 +456,6 @@ sub find {
             where
                 "$pkey" in ($whereinstr)
         };
-        $self->_finish_sql_stmt(\$sql_stmt);
 
         $self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
         $self->{'BIND'} = undef;
@@ -472,7 +468,6 @@ sub find {
             where
                 $wherestr
         };
-        $self->_finish_sql_stmt(\$sql_stmt);
 
         $self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
         $self->{'BIND'} = \@param;
@@ -484,10 +479,9 @@ sub find {
 sub fetch {
     my ($self, $limit) = @_;
 
-    #if (exists $self->{_objects}) {
-    #
-    #}
     if (not exists $self->{_objects}) {
+        $self->_finish_sql_stmt();
+
         my @objects;
         my $resultset =
             $self->dbh->selectall_arrayref(
@@ -506,8 +500,6 @@ sub fetch {
                 my $obj = $class->new();
                 $obj->_fill_params($object_data);
 
-                #my $obj = bless $object_data, $class;
-
                 $obj->{snapshoot} = freeze($object_data) if $obj->smart_saving_used;
                 $obj->{isin_database} = 1;
 
@@ -519,8 +511,6 @@ sub fetch {
         }
 
         $self->{_objects} = \@objects;
-
-        $self->_get_slice($limit);
     }
 
     return $self->_get_slice($limit);
@@ -529,7 +519,7 @@ sub fetch {
 sub order_by {
     my ($self, @param) = @_;
 
-    return if not defined $self->{prep_request_method};
+    return if not defined $self->{SQL};
 
     $self->{prep_order_by} = \@param;
 
@@ -539,7 +529,7 @@ sub order_by {
 sub desc {
     my ($self) = @_;
 
-    return if not defined $self->{prep_request_method};
+    return if not defined $self->{SQL};
 
     $self->{prep_desc} = 1;
 
@@ -549,7 +539,7 @@ sub desc {
 sub asc {
     my ($self, @param) = @_;
 
-    return if not defined $self->{prep_request_method};
+    return if not defined $self->{SQL};
 
     $self->{prep_asc} = 1;
 
@@ -559,7 +549,7 @@ sub asc {
 sub limit {
     my ($self, $limit) = @_;
 
-    return if not defined $self->{prep_request_method};
+    return if not defined $self->{SQL};
 
     $self->{prep_limit} = $limit;
 
@@ -569,7 +559,7 @@ sub limit {
 sub offset {
     my ($self, $offset) = @_;
 
-    return if not defined $self->{prep_request_method};
+    return if not defined $self->{SQL};
 
     $self->{prep_offset} = $offset;
 
@@ -603,90 +593,28 @@ sub _fill_params {
     return $self;
 }
 
-sub _find_many_by_prepared_statement {
-    my ($self) = @_;
-
-    return unless $self->{prep_request_method} && $self->{prep_request_params};
-
-    my $method = $self->{prep_request_method};
-    my @params = @{ $self->{prep_request_params} };
-
-    my $resultset = $self->$method(@params);
-
-    return $resultset;
-}
-
-sub _find_all {
-    my ($self) = @_;
-
-    my $table_name = $self->get_table_name;
-    my $sql_stmt = qq{
-        select * from "$table_name"
-    };
-
-    $self->_finish_sql_stmt(\$sql_stmt);
-    do {
-        my $SQL_REQUEST = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
-        carp $SQL_REQUEST;
-    } if $TRACE;
-
-    return
-        $self->dbh->selectall_arrayref(
-            _quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
-            { Slice => {} }
-        );
-}
-
-sub _find_many_by_primary_keys {
-    my ($self, $pkeyvals) = @_;
-
-    return unless $pkeyvals && ref $pkeyvals eq 'ARRAY' && scalar @$pkeyvals > 0;
-
-    my $table_name = $self->get_table_name;
-    my $pkey = $self->get_primary_key;
-    my $whereinstr = join ', ', @$pkeyvals;
-
-    my $sql_stmt = qq{
-	    select * from "$table_name"
-	    where
-	        "$pkey" in ($whereinstr)
-    };
-
-    $self->_finish_sql_stmt(\$sql_stmt);
-    do {
-        my $SQL_REQUEST = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
-        carp $SQL_REQUEST;
-    } if $TRACE;
-
-    return
-        $self->dbh->selectall_arrayref(
-            _quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
-            { Slice => {} }
-        );
-}
-
 sub _finish_sql_stmt {
-    my ($self, $sql_stmt) = @_;
+    my ($self) = @_;
 
     if (defined $self->{prep_order_by}) {
-        $$sql_stmt .= ' order by ';
-        $$sql_stmt .= join q/, /, map { q/"/.$_.q/"/ } @{ $self->{prep_order_by} };
+        $self->{SQL} .= ' order by ';
+        $self->{SQL} .= join q/, /, map { q/"/.$_.q/"/ } @{ $self->{prep_order_by} };
     }
 
     if (defined $self->{prep_desc}) {
-        $$sql_stmt .= ' desc';
+        $self->{SQL} .= ' desc';
     }
 
     if (defined $self->{prep_asc}) {
-        $$sql_stmt .= ' asc';
+        $self->{SQL} .= ' asc';
     }
 
     if (defined $self->{prep_limit}) {
-        $$sql_stmt .= ' limit ' . $self->{prep_limit};
+        $self->{SQL} .= ' limit ' . $self->{prep_limit};
     }
 
     if (defined $self->{prep_offset}) {
-        $$sql_stmt .= ' offset ' . $self->{prep_offset};
+        $self->{SQL} .= ' offset ' . $self->{prep_offset};
     }
 
     $self->_delete_keys(qr/^prep\_/);
@@ -696,94 +624,6 @@ sub _delete_keys {
     my ($self, $rx) = @_;
 
     map { delete $self->{$_} if $_ =~ $rx } keys %$self;
-}
-
-sub _find_many_by_condition {
-    my ($self, @param) = @_;
-
-    return unless $self->dbh;
-
-    my $wherestr = shift @param;
-    my $table_name = $self->get_table_name;
-
-    my $sql_stmt = qq{
-	select * from "$table_name"
-        where
-            $wherestr
-    };
-
-    $self->_finish_sql_stmt(\$sql_stmt);
-
-    do {
-        my $SQL_REQUEST = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
-        carp $SQL_REQUEST;
-        carp 'bind: ' . join q/, /, @param;
-    } if $TRACE;
-
-    return $self->dbh->selectall_arrayref(
-	_quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
-	{ Slice => {} },
-	@param
-    );
-}
-
-sub _find_many_by_params {
-    my ($self, $param) = @_;
-
-    return unless $self->dbh && $param;
-
-    my $table_name = $self->get_table_name;
-    my $where_str = join q/ and /, map { q/"/ . $_ . q/"/ .' = ?' } keys %$param;
-    my @bind = values %$param;
-
-    my $sql_stmt = qq{
-        select * from "$table_name"
-        where
-            $where_str
-    };
-
-    $self->_finish_sql_stmt(\$sql_stmt);
-
-    do {
-        my $SQL_REQUEST = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
-        carp $SQL_REQUEST;
-        carp 'bind: ' . join q/, /, @bind;
-    } if $TRACE;
-
-    return $self->dbh->selectall_arrayref(
-	_quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
-	{ Slice => {} },
-	@bind
-    );
-}
-
-sub _find_one_by_primary_key {
-    my ($self, $pkeyval) = @_;
-
-    return unless $self->dbh;
-
-    my $table_name = $self->get_table_name;
-
-    my $pkey = $self->get_primary_key;
-
-    my $sql_stmt = qq{
-	select * from "$table_name"
-        where
-            "$pkey" = ?
-    };
-
-    $self->_finish_sql_stmt(\$sql_stmt);
-
-    do {
-        my $SQL_REQUEST = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
-        carp $SQL_REQUEST;
-    } if $TRACE;
-
-    return $self->dbh->selectrow_hashref(
-	_quote_string($sql_stmt, $self->dbh->{Driver}{Name}),
-	undef,
-	$pkeyval
-    );
 }
 
 sub is_defined {
@@ -833,11 +673,7 @@ sub is_exists_in_database {
 sub get {
     my ($class, $pkeyval) = @_;
 
-    my $self = $class->new();
-    my $resultset = $self->_find_one_by_primary_key($pkeyval);
-    $self->_fill_params($resultset);
-
-    return $self;
+    return $class->find($pkeyval)->fetch();
 }
 
 # param:

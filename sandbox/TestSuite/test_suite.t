@@ -65,6 +65,7 @@ Artist->dbh($dbh);
     ok( CDSong->new({ song_id => $song1->id, cd_id => $album1->id })->save() );
 };
 
+
 {
     ok 1, '~ cd ~';
     ok my $album = CD->find({ title => 'Zooropa' })->fetch;
