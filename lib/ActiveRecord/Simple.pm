@@ -28,12 +28,12 @@ my $TRACE     = defined $ENV{ACTIVE_RECORD_SIMPLE_TRACE} ? 1 : undef;
 sub new {
     my ($class, $param) = @_;
 
-    $class->_mk_accessors($class->get_columns());
+    $class->_mk_accessors($class->_get_columns());
 
-    if ($class->can('get_relations')) {
-        my $relations = $class->get_relations();
+    if ($class->can('_get_relations')) {
+        my $relations = $class->_get_relations();
 
-	no strict 'refs';
+	    no strict 'refs';
 
         RELNAME:
         for my $relname ( keys %{ $relations } ) {
@@ -45,7 +45,7 @@ sub new {
                 my $self = shift;
 
                 if (!$self->{"relation_instance_$relname"}) {
-                    my $rel  = $class->get_relations->{$relname};
+                    my $rel  = $class->_get_relations->{$relname};
                     my $fkey = $rel->{foreign_key} || $rel->{key};
 
                     my $type = $rel->{type} . '_to_';
@@ -55,7 +55,7 @@ sub new {
 
                     load $rel_class;
 
-                    while (my ($rel_key, $rel_opts) = each %{ $rel_class->get_relations }) {
+                    while (my ($rel_key, $rel_opts) = each %{ $rel_class->_get_relations }) {
                         my $rel_opts_class = (ref $rel_opts->{class} eq 'HASH') ?
                             (%{ $rel_opts->{class} })[1]
                             : $rel_opts->{class};
@@ -64,13 +64,13 @@ sub new {
 
                     if ($type eq 'one_to_many' or $type eq 'one_to_one') {
                         my ($pkey, $fkey_val);
-                        if ($rel_class->can('get_primary_key')) {
-                            $pkey = $rel_class->get_primary_key;
+                        if ($rel_class->can('_get_primary_key')) {
+                            $pkey = $rel_class->_get_primary_key;
                             $fkey_val = $self->$fkey;
                         }
                         else {
                             $pkey = $fkey;
-                            my $self_pkey = $self->get_primary_key;
+                            my $self_pkey = $self->_get_primary_key;
                             $fkey_val = $self->$self_pkey;
                         }
 
@@ -78,9 +78,9 @@ sub new {
                             $rel_class->find("$pkey = ?", $fkey_val)->fetch;
                     }
                     elsif ($type eq 'many_to_one') {
-                        return $rel_class->new() if not $self->can('get_primary_key');
+                        return $rel_class->new() if not $self->can('_get_primary_key');
 
-                        my $pkey = $self->get_primary_key;
+                        my $pkey = $self->_get_primary_key;
                         $self->{"relation_instance_$relname"}
                             = $rel_class->find("$fkey = ?", $self->$pkey);
                     }
@@ -114,7 +114,7 @@ sub _find_many_to_many {
     my $class_opts = {};
     my $root_class_opts = {};
 
-    for my $opts ( values %{ $param->{m_class}->get_relations } ) {
+    for my $opts ( values %{ $param->{m_class}->_get_relations } ) {
         if ($opts->{class} eq $param->{root_class}) {
             $root_class_opts = $opts;
         }
@@ -123,23 +123,23 @@ sub _find_many_to_many {
         }
     }
 
-    my $connected_table_name = $class->get_table_name;
+    my $connected_table_name = $class->_get_table_name;
     my $sql_stm;
     $sql_stm .=
         'select ' .
         "$connected_table_name\.*" .
         ' from ' .
-        $param->{m_class}->get_table_name .
+        $param->{m_class}->_get_table_name .
         ' join ' .
         $connected_table_name .
         ' on ' .
-        $connected_table_name . '.' . $class->get_primary_key .
+        $connected_table_name . '.' . $class->_get_primary_key .
         ' = ' .
-        $param->{m_class}->get_table_name . '.' . $class_opts->{key} .
+        $param->{m_class}->_get_table_name . '.' . $class_opts->{key} .
         ' where ' .
         $root_class_opts->{key} .
         ' = ' .
-        $param->{self}->{ $param->{root_class}->get_primary_key };
+        $param->{self}->{ $param->{root_class}->_get_primary_key };
 
     my $container_class = $class->new();
     do {
@@ -170,17 +170,17 @@ sub _mk_accessors {
     no strict 'refs';
     FIELD:
     for my $f (@$fields) {
-	my $pkg_accessor_name = $class . '::' . $f;
-	next FIELD if $class->can($pkg_accessor_name);
-	*{$pkg_accessor_name} = sub {
-	    if ( scalar @_ > 1 ) {
+	    my $pkg_accessor_name = $class . '::' . $f;
+	    next FIELD if $class->can($pkg_accessor_name);
+	    *{$pkg_accessor_name} = sub {
+	        if ( scalar @_ > 1 ) {
                 $_[0]->{$f} = $_[1];
 
-		return $_[0];
-	    }
+		        return $_[0];
+	        }
 
-	    return $_[0]->{$f};
-	}
+	        return $_[0]->{$f};
+	    }
     }
     use strict 'refs';
 
@@ -190,19 +190,19 @@ sub _mk_accessors {
 sub columns {
     my ($class, $columns) = @_;
 
-    $class->_mk_attribute_getter('get_columns', $columns);
+    $class->_mk_attribute_getter('_get_columns', $columns);
 }
 
 sub primary_key {
     my ($class, $primary_key) = @_;
 
-    $class->_mk_attribute_getter('get_primary_key', $primary_key);
+    $class->_mk_attribute_getter('_get_primary_key', $primary_key);
 }
 
 sub table_name {
     my ($class, $table_name) = @_;
 
-    $class->_mk_attribute_getter('get_table_name', $table_name);
+    $class->_mk_attribute_getter('_get_table_name', $table_name);
 }
 
 sub use_smart_saving {
@@ -210,13 +210,13 @@ sub use_smart_saving {
 
     $is_on = 1 if not defined $is_on;
 
-    $class->_mk_attribute_getter('smart_saving_used', $is_on);
+    $class->_mk_attribute_getter('_smart_saving_used', $is_on);
 }
 
 sub relations {
     my ($class, $relations) = @_;
 
-    $class->_mk_attribute_getter('get_relations', $relations);
+    $class->_mk_attribute_getter('_get_relations', $relations);
 }
 
 sub _mk_attribute_getter {
@@ -258,13 +258,13 @@ sub save {
 
     return unless $self->dbh;
 
-    return 1 if $self->smart_saving_used
+    return 1 if $self->_smart_saving_used
         and defined $self->{snapshoot}
         and $self->{snapshoot} eq freeze $self->to_hash;
 
     my $save_param = {};
-    my $fields = $self->get_columns;
-    my $pkey = ($self->can('get_primary_key')) ? $self->get_primary_key : undef;
+    my $fields = $self->_get_columns;
+    my $pkey = ($self->can('_get_primary_key')) ? $self->_get_primary_key : undef;
 
     FIELD:
     for my $field (@$fields) {
@@ -289,9 +289,9 @@ sub _insert {
 
     return unless $self->dbh && $param;
 
-    my $table_name  = $self->get_table_name;
+    my $table_name  = $self->_get_table_name;
     my @field_names  = grep { defined $param->{$_} } sort keys %$param;
-    my $primary_key = ($self->can('get_primary_key')) ? $self->get_primary_key : undef;
+    my $primary_key = ($self->can('_get_primary_key')) ? $self->_get_primary_key : undef;
 
     my $field_names_str = join q/, /, map { q/"/ . $_ . q/"/ } @field_names;
     my $values          = join q/, /, map { '?' } @field_names;
@@ -347,9 +347,9 @@ sub _update {
 
     return unless $self->dbh && $param;
 
-    my $table_name      = $self->get_table_name;
+    my $table_name      = $self->_get_table_name;
     my @field_names     = sort keys %$param;
-    my $primary_key     = $self->get_primary_key;
+    my $primary_key     = $self->_get_primary_key;
 
     my $setstring = join ', ', map { "$_ = ?" } @field_names;
     my @bind = map { $param->{$_} } @field_names;
@@ -380,8 +380,8 @@ sub delete {
 
     return unless $self->dbh;
 
-    my $table_name = $self->get_table_name;
-    my $pkey = $self->get_primary_key;
+    my $table_name = $self->_get_table_name;
+    my $pkey = $self->_get_primary_key;
     return unless $self->{$pkey};
 
     my $sql = qq{
@@ -410,8 +410,8 @@ sub find {
 
     my $self = $class->new();
 
-    my $table_name = ($self->can('get_table_name'))  ? $self->get_table_name  : undef;
-    my $pkey       = ($self->can('get_primary_key')) ? $self->get_primary_key : undef;
+    my $table_name = ($self->can('_get_table_name'))  ? $self->_get_table_name  : undef;
+    my $pkey       = ($self->can('_get_primary_key')) ? $self->_get_primary_key : undef;
 
     if (!ref $param[0] && scalar @param == 1) {
         # find one by primary key
@@ -497,7 +497,7 @@ sub fetch {
                 #$obj->_fill_params($object_data);
                 my $obj = bless $object_data, $class;
 
-                $obj->{snapshoot} = freeze($object_data) if $obj->smart_saving_used;
+                $obj->{snapshoot} = freeze($object_data) if $obj->_smart_saving_used;
                 $obj->{isin_database} = 1;
 
                 push @objects, $obj;
@@ -629,7 +629,7 @@ sub is_defined {
     my ($self) = @_;
 
     #return keys %{ $self->to_hash };
-    return grep { defined $self->{$_} } @{ $self->get_columns };
+    return grep { defined $self->{$_} } @{ $self->_get_columns };
 }
 
 # param:
@@ -641,7 +641,7 @@ sub is_exists_in_database {
 
     $param ||= $self->to_hash({ only_defined_fields => 1 });
 
-    my $table_name = $self->get_table_name;
+    my $table_name = $self->_get_table_name;
     my @fields = sort keys %$param;
     my $where_str = join q/ and /, map { q/"/. $_ . q/"/ .' = ?' } @fields;
     my @bind;
@@ -681,7 +681,7 @@ sub get {
 sub to_hash {
     my ($self, $param) = @_;
 
-    my $field_names = $self->get_columns;
+    my $field_names = $self->_get_columns;
     my $attrs = {};
 
     for my $field (@$field_names) {
@@ -699,7 +699,7 @@ sub to_hash {
 sub DESTROY {
     my ($self) = @_;
 
-    if ($self->smart_saving_used) {
+    if ($self->_smart_saving_used) {
         $self->save() if not exists $self->{'_objects'};
     }
 }
