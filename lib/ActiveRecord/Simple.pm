@@ -437,8 +437,8 @@ sub find {
     }
     elsif (ref $param[0] && ref $param[0] eq 'HASH') {
         # find many by params
-        my $where_str = join q/ and /, map { q/"/ . $_ . q/"/ .' = ?' } keys %$param;
-        my @bind = values %$param;
+        my $where_str = join q/ and /, map { q/"/ . $_ . q/"/ .' = ?' } keys %{ $param[0] };
+        my @bind = values %{ $param[0] };
 
         my $sql_stmt = qq{
             select * from "$table_name"
@@ -452,7 +452,7 @@ sub find {
     }
     elsif (ref $param[0] && ref $param[0] eq 'ARRAY') {
         # find many by primary keys
-        my $whereinstr = join ', ', @$param;
+        my $whereinstr = join ', ', @{ $param[0] };
 
         my $sql_stmt = qq{
             select * from "$table_name"
@@ -484,37 +484,46 @@ sub find {
 sub fetch {
     my ($self, $limit) = @_;
 
-    return $self->_get_slice($limit)
-        if defined $self->{_objects}
-            && ref $self->{_objects} eq 'ARRAY'
-            && scalar @{ $self->{_objects} } > 0;
+    #if (exists $self->{_objects}) {
+    #
+    #}
+    if (not exists $self->{_objects}) {
+        my @objects;
+        my $resultset =
+            $self->dbh->selectall_arrayref(
+                $self->{'SQL'},
+                { Slice => {} },
+                @{ $self->{'BIND'}
+            });
 
-    my @objects;
-    my $resultset =
-        $self->dbh->selectall_arrayref($self->{'SQL'}, { Slice => {} }, @{ $self->{'BIND'} });
+        if (
+            defined $resultset
+            && ref $resultset eq 'ARRAY'
+            && scalar @$resultset > 0
+        ) {
+            my $class = ref $self;
+            for my $object_data (@$resultset) {
+                my $obj = $class->new();
+                $obj->_fill_params($object_data);
 
-    if (defined $resultset && ref $resultset eq 'ARRAY' && scalar @$resultset > 0) {
-        my $class = ref $self;
-        for my $object_data (@$resultset) {
-            my $obj = $class->new();
-            $obj->_fill_params($object_data);
+                #my $obj = bless $object_data, $class;
 
-            if ($obj->smart_saving_used) {
-                $obj->{snapshoot} = freeze($object_data);
+                $obj->{snapshoot} = freeze($object_data) if $obj->smart_saving_used;
+                $obj->{isin_database} = 1;
+
+                push @objects, $obj;
             }
-
-            $obj->{isin_database} = 1;
-
-            push @objects, $obj;
         }
-    }
-    else {
-        push @objects, $self;
+        else {
+            push @objects, $self;
+        }
+
+        $self->{_objects} = \@objects;
+
+        $self->_get_slice($limit);
     }
 
-    $self->{_objects} = \@objects;
-
-    $self->_get_slice($limit);
+    return $self->_get_slice($limit);
 }
 
 sub order_by {
