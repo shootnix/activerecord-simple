@@ -497,8 +497,9 @@ sub fetch {
         ) {
             my $class = ref $self;
             for my $object_data (@$resultset) {
-                my $obj = $class->new();
-                $obj->_fill_params($object_data);
+                #my $obj = $class->new();
+                #$obj->_fill_params($object_data);
+                my $obj = bless $object_data, $class;
 
                 $obj->{snapshoot} = freeze($object_data) if $obj->smart_saving_used;
                 $obj->{isin_database} = 1;
@@ -580,18 +581,18 @@ sub _get_slice {
     }
 }
 
-sub _fill_params {
-    my ($self, $params) = @_;
-
-    return unless $params;
-
-    FIELD:
-    for my $field ( sort keys %$params ) {
-        $self->{$field} = $params->{$field};
-    }
-
-    return $self;
-}
+#sub _fill_params {
+#    my ($self, $params) = @_;
+#
+#    return unless $params;
+#
+#    FIELD:
+#    for my $field ( sort keys %$params ) {
+#        $self->{$field} = $params->{$field};
+#    }
+#
+#    return $self;
+#}
 
 sub _finish_sql_stmt {
     my ($self) = @_;
