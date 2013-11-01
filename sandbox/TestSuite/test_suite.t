@@ -23,7 +23,7 @@ my $dbh = DBI->connect("dbi:SQLite:test_suite.db", "", "");
 Artist->dbh($dbh);
 
 {
-    ok 1, '~ Populating database ~';
+    pass '~ Populating database ~';
     ok my $label = Label->new({ name => 'EMI' });
     ok $label->save();
 
@@ -65,9 +65,8 @@ Artist->dbh($dbh);
     ok( CDSong->new({ song_id => $song1->id, cd_id => $album1->id })->save() );
 };
 
-
 {
-    ok 1, '~ cd ~';
+    pass '~ cd ~';
     ok my $album = CD->find({ title => 'Zooropa' })->fetch;
     is $album->title, 'Zooropa';
 
@@ -79,7 +78,7 @@ Artist->dbh($dbh);
 }
 
 {
-    ok 1, '~ artist <-> label ~';
+    pass '~ artist <-> label ~';
     ok my $metallica = Artist->find({ name => 'Metallica' })->fetch;
     is $metallica->name, 'Metallica';
     is $metallica->label->name, 'EMI';
@@ -111,7 +110,7 @@ Artist->dbh($dbh);
     is $a4->name, 'U2';
 };
 {
-    ok 1, '~ artist <-> rating ~';
+    pass '~ artist <-> rating ~';
     ok my $artist = Artist->find({ name => 'Metallica' })->fetch;
     ok $artist->rating->range;
 
@@ -125,7 +124,7 @@ Artist->dbh($dbh);
 }
 
 {
-    ok 1, '~ artist <- arist_cd -> cd ~';
+    pass '~ artist <- arist_cd -> cd ~';
     ok my $artist = Artist->find({ name => 'Metallica' })->fetch;
 
     ok my @albums = $artist->albums->fetch();
@@ -137,7 +136,7 @@ Artist->dbh($dbh);
 }
 
 {
-    ok 1, '~ song <- cd_song -> cd ~';
+    pass '~ song <- cd_song -> cd ~';
     ok my $album = CD->find({ title => 'Load' })->fetch;
     ok my @songs = $album->songs->fetch;
     is scalar @songs, 2;
@@ -148,7 +147,7 @@ Artist->dbh($dbh);
 }
 
 {
-    ok 1, '~ new fetch ~';
+    pass '~ new fetch ~';
     ok my @cd = CD->find('id > ?', 1)->order_by('title', 'id')->fetch();
     ok @cd = CD->find('id > ?', 2)->fetch();
     ok @cd = CD->find({ title => 'Load' })->fetch();
@@ -162,7 +161,7 @@ Artist->dbh($dbh);
 }
 
 {
-    ok 1, '~ use_smart_saving ~';
+    pass '~ use_smart_saving ~';
 
     ok my @a = Artist->find('id >= ?', 1)->fetch();
     my $metallica = $a[0];
@@ -170,7 +169,7 @@ Artist->dbh($dbh);
 }
 
 {
-    ok 1, '~ ordering ~';
+    pass '~ ordering ~';
     my $artists = Artist->find('id != ?', 100)->order_by('name')->desc();
     ok $artists->fetch();
 }
@@ -186,38 +185,18 @@ Artist->dbh($dbh);
 
 {
     pass '~ fetch ~';
-    my $res = Artist->find();
-    while (my @artists = $res->fetch(3)) {
-        for my $artist (@artists) {
-            say $artist->name;
-        }
-    }
-}
 
-=c
-{
-    ok 1, '~ bench smart saving ~';
-
-    use Time::HiRes qw/tv_interval gettimeofday/;
-
-    my $t1 = [gettimeofday];
-
-    for (1..10) {
-        my $artist = Artist->find(1);
-        $artist->save();
+    my $find = CD->find;
+    while (my @cd2 = $find->fetch(2)) {
+        is scalar @cd2, 2;
     }
 
-    my $t2 = [gettimeofday];
-
-    say tv_interval $t1, $t2;
+    my $find2 = CD->find;
+    my @cd = $find2->fetch(3);
+    is scalar @cd, 3;
+    @cd = $find2->fetch(3);
+    is scalar @cd, 1;
 }
 
-$my $unfetched = Artist->find([1, 2]);
-#$unfetched->order_by('name')->desc;
-#
-#while (my $artist = $unfetched->fetch()) {
-#    say $artist->name;
-#}
-=cut
 
 done_testing;

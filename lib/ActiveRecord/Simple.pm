@@ -490,11 +490,7 @@ sub fetch {
                 @{ $self->{'BIND'}
             });
 
-        if (
-            defined $resultset
-            && ref $resultset eq 'ARRAY'
-            && scalar @$resultset > 0
-        ) {
+        if (defined $resultset && ref $resultset eq 'ARRAY' && scalar @$resultset > 0) {
             my $class = ref $self;
             for my $object_data (@$resultset) {
                 #my $obj = $class->new();
@@ -515,6 +511,22 @@ sub fetch {
     }
 
     return $self->_get_slice($limit);
+}
+
+sub _get_slice {
+    my ($self, $time) = @_;
+
+    return unless $self->{_objects}
+        && ref $self->{_objects} eq 'ARRAY'
+        && scalar @{ $self->{_objects} } > 0;
+
+    if (wantarray) {
+        $time ||= scalar @{ $self->{_objects} };
+        return splice @{ $self->{_objects} }, 0, $time;
+    }
+    else {
+        return shift @{ $self->{_objects} };
+    }
 }
 
 sub order_by {
@@ -565,20 +577,6 @@ sub offset {
     $self->{prep_offset} = $offset;
 
     return $self;
-}
-
-sub _get_slice {
-    my ($self, $time) = @_;
-
-    return unless $self->{_objects} && ref $self->{_objects} eq 'ARRAY';
-
-    if (wantarray) {
-        $time ||= scalar @{ $self->{_objects} };
-        return splice @{ $self->{_objects} }, 0, $time;
-    }
-    else {
-        return shift @{ $self->{_objects} };
-    }
 }
 
 #sub _fill_params {
