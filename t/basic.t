@@ -85,13 +85,36 @@ ok my $c5 = t::class->find('foo = ?', 'bar'), 'find, binded params';
 isa_ok $c5, 't::class';
 
 is ref $c->to_hash, 'HASH', 'to_hash';
-ok $c->smart_saving_used == 0, 'no use smart saving';
+ok $c->_smart_saving_used == 0, 'no use smart saving';
 
 my $t2 = t::class2->find(1);
-ok $t2->smart_saving_used == 1, 'smart_saving_used, on founded';
+ok $t2->_smart_saving_used == 1, 'smart_saving_used, on founded';
 
 my $t22 = t::class2->new({ foo => 1 });
-ok $t22->smart_saving_used == 1, 'smart_saving_used, on created';
+ok $t22->_smart_saving_used == 1, 'smart_saving_used, on created';
+
+my $order_find = t::class->find()->order_by('foo');
+$order_find->fetch;
+ok $order_find->{SQL} =~ m/order by/i, 'order by';
+$order_find = t::class->find()->order_by('foo')->desc;
+$order_find->fetch;
+ok $order_find->{SQL} =~ m/order by/i, 'order by';
+ok $order_find->{SQL} =~ m/desc/i, 'order by, desc';
+
+my $limit_find = t::class->find->limit(1);
+$limit_find->fetch;
+ok $limit_find->{SQL} =~ m/limit\s+1/i, 'limit 1';
+
+my $offset_find = t::class->find->offset(2);
+$offset_find->fetch();
+ok $offset_find->{SQL} =~ m/offset\s+2/i, 'offset 2';
+
+my $total_sql = t::class->find->limit(1)->offset(2)->order_by('foo')->desc;
+$total_sql->fetch;
+ok $total_sql->{SQL} =~ /limit\s+1/i, 'use all predicats, find "limit 1"';
+ok $total_sql->{SQL} =~ /offset\s+2/i, 'use all predicats, find "offset 2"';
+ok $total_sql->{SQL} =~ /order\s+by/i, 'use all predicats, find "order by"';
+ok $total_sql->{SQL} =~ /desc/i, 'use all predicats, find "desc"';
 
 ok $c->delete(), 'delete';
 

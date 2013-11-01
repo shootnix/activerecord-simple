@@ -10,11 +10,11 @@ ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord 
 
 =head1 VERSION
 
-Version 0.41
+Version 0.50
 
 =cut
 
-our $VERSION = '0.41';
+our $VERSION = '0.50';
 
 use utf8;
 use Encode;
@@ -714,7 +714,7 @@ ActiveRecord::Simple
 
 =head1 VERSION
 
-0.41
+0.50
 
 =head1 DESCRIPTION
 
@@ -743,10 +743,10 @@ That's it! Now you're ready to use your active-record class in the application:
     # to update the record:
     $person->name('Bar')->save();
 
-    # to find a record (by primary key):
+    # to get the record (using primary key):
     my $person = MyModel::Person->get(1);
 
-    # to find many records by parameters:
+    # to find records by parameters:
     my @persons = MyModel::Person->find({ name => 'Foo' })->fetch();
 
     # to find records by sql-condition:

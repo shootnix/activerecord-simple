@@ -1,1 +1,7 @@
-- Code refactoring
+$artist->label(Label->find({ name => 'EMI' })->fetch)->save;
+$artist->label(Label->new({ name => 'EMI' }))->save;
+$artist->label($label)->save;
+$artist->label(undef)->save;
+$artist->label->delete;
+
+say $artist->label->name; ### 'EMI'

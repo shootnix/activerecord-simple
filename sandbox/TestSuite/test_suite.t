@@ -75,14 +75,23 @@ Artist->dbh($dbh);
 
     ok my @discs = CD->find('id > ? order by title', 1)->fetch();
     is $discs[0]->title, 'Boy';
+
+    my $id_album = $album->id;
+    ok $album->title('FooBarBaz');
+    is $album->title, 'FooBarBaz';
+    ok $album->save();
+
+    $album = CD->find($id_album)->fetch();
+    is $album->title, 'FooBarBaz';
+
+    $album->title('Zooropa');
+    $album->save();
 }
 
 {
     pass '~ artist <-> label ~';
     ok my $metallica = Artist->find({ name => 'Metallica' })->fetch;
     is $metallica->name, 'Metallica';
-    is $metallica->label->name, 'EMI';
-
     is $metallica->label->name, 'EMI';
 
     ok my $u2 = Artist->find({ name => 'U2' })->fetch;
@@ -108,6 +117,22 @@ Artist->dbh($dbh);
 
     ok my $a4 = Artist->find('name = ?', 'U2')->fetch;
     is $a4->name, 'U2';
+
+    is $metallica->label->name, 'EMI';
+    ok $metallica->label->name('Foo');
+    is $metallica->label->name, 'Foo';
+    ok $metallica->label->save();
+
+    ok $u2 = Artist->find({ name => 'U2' })->fetch;
+    is $u2->name, 'U2';
+    is $u2->label->name, 'Foo';
+
+    $u2->label->name('EMI');
+    $u2->label->save;
+
+    ok $u2->label->delete;
+    $metallica = Artist->find('name = ?', 'Metallica');
+    ok !$metallica->label->name;
 };
 {
     pass '~ artist <-> rating ~';
@@ -164,14 +189,18 @@ Artist->dbh($dbh);
     pass '~ use_smart_saving ~';
 
     ok my @a = Artist->find('id >= ?', 1)->fetch();
-    my $metallica = $a[0];
+    my $metallica = shift @a;
     ok $metallica->save;
+    ok $metallica->_smart_saving_used;
+    ok $metallica->{snapshoot};
 }
 
 {
     pass '~ ordering ~';
-    my $artists = Artist->find('id != ?', 100)->order_by('name')->desc();
-    ok $artists->fetch();
+    my $artists_find = Artist->find('id != ?', 100)->order_by('name')->desc();
+    my $artist = $artists_find->fetch(1);
+    ok $artists_find->{SQL} =~ /order by/i;
+    ok $artists_find->{SQL} =~ /desc$/i;
 }
 
 {

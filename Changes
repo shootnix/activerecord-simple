@@ -45,3 +45,8 @@ Revision history for Perl module ActiveRecord::Simple
 	* Bux fixes
 	* Typo fixes
 
+0.50	2013-11-02
+        + Added some tests
+        * Many fixes and huge code improvements
+        * Typo fixes
+
