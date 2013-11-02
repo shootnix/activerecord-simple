@@ -41,12 +41,14 @@ Revision history for Perl module ActiveRecord::Simple
         * Improved documentation
 
 0.41	2013-10-24
-	* Code cleanup
-	* Bux fixes
-	* Typo fixes
+	    * Code cleanup
+	    * Bux fixes
+	    * Typo fixes
 
 0.50	2013-11-02
+        + Added ability to change relation instance into object
         + Added some tests
+        * Fixed "save" method
         * Many fixes and huge code improvements
         * Typo fixes
 

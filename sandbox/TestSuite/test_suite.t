@@ -130,9 +130,9 @@ Artist->dbh($dbh);
     $u2->label->name('EMI');
     $u2->label->save;
 
-    ok $u2->label->delete;
-    $metallica = Artist->find('name = ?', 'Metallica');
-    ok !$metallica->label->name;
+    #ok $u2->label->delete;
+    #$metallica = Artist->find('name = ?', 'Metallica');
+    #ok !$metallica->label->name;
 };
 {
     pass '~ artist <-> rating ~';
@@ -227,5 +227,23 @@ Artist->dbh($dbh);
     is scalar @cd, 1;
 }
 
+{
+    pass '~ new rel system ~';
+    my $artist = Artist->find({ name => 'U2' })->fetch;
+    is $artist->name, 'U2';
+
+    ok $artist->label;
+    is $artist->label->name, 'EMI';
+    ok $artist->label(Label->new({name => 'FooBarBaz'})->save)->save;
+    is $artist->label->name, 'FooBarBaz';
+
+    my $artist_again = Artist->find({ name => 'U2' })->fetch;
+    is $artist_again->label->name, 'FooBarBaz';
+
+    my $metallica = Artist->find({ name => 'Metallica' })->fetch;
+    is $metallica->label->name, 'EMI';
+
+    ok !$artist->label(Label->new({ name => 'NewFooBarBaz' }));
+}
 
 done_testing;
