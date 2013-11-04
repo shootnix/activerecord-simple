@@ -10,6 +10,9 @@ use base 'ActiveRecord::Simple';
 __PACKAGE__->table_name('artist');
 __PACKAGE__->columns(['id', 'name', 'label_id']);
 __PACKAGE__->primary_key('id');
+#__PACKAGE__->columns_details({
+#    id => ''
+#});
 
 __PACKAGE__->relations({
     label => {
