@@ -156,12 +156,10 @@ sub _find_many_to_many {
         $param->{self}->{ $param->{root_class}->_get_primary_key };
 
     my $container_class = $class->new();
-    do {
-        my $SQL_REQUEST = _quote_string($sql_stm, $class->dbh->{Driver}{Name});
-        carp $SQL_REQUEST;
-    } if $TRACE;
+    my $self = bless {}, $class;
+    $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
 
-    my $resultset = $class->dbh->selectall_arrayref($sql_stm, { Slice => {} });
+    my $resultset = $class->dbh->selectall_arrayref($self->{SQL}, { Slice => {} });
     my @bulk_objects;
     for my $params (@$resultset) {
         my $obj = $class->new($params);
@@ -251,22 +249,6 @@ sub dbh {
     return $dbhandler;
 }
 
-sub _quote_string {
-    my ($string, $driver_name) = @_;
-
-    $driver_name //= 'Pg';
-    my $quotes_map = {
-        Pg     => q/"/,
-	    mysql  => q/`/,
-	    SQLite => q/`/,
-    };
-    my $quote = $quotes_map->{$driver_name};
-
-    $string =~ s/"/$quote/g;
-
-    return $string;
-}
-
 sub _quote_sql_stmt {
     my ($self) = @_;
 
@@ -338,25 +320,12 @@ sub _insert {
 
     if ( $self->dbh->{Driver}{Name} eq 'Pg' ) {
         $sql_stm .= ' returning ' . $primary_key if $primary_key;
-
-        do {
-            my $SQL_REQUEST = _quote_string($sql_stm, $self->dbh->{Driver}{Name});
-            carp $SQL_REQUEST;
-            carp 'bind: ' . join q/, /, @bind;
-        } if $TRACE;
-
-	    $pkey_val = $self->dbh->selectrow_array(
-            _quote_string($sql_stm, $self->dbh->{Driver}{name}),
-            undef, @bind
-        );
+        $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
+	    $pkey_val = $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
     }
     else {
-        do {
-            my $SQL_REQUEST = _quote_string($sql_stm, $self->dbh->{Driver}{Name});
-            carp $SQL_REQUEST;
-            carp 'bind: ' . join q/, /, @bind;
-        } if $TRACE;
-	    my $sth = $self->dbh->prepare(_quote_string($sql_stm, $self->dbh->{Driver}{Name}));
+        $self->{SQL} = $sql_stm; $self->_quote_sql_stmt(); say $self->{SQL} if $TRACE;
+	    my $sth = $self->dbh->prepare($self->{SQL});
         $sth->execute(@bind);
 
 	    if ( $primary_key && defined $self->{$primary_key} ) {
@@ -393,17 +362,9 @@ sub _update {
         where
             $primary_key = ?
     };
-    do {
-        my $SQL_REQUEST = _quote_string($sql_stm, $self->dbh->{Driver}{Name});
-        carp $SQL_REQUEST;
-        carp 'bind: ' . join q/, /, @bind;
-    } if $TRACE;
+    $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
 
-    return $self->dbh->do(
-        _quote_string($sql_stm, $self->dbh->{Driver}{Name}),
-        undef,
-        @bind
-    );
+    return $self->dbh->do($self->{SQL}, undef, @bind);
 }
 
 # param:
@@ -423,12 +384,8 @@ sub delete {
     $sql .= ' cascade ' if $param && $param->{cascade};
 
     my $res = undef;
-    my $driver_name = $self->dbh->{Driver}{Name};
-    do {
-        my $SQL_REQUEST = _quote_string($sql, $driver_name);
-        carp $SQL_REQUEST;
-    } if $TRACE;
-    if ( $self->dbh->do(_quote_string($sql, $driver_name), undef, $self->{$pkey}) ) {
+    $self->{SQL} = $sql; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
+    if ( $self->dbh->do($self->{SQL}, undef, $self->{$pkey}) ) {
 	    $self->{isin_database} = undef;
 	    delete $self->{$pkey};
 
@@ -453,8 +410,6 @@ sub find {
                 where
                     "$pkey" = ?
         };
-
-        #$self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
         $self->{BIND} = \@param
     }
     elsif (!ref $param[0] && scalar @param == 0) {
@@ -462,8 +417,6 @@ sub find {
         $self->{SQL} = qq{
             select * from "$table_name"
         };
-
-        #$self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
         $self->{BIND} = undef;
     }
     elsif (ref $param[0] && ref $param[0] eq 'HASH') {
@@ -476,8 +429,6 @@ sub find {
             where
                 $where_str
         };
-
-        #$self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
         $self->{BIND} = \@bind;
     }
     elsif (ref $param[0] && ref $param[0] eq 'ARRAY') {
@@ -489,8 +440,6 @@ sub find {
             where
                 "$pkey" in ($whereinstr)
         };
-
-        #$self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
         $self->{BIND} = undef;
     }
     else {
@@ -501,8 +450,6 @@ sub find {
             where
                 $wherestr
         };
-
-        #$self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
         $self->{BIND} = \@param;
     }
 
@@ -512,11 +459,8 @@ sub find {
 sub only {
     my ($self, @fields) = @_;
 
-    #return $self if not defined @fields;
-    #return $self if not exists $self->{SQL};
     scalar @fields > 0 or croak 'Not defined fields for method "only"';
     exists $self->{SQL} or croak 'Not executed method "find" before "only"';
-    #exists $self->{SQL} or return $self;
 
     my $fields_str = join q/, /, map { q/"/ . $_ . q/"/ } @fields;
     $self->{SQL} =~ s/\*/$fields_str/;
@@ -530,8 +474,7 @@ sub fetch {
     if (not exists $self->{_objects}) {
         $self->_finish_sql_stmt();
         $self->_quote_sql_stmt();
-
-        #say '>>>> SQL: ' . $self->{SQL};
+        say $self->{SQL} if $TRACE;
 
         my @objects;
         my $resultset =
@@ -544,8 +487,6 @@ sub fetch {
         if (defined $resultset && ref $resultset eq 'ARRAY' && scalar @$resultset > 0) {
             my $class = ref $self;
             for my $object_data (@$resultset) {
-                #my $obj = $class->new();
-                #$obj->_fill_params($object_data);
                 my $obj = bless $object_data, $class;
 
                 $obj->{snapshoot} = freeze($object_data) if $obj->_smart_saving_used;
@@ -630,19 +571,6 @@ sub offset {
     return $self;
 }
 
-#sub _fill_params {
-#    my ($self, $params) = @_;
-#
-#    return unless $params;
-#
-#    FIELD:
-#    for my $field ( sort keys %$params ) {
-#        $self->{$field} = $params->{$field};
-#    }
-#
-#    return $self;
-#}
-
 sub _finish_sql_stmt {
     my ($self) = @_;
 
@@ -679,7 +607,6 @@ sub _delete_keys {
 sub is_defined {
     my ($self) = @_;
 
-    #return keys %{ $self->to_hash };
     return grep { defined $self->{$_} } @{ $self->_get_columns };
 }
 
@@ -699,25 +626,15 @@ sub is_exists_in_database {
     for my $f (@fields) {
         push @bind, $self->$f;
     }
-    #= values %$param;
 
     my $sql = qq{
         select 1 from "$table_name"
         where
             $where_str
     };
+    $self->{SQL} = $sql; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
 
-    do {
-        my $SQL_REQUEST = _quote_string($sql, $self->dbh->{Driver}{Name});
-        carp $SQL_REQUEST;
-        carp 'bind: ' . join q/, /, @bind;
-    } if $TRACE;
-
-    return $self->dbh->selectrow_array(
-	    _quote_string($sql, $self->dbh->{Driver}{Name}),
-	    undef,
-	    @bind
-    );
+    return $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
 }
 
 sub get {
