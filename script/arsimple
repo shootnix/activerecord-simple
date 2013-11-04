@@ -1,0 +1,66 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use 5.010;
+
+use Module::Load;
+use Getopt::Long;
+use Data::Dumper;
+
+my $dir;
+BEGIN {
+	GetOptions(
+        'dir=s' => \$dir
+    );
+}
+
+die if not defined $dir;
+
+my @files = list($dir);
+say Dumper \@files;
+
+use lib "$dir";
+
+my $class = 'Artist';
+load $class;
+
+my $table_name  = $class->table_name->();
+my $columns     = $class->columns->();
+my $primary_key = $class->primary_key->();
+
+my $sql = "CREATE TABLE \"$table_name\" (";
+my @cols;
+for my $col (@$columns) {
+	my $cs = q/"/ . $col . q/" [TYPE]/;
+	$cs .= " PRIMARY KEY" if $col eq $primary_key;
+	push @cols, $cs;
+}
+my $colstring = join q/, /, @cols;
+$sql .= $colstring;
+$sql .= ")";
+
+say $sql;
+
+
+
+sub list {
+	my ($dir) = @_;
+
+    opendir my $dh, "$dir";
+    my @list = grep { $_ !~ /^\./ } readdir $dh;
+    close $dh;
+
+    my @classes;
+    for my $item (@list) {
+        if ($item =~ /\.pm$/) {
+        	push @classes, $item;
+        }
+
+        if (-d $item) {
+        	push @classes, list($item);
+        }
+    }
+
+    return @classes;
+}
