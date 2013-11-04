@@ -118,4 +118,10 @@ ok $total_sql->{SQL} =~ /desc/i, 'use all predicats, find "desc"';
 
 ok $c->delete(), 'delete';
 
+ok my $c6 = t::class->find->only('foo', 'bar'), 'find only "foo"';
+say $c6->{SQL};
+ok $c6->{SQL} =~ /select "foo"/;
+#ok exists  $c6->{foo}, '"foo" is exists';
+#ok !exists $c6->{bar}, '"bar" does not exists';
+
 done_testing();

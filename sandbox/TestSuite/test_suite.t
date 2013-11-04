@@ -73,6 +73,7 @@ Artist->dbh($dbh);
     ok $album = CD->find({ title => 'Zooropa', release => '1993' })->fetch;
     is $album->title, 'Zooropa';
 
+    my $res = CD->find('id > ? order by title', 1);
     ok my @discs = CD->find('id > ? order by title', 1)->fetch();
     is $discs[0]->title, 'Boy';
 
@@ -244,6 +245,15 @@ Artist->dbh($dbh);
     is $metallica->label->name, 'EMI';
 
     ok !$artist->label(Label->new({ name => 'NewFooBarBaz' }));
+}
+
+{
+    pass '~ testing "only" ~';
+    my $cd = CD->find->only('title')->limit(1)->fetch;
+    ok exists $cd->{title};
+    ok $cd->title;
+    ok !exists $cd->{release};
+    ok !$cd->release;
 }
 
 done_testing;

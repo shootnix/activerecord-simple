@@ -267,6 +267,25 @@ sub _quote_string {
     return $string;
 }
 
+sub _quote_sql_stmt {
+    my ($self) = @_;
+
+    return unless $self->{SQL} && $self->dbh;
+
+    my $driver_name = $self->dbh->{Driver}{Name};
+    $driver_name //= 'Pg';
+    my $quotes_map = {
+        Pg => q/"/,
+        mysql => q/`/,
+        SQLite => q/`/,
+    };
+    my $quote = $quotes_map->{$driver_name};
+
+    $self->{SQL} =~ s/"/$quote/g;
+
+    return 1;
+}
+
 sub save {
     my ($self) = @_;
 
@@ -429,63 +448,78 @@ sub find {
 
     if (!ref $param[0] && scalar @param == 1) {
         # find one by primary key
-        my $sql_stmt = qq{
+        $self->{SQL} = qq{
             select * from "$table_name"
                 where
                     "$pkey" = ?
         };
 
-        $self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
-        $self->{'BIND'} = \@param
+        #$self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
+        $self->{BIND} = \@param
     }
     elsif (!ref $param[0] && scalar @param == 0) {
         # find all
-        my $sql_stmt = qq{
+        $self->{SQL} = qq{
             select * from "$table_name"
         };
 
-        $self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
-        $self->{'BIND'} = undef;
+        #$self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
+        $self->{BIND} = undef;
     }
     elsif (ref $param[0] && ref $param[0] eq 'HASH') {
         # find many by params
         my $where_str = join q/ and /, map { q/"/ . $_ . q/"/ .' = ?' } keys %{ $param[0] };
         my @bind = values %{ $param[0] };
 
-        my $sql_stmt = qq{
+        $self->{SQL} = qq{
             select * from "$table_name"
             where
                 $where_str
         };
 
-        $self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
-        $self->{'BIND'} = \@bind;
+        #$self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
+        $self->{BIND} = \@bind;
     }
     elsif (ref $param[0] && ref $param[0] eq 'ARRAY') {
         # find many by primary keys
         my $whereinstr = join ', ', @{ $param[0] };
 
-        my $sql_stmt = qq{
+        $self->{SQL} = qq{
             select * from "$table_name"
             where
                 "$pkey" in ($whereinstr)
         };
 
-        $self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
-        $self->{'BIND'} = undef;
+        #$self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
+        $self->{BIND} = undef;
     }
     else {
         # find many by condition
         my $wherestr = shift @param;
-        my $sql_stmt = qq{
+        $self->{SQL} = qq{
             select * from "$table_name"
             where
                 $wherestr
         };
 
-        $self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
-        $self->{'BIND'} = \@param;
+        #$self->{'SQL'}  = _quote_string($sql_stmt, $self->dbh->{Driver}{Name});
+        $self->{BIND} = \@param;
     }
+
+    return $self;
+}
+
+sub only {
+    my ($self, @fields) = @_;
+
+    #return $self if not defined @fields;
+    #return $self if not exists $self->{SQL};
+    scalar @fields > 0 or croak 'Not defined fields for method "only"';
+    exists $self->{SQL} or croak 'Not executed method "find" before "only"';
+    #exists $self->{SQL} or return $self;
+
+    my $fields_str = join q/, /, map { q/"/ . $_ . q/"/ } @fields;
+    $self->{SQL} =~ s/\*/$fields_str/;
 
     return $self;
 }
@@ -495,14 +529,17 @@ sub fetch {
 
     if (not exists $self->{_objects}) {
         $self->_finish_sql_stmt();
+        $self->_quote_sql_stmt();
+
+        #say '>>>> SQL: ' . $self->{SQL};
 
         my @objects;
         my $resultset =
             $self->dbh->selectall_arrayref(
-                $self->{'SQL'},
+                $self->{SQL},
                 { Slice => {} },
-                @{ $self->{'BIND'}
-            });
+                @{ $self->{BIND}}
+            );
 
         if (defined $resultset && ref $resultset eq 'ARRAY' && scalar @$resultset > 0) {
             my $class = ref $self;
