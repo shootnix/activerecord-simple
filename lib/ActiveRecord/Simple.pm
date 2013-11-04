@@ -714,6 +714,9 @@ That's it! Now you're ready to use your active-record class in the application:
     # to get the record (using primary key):
     my $person = MyModel::Person->get(1);
 
+    # to get the record with specified fields:
+    my $person = MyModel::Person->find(1)->only('name', 'age')->fetch;
+
     # to find records by parameters:
     my @persons = MyModel::Person->find({ name => 'Foo' })->fetch();
 
@@ -889,6 +892,14 @@ You can use the ordering of results, such as ORDER BY, ASC and DESC:
 
     my @persons = MyModel::Person->find('age > ?', 21)->order_by('name')->desc->fetch();
     my @persons = MyModel::Person->find('age > ?', 21)->order_by('name', 'age')->fetch();
+
+=head2 only
+
+Get only those fields that are needed:
+
+    my $person = MyModel::Person->find({ name => 'Alex' })->only('address', 'email')->fetch;
+    ### SQL:
+    ###     SELECT `address`, `email` from `persons` where `name` = "Alex";
 
 =head2 get
 
