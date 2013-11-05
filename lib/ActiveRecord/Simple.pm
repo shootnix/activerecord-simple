@@ -285,7 +285,7 @@ sub save {
         and defined $self->{snapshoot}
         and $self->{snapshoot} eq freeze $self->to_hash;
 
-    croak 'Object is read only'
+    croak 'Object is read-only'
         if exists $self->{read_only} && $self->{read_only} == 1;
 
     my $save_param = {};
@@ -853,16 +853,6 @@ This method provides two features:
 
     __PACKAGE__->use_smart_saving;
 
-=head2 get_all
-
-You can get a whole table as an arrayref of hashref's:
-
-    my $table = Person->get_all();
-
-You also may specify which rows you want to use:
-
-    my $table = Person->get_all(['name']);
-
 =head2 find
 
 There are several ways to find someone in your database using ActiveRecord::Simple:
@@ -1047,10 +1037,15 @@ use the "fetch" method:
 
     my @persons = MyModel::Person->find('id_person != ?', 1)->fetch();
 
-You can also specify how many objects you want to use:
+You can also specify how many objects you want to use at a time:
 
     my @persons = MyModel::Person->find('id_person != ?', 1)->fetch(2);
     # fetching only 2 objects.
+
+Another syntax of command "fetch" allows you to make read-only objects:
+
+    my @persons = MyModel::Person->find->fetch({ read_only => 1, limit => 2 });
+    # all two object are read-only
 
 =head1 TRACING QUERIES
 

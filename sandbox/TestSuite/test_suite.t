@@ -262,7 +262,7 @@ Artist->dbh($dbh);
     $cd->title('Foo');
     eval { $cd->save };
     ok $@;
-    ok $@ =~ m/^Object is read only/i;
+    ok $@ =~ m/^Object is read-only/i;
 }
 
 done_testing;
