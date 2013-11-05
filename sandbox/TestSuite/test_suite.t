@@ -256,4 +256,13 @@ Artist->dbh($dbh);
     ok !$cd->release;
 }
 
+{
+    pass '~ read only ~';
+    my $cd = CD->find(1)->fetch({ read_only => 1 });
+    $cd->title('Foo');
+    eval { $cd->save };
+    ok $@;
+    ok $@ =~ m/^Object is read only/i;
+}
+
 done_testing;

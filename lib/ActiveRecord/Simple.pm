@@ -231,6 +231,14 @@ sub relations {
     $class->_mk_attribute_getter('_get_relations', $relations);
 }
 
+sub read_only {
+    my ($self) = @_;
+
+    $self->{read_only} = 1;
+
+    return $self;
+}
+
 sub _mk_attribute_getter {
     my ($class, $method_name, $return) = @_;
 
@@ -276,6 +284,9 @@ sub save {
     return 1 if $self->_smart_saving_used
         and defined $self->{snapshoot}
         and $self->{snapshoot} eq freeze $self->to_hash;
+
+    croak 'Object is read only'
+        if exists $self->{read_only} && $self->{read_only} == 1;
 
     my $save_param = {};
     my $fields = $self->_get_columns;
@@ -469,7 +480,16 @@ sub only {
 }
 
 sub fetch {
-    my ($self, $limit) = @_;
+    my ($self, $param) = @_;
+
+    my ($read_only, $limit);
+    if (ref $param eq 'HASH') {
+        $limit     = $param->{limit};
+        $read_only = $param->{read_only};
+    }
+    else {
+        $limit = $param;
+    }
 
     if (not exists $self->{_objects}) {
         $self->_finish_sql_stmt();
@@ -488,7 +508,7 @@ sub fetch {
             my $class = ref $self;
             for my $object_data (@$resultset) {
                 my $obj = bless $object_data, $class;
-
+                $obj->{read_only} = 1 if defined $read_only;
                 $obj->{snapshoot} = freeze($object_data) if $obj->_smart_saving_used;
                 $obj->{isin_database} = 1;
 
