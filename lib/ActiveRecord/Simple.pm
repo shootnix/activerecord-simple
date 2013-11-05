@@ -231,14 +231,6 @@ sub relations {
     $class->_mk_attribute_getter('_get_relations', $relations);
 }
 
-sub read_only {
-    my ($self) = @_;
-
-    $self->{read_only} = 1;
-
-    return $self;
-}
-
 sub _mk_attribute_getter {
     my ($class, $method_name, $return) = @_;
 
@@ -255,6 +247,35 @@ sub dbh {
     $dbhandler = $dbh if defined $dbh;
 
     return $dbhandler;
+}
+
+sub count {
+    my ($class, @param) = @_;
+
+    my $self = bless {}, $class;
+    my $table_name = $class->_get_table_name;
+    my ($count, $sql, @bind);
+    if (scalar @param == 0) {
+        $self->{SQL} = qq/select count(*) from "$table_name"/;
+    }
+    elsif (scalar @param == 1) {
+        my $params_hash = shift @param;
+        return unless ref $params_hash eq 'HASH';
+
+        my $wherestr = join q/ and /, map { q/"/ . $_ . q/"/ .' = ?' } keys %{ $params_hash };
+        @bind = values %{ $params_hash };
+        $self->{SQL} = qq/select count(*) from "$table_name" where $wherestr/;
+    }
+    elsif (scalar @param > 1) {
+        my $wherestr = shift @param;
+        @bind = @param;
+
+        $self->{SQL} = qq/select count(*) from "$table_name" where $wherestr/;
+    }
+    $self->_quote_sql_stmt;
+    $count = $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
+
+    return $count;
 }
 
 sub _quote_sql_stmt {

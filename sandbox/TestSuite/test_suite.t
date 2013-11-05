@@ -265,4 +265,11 @@ Artist->dbh($dbh);
     ok $@ =~ m/^Object is read-only/i;
 }
 
+{
+    pass '~ count ~';
+    is(CD->count(), 4);
+    is(CD->count({ title => 'Boy' }), 1);
+    is(CD->count('id > ?', 1), 3);
+}
+
 done_testing;
