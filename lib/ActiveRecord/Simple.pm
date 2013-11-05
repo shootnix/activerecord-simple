@@ -924,6 +924,33 @@ You can use the ordering of results, such as ORDER BY, ASC and DESC:
     my @persons = MyModel::Person->find('age > ?', 21)->order_by('name')->desc->fetch();
     my @persons = MyModel::Person->find('age > ?', 21)->order_by('name', 'age')->fetch();
 
+=head2 count
+
+Returns count of records that match the rule:
+
+    say MyModel::Person->count;
+    say MyModel::Person->count({ zip => '12345' });
+    say MyModel::Person->count('age > ?', 55);
+
+=head2 dbh
+
+Keeps a database connection handler. It's not a class method actually, this is
+an attribute of the base class and you can put your database handler in any
+class:
+
+    Person->dbh($dbh);
+
+Or even rigth in base class:
+
+    ActiveRecord::Simple->dbh($dht);
+
+This decision is up to you. Anyway, this is a singleton value, and keeps only
+once at the session.
+
+=head1 Object Methods
+
+Object methods usefull to manipulating single rows as a separate objects.
+
 =head2 only
 
 Get only those fields that are needed:
@@ -974,25 +1001,6 @@ Use this attribute to limit results of your requests:
 Offset of results:
 
     MyModel::Person->find()->offset(10)->fetch; # all next after 10 rows
-
-=head2 dbh
-
-Keeps a database connection handler. It's not a class method actually, this is
-an attribute of the base class and you can put your database handler in any
-class:
-
-    Person->dbh($dbh);
-
-Or even rigth in base class:
-
-    ActiveRecord::Simple->dbh($dht);
-
-This decision is up to you. Anyway, this is a singleton value, and keeps only
-once at the session.
-
-=head1 Object Methods
-
-Object methods usefull to manipulating single rows as a separate objects.
 
 =head2 save
 

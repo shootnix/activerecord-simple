@@ -130,10 +130,6 @@ Artist->dbh($dbh);
 
     $u2->label->name('EMI');
     $u2->label->save;
-
-    #ok $u2->label->delete;
-    #$metallica = Artist->find('name = ?', 'Metallica');
-    #ok !$metallica->label->name;
 };
 {
     pass '~ artist <-> rating ~';
