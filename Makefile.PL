@@ -24,6 +24,7 @@ WriteMakefile1(
     TEST_REQUIRES => {
         'Test::More' => 0,
     },
+    EXE_FILES => ['script/arsimple'],
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'ActiveRecord::Simple-*' },
 );

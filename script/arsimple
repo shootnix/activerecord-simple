@@ -2,50 +2,129 @@
 
 use strict;
 use warnings;
+no warnings 'redefine';
 use 5.010;
 
 use Module::Load;
 use Getopt::Long;
-use Data::Dumper;
+use Pod::Usage;
 
 my $dir;
+my $driver;
+my $help;
+my $sql;
+my $code;
 BEGIN {
 	GetOptions(
-        'dir=s' => \$dir
+        'dir=s'    => \$dir,
+        'driver=s' => \$driver,
+        'help'     => \$help,
+        'sql'      => \$sql,
+        'code'     => \$code,
     );
+
+    if (not defined $dir) {
+	    pod2usage(1);
+	    exit 0;
+    }
 }
-
-die if not defined $dir;
-
-my @files = list($dir);
-say Dumper \@files;
 
 use lib "$dir";
+use ActiveRecord::Simple;
 
-my $class = 'Artist';
-load $class;
+*ActiveRecord::Simple::dbh = sub { return { Driver => { Name => $driver } } };
+*ActiveRecord::Simple::_smart_saving_used = sub { undef };
 
-my $table_name  = $class->table_name->();
-my $columns     = $class->columns->();
-my $primary_key = $class->primary_key->();
+if ($sql) {
+	MODULE:
+    for my $module (list($dir)) {
+        my $module_content = slurp_file($module);
+        next MODULE if $module_content !~ m/ActiveRecord\:\:Simple/;
 
-my $sql = "CREATE TABLE \"$table_name\" (";
-my @cols;
-for my $col (@$columns) {
-	my $cs = q/"/ . $col . q/" [TYPE]/;
-	$cs .= " PRIMARY KEY" if $col eq $primary_key;
-	push @cols, $cs;
+        my ($class) = $module_content =~ m/^package\s+(.+);\n/;
+        load $class;
+
+        my $table_name  = $class->_get_table_name  if $class->can('_get_table_name');
+        my $columns     = $class->_get_columns     if $class->can('_get_columns');
+        my $primary_key = $class->_get_primary_key if $class->can('_get_primary_key');
+        my $relations   = $class->_get_relations   if $class->can('_get_relations');
+
+        my $sql = "CREATE TABLE \"$table_name\" (\n";
+        my @cols;
+        for my $col (@$columns) {
+	        my $cs = q/"/ . $col . q/" [TYPE]/;
+	        $cs .= " PRIMARY KEY" if defined $primary_key && $col eq $primary_key;
+	        push @cols, "  $cs";
+        }
+        my $colstring = join ",\n", @cols;
+        $sql .= $colstring;
+        $sql .= "\n);";
+
+        my $arself = bless {}, 'ActiveRecord::Simple';
+        $arself->{SQL} = $sql;
+        $arself->_quote_sql_stmt();
+
+        say $arself->{SQL};
+    }
 }
-my $colstring = join q/, /, @cols;
-$sql .= $colstring;
-$sql .= ")";
 
-say $sql;
+if ($code) {
 
+	my $sql;
+	for my $sql_file (list($dir, '.sql')) {
+		$sql .= slurp_file($sql_file);
+	}
 
+	my @tables_sql = $sql =~ m/CREATE\s+TABLE(.+?);/igs;
+	for my $table_sql (@tables_sql) {
+		my ($table_name) = $table_sql =~ m/^(.+?)\s+/s;
+		$table_name =~ s/^\s+|\s+$//g;
+		$table_name =~ s/`|"//g;
+
+        my $class_name = camelize($table_name);
+        my $class_content = "package $class_name;\n\nuse strict\nuse warnings\n";
+        $class_content .= "use base 'ActiveRecord::Simple';\n\n";
+
+        my ($fields_sql) = $table_sql =~ m/\((.+)\)/igs;
+
+        my @columns; my $primary_key;
+        for my $field (split /\n/, $fields_sql) {
+        	$field =~ s/^\s+|\s+$//g;
+        	next if $field eq '';
+
+        	my ($column) = $field =~ m/^(.+?)\s+/;
+        	$column =~ s/`|"//g;
+        	push @columns, $column;
+
+        	$primary_key = $column if $field =~ /PRIMARY\s+KEY/i;
+        }
+
+        $class_content .= "_PACKAGE_->table_name('$table_name');\n" if $table_name;
+        my $columns_str = join q/, /, map { q/'/ . $_ . q/'/ } @columns;
+        $class_content .= "_PACKAGE_->columns([$columns_str]);\n";
+        $class_content .= "_PACKAGE_->primary_key('$primary_key');\n" if $primary_key;
+        $class_content .= "\n1;\n";
+
+        open my $fh, '>', "$class_name\.pm";
+        print {$fh} $class_content;
+        close $fh;
+
+        say "Created $class_name\.pm";
+	}
+}
+
+sub camelize {
+	my ($str) = @_;
+
+    return unless $str;
+
+	return join q//, map { ucfirst $_ } split q/_/, $str;
+}
 
 sub list {
-	my ($dir) = @_;
+	my ($dir, $type) = @_;
+
+	$type ||= '.pm';
 
     opendir my $dh, "$dir";
     my @list = grep { $_ !~ /^\./ } readdir $dh;
@@ -53,14 +132,55 @@ sub list {
 
     my @classes;
     for my $item (@list) {
-        if ($item =~ /\.pm$/) {
-        	push @classes, $item;
+        if ($item =~ /$type$/) {
+        	push @classes, "$dir/$item";
         }
 
-        if (-d $item) {
-        	push @classes, list($item);
+        if (-d "$dir/$item") {
+        	push @classes, list("$dir/$item");
         }
     }
 
     return @classes;
 }
+
+sub slurp_file {
+	my ($file_path) = @_;
+
+	return if !-e $file_path;
+	open my $fh, "$file_path";
+	my $text = do { local $/; <$fh> };
+	close $fh;
+
+	return $text;
+}
+
+__END__
+
+=head1 NAME
+
+arsimple
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<-dir>
+
+Set a directory with ARSimple-based classes or .sql files
+
+=item B<-sql>
+
+Get SQL from the code
+
+=item B<-code>
+
+Get code from the SQL
+
+=item B<-driver>
+
+Database driver name (Pg, mysql or SQLite)
+
+=item B<-help>
+
+This text
