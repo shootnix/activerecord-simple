@@ -566,6 +566,7 @@ sub order_by {
     my ($self, @param) = @_;
 
     return if not defined $self->{SQL};
+    return $self if exists $self->{prep_order_by};
 
     $self->{prep_order_by} = \@param;
 
@@ -576,6 +577,7 @@ sub desc {
     my ($self) = @_;
 
     return if not defined $self->{SQL};
+    return $self if exists $self->{prep_desc};
 
     $self->{prep_desc} = 1;
 
@@ -586,6 +588,7 @@ sub asc {
     my ($self, @param) = @_;
 
     return if not defined $self->{SQL};
+    return $self if exists $self->{prep_asc};
 
     $self->{prep_asc} = 1;
 
@@ -596,6 +599,7 @@ sub limit {
     my ($self, $limit) = @_;
 
     return if not defined $self->{SQL};
+    return $self if exists $self->{prep_limit};
 
     $self->{prep_limit} = $limit;
 
@@ -606,6 +610,7 @@ sub offset {
     my ($self, $offset) = @_;
 
     return if not defined $self->{SQL};
+    return $self if exists $self->{prep_offset};
 
     $self->{prep_offset} = $offset;
 
@@ -703,14 +708,6 @@ sub to_hash {
     }
 
     return $attrs;
-}
-
-sub DESTROY {
-    my ($self) = @_;
-
-    if ($self->_smart_saving_used) {
-        $self->save() if not exists $self->{'_objects'};
-    }
 }
 
 1;

@@ -56,31 +56,11 @@ Tests.
 
 =head1 DATABASE DESIGN
 
-Let's pick a database schema from DBIx::Class tutorial. In this example uses basic CD database.
-There is three tables: artist, cd and track. Rules of the database:
+We going to make yet another blog engine and need a simple model: authors, articles and comments.
 
-    one artist can have many cds
-    one cd belongs to one artist
-    one cd can have many tracks
-    one track belongs to one cd
-
-SQL to create:
-
-    CREATE TABLE artist (
-        artistid INTEGER PRIMARY KEY,
-        name TEXT NOT NULL
-    );
-
-    CREATE TABLE cd (
-        cdid INTEGER PRIMARY KEY,
-        artist INTEGER NOT NULL REFERENCES artist(artistid),
-        title TEXT NOT NULL
-    );
-
-    CREATE TABLE track (
-        trackid INTEGER PRIMARY KEY,
-        cd INTEGER NOT NULL REFERENCES cd(cdid),
-        title TEXT NOT NULL
+    CREATE TABLE authors (
+        id   SERIAL PRIMARY KEY,
+        name text
     );
 
 Save this SQL-code in "sql/myschema.sql" and create the sqlite database:
