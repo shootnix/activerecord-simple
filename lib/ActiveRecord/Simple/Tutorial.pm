@@ -165,8 +165,97 @@ Also we can change an author of the article, simply set it into accessor:
     ok $first_article->author(Authors->find({ name => 'Jack Black' })->fetch)->save;
     is $first_article->author->name, 'Jack Black';
 
-=head1 SQL-TRICKS
+=head1 SQL-MODIFIERS
 
+ARSimple provides a few sql-modifiers: order_by, asc, desc, limit, offset. All this modifiers you can use after call "fetch".
+Let's create test "comments" and take a look a bit closer to that functions. Of course, we need to add new relations to Articles and Comments classes to use it in our tests. I think, you already know how to do it ;-)
+
+    my $article = Articles->get(1); ### it's the same as Articles->find(1)->fetch;
+    my $comment1 = Comments->new({
+        id => 1,
+        comments_author => 'Batman',
+        comment => 'Hello from Batman!',
+        article_id => $article_id
+    });
+    my $comment2 = Comments->new({
+        id => 2,
+        comments_author => 'Superman',
+        comment => 'Yahoo!',
+        article_id => $article_id
+    });
+    ok $comment1->save;
+    ok $comment2->save;
+
+So we have two commets. Let's see what methods of sampling, we can use:
+
+    my @comments;
+    # by date (desc):
+    @comments = Comments->find->order_by('create_date')->desc->fetch;
+    is scalar @comments, 2;
+
+    # by author (desc):
+    @comments = Comments->find->order_by('comments_author')->asc->fetch;
+    is $comments[0]->comments_author, 'Batman';
+
+    # only one comment from database:
+    @comments = Comments->find->limit(1)->fetch;
+    is scalar @comments, 1;
+
+    # only one, second comment:
+    @comments = Comments->find->limit(1)->offset(1)->fetch;
+    is scalar @comments, 1;
+
+    # first comment:
+    @comments = Comments->find->order_by('id')->limit(1)->fetch; # or:
+    @comments = Comments->first->fetch;
+    ok $comments[0]->id, 1;
+
+    # last comment:
+    @comments = Comments->find->order_by('id')->desc->limit(1)->fetch; # or:
+    @comments = Comments->last->fetch;
+    ok $comments[0]->id, 2;
+
+What if we have to know only creation date of last comments? We have to use another one cool feature: method C<only>. It tells what fields we want to get:
+
+    my $last_comment = Comments->last->only('create_date')->fetch;
+    ok $last_comment->create_date;
+    ok !$last_comment->comments_author;
+
+It works everywhere before you fetch it:
+
+    Comments->find('id > ?', 1)->only('comments_author', 'article_id')->fetch;
+
+=head1 FETCHING
+
+First of all, fetching is not limiting. If you'll write this:
+
+    my @articles = Articles->find->fetch(1);
+
+Will be fetched B<*ALL*> records from the table "articles", but you'll get only one. Why? We need it ;-) For example, to do something like that:
+
+    my $articles_res = Articles->find;
+    while (my $article = $articles_res->fetch) {
+        say $article->title;
+    }
+    ### or even that:
+    while (my @articles = $articles_res->fetch(3)) {
+        say $_->title for @articles;
+        say 'Next 3 Articles:';
+    }
+
+So, if you want to get only 10 records from database, use limit ;-)
+
+    my @articles = Articles->find->limit(10)->fetch;
+
+=head1 MANY-TO-MANY
+
+In this tutorial we don't need to use many-to-many relations. But in real life we have to. To
+read documantation how "many-to-many" relations does work, please, wisit our wiki on github: L<Relationship Tutorial|https://github.com/shootnix/activerecord-simple/wiki/Relationship-Tutorial>
+
+=head1 HOW TO REPORT ABOUT A PROBLEM
+
+Please, make an issue on my L<github page|https://github.com/shootnix/activerecord-simple/issues>.
+Or you can write an e-mail: L<mailto:shootnix@cpan.org>
 
 
 

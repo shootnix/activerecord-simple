@@ -14,6 +14,11 @@ __PACKAGE__->relations({
     	type  => 'one',
     	key   => 'author_id'
     },
+    comments => {
+    	class => 'Comments',
+    	type  => 'many',
+    	key   => 'article_id'
+    },
 });
 
 1;
