@@ -20,7 +20,7 @@ BEGIN {
         'driver=s' => \$driver,
         'help'     => \$help,
         'sql'      => \$sql,
-        'code'     => \$code,
+        'perl'     => \$code,
     );
 
     if (not defined $dir) {
@@ -82,7 +82,7 @@ if ($code) {
 		$table_name =~ s/`|"//g;
 
         my $class_name = camelize($table_name);
-        my $class_content = "package $class_name;\n\nuse strict\nuse warnings\n";
+        my $class_content = "package $class_name;\n\nuse strict;\nuse warnings;\n";
         $class_content .= "use base 'ActiveRecord::Simple';\n\n";
 
         my ($fields_sql) = $table_sql =~ m/\((.+)\)/igs;
@@ -99,10 +99,10 @@ if ($code) {
         	$primary_key = $column if $field =~ /PRIMARY\s+KEY/i;
         }
 
-        $class_content .= "_PACKAGE_->table_name('$table_name');\n" if $table_name;
+        $class_content .= "__PACKAGE__->table_name('$table_name');\n" if $table_name;
         my $columns_str = join q/, /, map { q/'/ . $_ . q/'/ } @columns;
-        $class_content .= "_PACKAGE_->columns([$columns_str]);\n";
-        $class_content .= "_PACKAGE_->primary_key('$primary_key');\n" if $primary_key;
+        $class_content .= "__PACKAGE__->columns([$columns_str]);\n";
+        $class_content .= "__PACKAGE__->primary_key('$primary_key');\n" if $primary_key;
         $class_content .= "\n1;\n";
 
         open my $fh, '>', "$class_name\.pm";
