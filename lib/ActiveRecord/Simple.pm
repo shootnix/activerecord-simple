@@ -279,21 +279,23 @@ sub count {
 }
 
 sub first {
-    my ($class, @param) = @_;
+    my ($class, $limit) = @_;
 
     $class->can('_get_primary_key') or croak 'Can\'t use "first" without primary key';
     my $primary_key = $class->_get_primary_key;
+    $limit //= 1;
 
-    return $class->find(@param)->order_by($primary_key)->limit(1);
+    return $class->find->order_by($primary_key)->limit($limit);
 }
 
 sub last {
-    my ($class, @param) = @_;
+    my ($class, $limit) = @_;
 
     $class->can('_get_primary_key') or croak 'Can\'t use "first" without primary key';
     my $primary_key = $class->_get_primary_key;
+    $limit //= 1;
 
-    return $class->find(@param)->order_by($primary_key)->desc->limit(1);
+    return $class->find->order_by($primary_key)->desc->limit($limit);
 }
 
 sub _quote_sql_stmt {

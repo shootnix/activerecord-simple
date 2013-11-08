@@ -281,6 +281,18 @@ Artist->dbh($dbh);
     ok $artist = Artist->first->only('name')->fetch;
     ok defined $artist->name;
     ok !defined $artist->label_id;
+
+    ok my @artists = Artist->first(2)->fetch;
+    is scalar @artists, 2;
+
+    is $artists[0]->name, 'Metallica';
+    is $artists[1]->name, 'U2';
+
+    ok @artists = Artist->last(2)->fetch;
+    is scalar @artists, 2;
+
+    is $artists[0]->name, 'U2';
+    is $artists[1]->name, 'Metallica';
 }
 
 done_testing;
