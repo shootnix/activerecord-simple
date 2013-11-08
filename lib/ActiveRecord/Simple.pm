@@ -278,6 +278,24 @@ sub count {
     return $count;
 }
 
+sub first {
+    my ($class, @param) = @_;
+
+    $class->can('_get_primary_key') or croak 'Can\'t use "first" without primary key';
+    my $primary_key = $class->_get_primary_key;
+
+    return $class->find(@param)->order_by($primary_key)->limit(1);
+}
+
+sub last {
+    my ($class, @param) = @_;
+
+    $class->can('_get_primary_key') or croak 'Can\'t use "first" without primary key';
+    my $primary_key = $class->_get_primary_key;
+
+    return $class->find(@param)->order_by($primary_key)->desc->limit(1);
+}
+
 sub _quote_sql_stmt {
     my ($self) = @_;
 
@@ -493,6 +511,10 @@ sub only {
 
     scalar @fields > 0 or croak 'Not defined fields for method "only"';
     exists $self->{SQL} or croak 'Not executed method "find" before "only"';
+
+    if ($self->can('_get_primary_key')) {
+        push @fields, $self->_get_primary_key;
+    }
 
     my $fields_str = join q/, /, map { q/"/ . $_ . q/"/ } @fields;
     $self->{SQL} =~ s/\*/$fields_str/;

@@ -250,6 +250,8 @@ Artist->dbh($dbh);
     ok $cd->title;
     ok !exists $cd->{release};
     ok !$cd->release;
+
+    ok defined $cd->id;
 }
 
 {
@@ -266,6 +268,19 @@ Artist->dbh($dbh);
     is(CD->count(), 4);
     is(CD->count({ title => 'Boy' }), 1);
     is(CD->count('id > ?', 1), 3);
+}
+
+{
+    pass '~ first && last ~';
+    ok my $artist = Artist->first->fetch;
+    is $artist->name, 'Metallica';
+    ok $artist = Artist->last->fetch;
+    is $artist->name, 'U2';
+    ok defined $artist->label_id;
+
+    ok $artist = Artist->first->only('name')->fetch;
+    ok defined $artist->name;
+    ok !defined $artist->label_id;
 }
 
 done_testing;
