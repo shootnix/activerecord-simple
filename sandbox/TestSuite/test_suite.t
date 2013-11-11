@@ -295,4 +295,21 @@ Artist->dbh($dbh);
     is $artists[1]->name, 'Metallica';
 }
 
+{
+    pass '~ exists ~';
+    ok( Artist->exists('name = ?', 'U2') );
+    ok( Artist->exists({ name => 'U2' }) );
+    ok( Artist->exists(2) );
+
+    ok( !Artist->exists('name = ?', 'Blink-182') );
+    ok( !Artist->exists({ name => 'Blink-182' }) );
+    ok( !Artist->exists(100) );
+
+    my $artist = Artist->new({ name => 'U2' });
+    ok $artist->exists;
+
+    $artist = Artist->new({ name => 'Blink=182' });
+    ok !$artist->exists;
+}
+
 done_testing;

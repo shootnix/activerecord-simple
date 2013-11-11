@@ -278,6 +278,17 @@ sub count {
     return $count;
 }
 
+sub exists {
+    my ($ref, @params) = @_;
+
+    if (ref $ref) {
+        ### object method
+        return $ref->_is_exists_in_database;
+    }
+    # else
+    return $ref->find(@params)->fetch->is_defined;
+}
+
 sub first {
     my ($class, $limit) = @_;
 
@@ -682,7 +693,7 @@ sub is_defined {
 
 # param:
 #      name => .., id => .., <something_else> => ...
-sub is_exists_in_database {
+sub _is_exists_in_database {
     my ($self, $param) = @_;
 
     return unless $self->dbh;
@@ -953,6 +964,13 @@ Returns count of records that match the rule:
     say MyModel::Person->count({ zip => '12345' });
     say MyModel::Person->count('age > ?', 55);
 
+=head2 exists
+
+Returns 1 if record is exists in database:
+
+    say "Exists" if MyModel::Person->exists({ zip => '12345' });
+    say "Exists" if MyModel::Person->exists('age > ?', 55);
+
 =head2 dbh
 
 Keeps a database connection handler. It's not a class method actually, this is
@@ -1053,7 +1071,7 @@ If you took the object using the find method, "save" will mean "update".
 
 Delete row from the table.
 
-=head2 is_exists_in_database
+=head2 exists
 
 Checks for a record in the database corresponding to the object:
 
@@ -1062,7 +1080,7 @@ Checks for a record in the database corresponding to the object:
         secnd_name => 'Bar',
     });
 
-    $person->save() unless $person->is_exists_in_database;
+    $person->save() unless $person->exists;
 
 =head2 to_hash
 
