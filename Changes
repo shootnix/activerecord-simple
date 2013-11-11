@@ -52,3 +52,16 @@ Revision history for Perl module ActiveRecord::Simple
         * Many fixes and huge code improvements
         * Typo fixes
 
+0.51    2013-11-11
+        + Added method's "last" & "first"
+        + Added new class ActiveRecord::Simple::Tutorial with pod-documentation
+        + Implemented schema-loader script called "mars"
+        + Added method "count"
+        + Added method "exists"
+        + Added possibility to creating read-only objects: fetch({ read_only => 1 })
+        + Added new syntax to method "fetch"
+        + Added possibility to select only specific fields ("only")
+        * Improved tests
+        * Improved documentation
+        * Fixed bugs
+

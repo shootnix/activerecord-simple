@@ -10,11 +10,11 @@ ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord 
 
 =head1 VERSION
 
-Version 0.50
+Version 0.51
 
 =cut
 
-our $VERSION = '0.50';
+our $VERSION = '0.51';
 
 use utf8;
 use Encode;
@@ -755,7 +755,7 @@ ActiveRecord::Simple
 
 =head1 VERSION
 
-0.50
+0.51
 
 =head1 DESCRIPTION
 
@@ -971,6 +971,20 @@ Returns 1 if record is exists in database:
     say "Exists" if MyModel::Person->exists({ zip => '12345' });
     say "Exists" if MyModel::Person->exists('age > ?', 55);
 
+=head2 first
+
+Returns the first record (records) ordered by the primary key:
+
+    my $first_person = MyModel::Person->first->fetch;
+    my @ten_persons  = MyModel::Person->first(10)->fetch;
+
+=head2 last
+
+Returns the last record (records) ordered by the primary key:
+
+    my $last_person = MyModel::Person->last->fetch;
+    my @ten_persons = MyModel::Person->last(10)->fetch;
+
 =head2 dbh
 
 Keeps a database connection handler. It's not a class method actually, this is
@@ -1120,6 +1134,14 @@ Another syntax of command "fetch" allows you to make read-only objects:
    use ACTIVE_RECORD_SIMPLE_TRACE=1 environment variable:
 
    $ ACTIVE_RECORD_SIMPLE_TRACE=1 perl myscript.pl
+
+=head1 SEE ALSO
+
+    DBIx::ActiveRecord
+
+=head1 MORE INFO
+
+    perldoc ActiveRecord::Simple::Tutorial
 
 =head1 AUTHOR
 
