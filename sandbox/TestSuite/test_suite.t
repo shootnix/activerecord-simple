@@ -141,8 +141,7 @@ Artist->dbh($dbh);
     ok $r->is_defined;
     is $r->artist->name, 'Metallica';
 
-    ok my $r2 = Rating->find({ range => 3 })->fetch;
-    ok !$r2->is_defined;
+    ok !Rating->find({ range => 3 })->fetch;
 }
 
 {
@@ -311,5 +310,6 @@ Artist->dbh($dbh);
     $artist = Artist->new({ name => 'Blink=182' });
     ok !$artist->exists;
 }
+
 
 done_testing;
