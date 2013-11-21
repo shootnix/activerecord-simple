@@ -184,3 +184,6 @@ Database driver name (Pg, mysql or SQLite)
 =item B<-help>
 
 This text
+
+=back
+
