@@ -65,3 +65,7 @@ Revision history for Perl module ActiveRecord::Simple
         * Improved documentation
         * Fixed bugs
 
+0.52    2013-11-26
+        * Fixed the `fetch` behavior
+        * Fixed tests
+
