@@ -10,11 +10,11 @@ ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord 
 
 =head1 VERSION
 
-Version 0.52
+Version 0.53
 
 =cut
 
-our $VERSION = '0.52';
+our $VERSION = '0.53';
 
 use utf8;
 use Encode;
@@ -757,7 +757,7 @@ sub increment {
     my $sql = qq{
         update "$table_name" set $param = $param + 1 where $pkey = ?
     };
-    
+
     my $res = undef;
     $self->{SQL} = $sql; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
     if ( $self->dbh->do($self->{SQL}, undef, $self->{$pkey}) ) {
@@ -782,7 +782,7 @@ sub decrement {
     my $sql = qq{
         update "$table_name" set $param = $param - 1 where $pkey = ?
     };
-    
+
     my $res = undef;
     $self->{SQL} = $sql; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
     if ( $self->dbh->do($self->{SQL}, undef, $self->{$pkey}) ) {
@@ -804,7 +804,7 @@ ActiveRecord::Simple
 
 =head1 VERSION
 
-0.52
+0.53
 
 =head1 DESCRIPTION
 
@@ -1033,6 +1033,24 @@ Returns the last record (records) ordered by the primary key:
 
     my $last_person = MyModel::Person->last->fetch;
     my @ten_persons = MyModel::Person->last(10)->fetch;
+
+=head2 increment
+
+Increment the field value:
+
+    my $person = MyModel::Person->get(1);
+    say $person->age;  # prints e.g. 99
+    $person->increment('age');
+    say $person->age; # prints 100
+
+=head2 decrement
+
+Decrement the field value:
+
+    my $person = MyModel::Person->get(1);
+    say $person->age;  # prints e.g. 100
+    $person->decrement('age');
+    say $person->age; # prints 99
 
 =head2 dbh
 

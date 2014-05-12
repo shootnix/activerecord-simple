@@ -87,6 +87,19 @@ Artist->dbh($dbh);
 
     $album->title('Zooropa');
     $album->save();
+
+    is $album->release, '1993';
+    ok $album->increment('release');
+    is $album->release, '1994';
+
+    my $a1 = CD->get($album->id);
+    is $a1->release, '1994';
+
+    ok $album->decrement('release');
+    is $album->release, '1993';
+
+    my $a2 = CD->get($album->id);
+    is $a2->release, '1993';
 }
 
 {

@@ -69,3 +69,7 @@ Revision history for Perl module ActiveRecord::Simple
         * Fixed the `fetch` behavior
         * Fixed tests
 
+0.53    2014-05-12
+        + Added method "increment" (thnx @lifeofguenter)
+        + Added method "decrement" (thnx @lifeofguenter)
+
