@@ -89,17 +89,35 @@ Artist->dbh($dbh);
     $album->save();
 
     is $album->release, '1993';
-    ok $album->increment('release');
+    ok $album->increment('release')->save();
+
     is $album->release, '1994';
 
     my $a1 = CD->get($album->id);
     is $a1->release, '1994';
 
-    ok $album->decrement('release');
+    ok $album->decrement('release')->save();
     is $album->release, '1993';
 
     my $a2 = CD->get($album->id);
     is $a2->release, '1993';
+
+    ok $album->increment('title');
+    is $album->title, 1;
+
+    $album->title('Zooropa');
+    ok $album->decrement('title');
+    is $album->title, -1;
+
+    $album->title('Zooropa');
+
+    $album->increment('release', 'title');
+    is $album->release, '1994';
+    is $album->title, 1;
+
+    $album->decrement('release', 'title');
+    is $album->release, '1993';
+    is $album->title, 0;
 }
 
 {

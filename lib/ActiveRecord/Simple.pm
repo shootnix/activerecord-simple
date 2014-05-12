@@ -745,54 +745,78 @@ sub to_hash {
 }
 
 sub increment {
-    my ($self, $param) = @_;
+    my ($self, @fields) = @_;
 
-    return unless $self->dbh;
-    return unless $param;
-
-    my $table_name = $self->_get_table_name;
-    my $pkey = $self->_get_primary_key;
-    return unless $self->{$pkey};
-
-    my $sql = qq{
-        update "$table_name" set $param = $param + 1 where $pkey = ?
-    };
-
-    my $res = undef;
-    $self->{SQL} = $sql; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
-    if ( $self->dbh->do($self->{SQL}, undef, $self->{$pkey}) ) {
-        $self->{$param}++;
-
-        $res = 1;
+    FIELD:
+    for my $field (@fields) {
+        next FIELD if not exists $self->{$field};
+        $self->{$field} += 1;
     }
 
-    return $res;
+    return $self;
 }
 
 sub decrement {
-    my ($self, $param) = @_;
+    my ($self, @fields) = @_;
 
-    return unless $self->dbh;
-    return unless $param;
-
-    my $table_name = $self->_get_table_name;
-    my $pkey = $self->_get_primary_key;
-    return unless $self->{$pkey};
-
-    my $sql = qq{
-        update "$table_name" set $param = $param - 1 where $pkey = ?
-    };
-
-    my $res = undef;
-    $self->{SQL} = $sql; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
-    if ( $self->dbh->do($self->{SQL}, undef, $self->{$pkey}) ) {
-        $self->{$param}--;
-
-        $res = 1;
+    FIELD:
+    for my $field (@fields) {
+        next FIELD if not exists $self->{$field};
+        $self->{$field} -= 1;
     }
 
-    return $res;
+    return $self;
 }
+
+#sub increment {
+#    my ($self, $param) = @_;
+#
+#    return unless $self->dbh;
+#    return unless $param;
+#
+#    my $table_name = $self->_get_table_name;
+#    my $pkey = $self->_get_primary_key;
+#    return unless $self->{$pkey};
+#
+#    my $sql = qq{
+#        update "$table_name" set $param = $param + 1 where $pkey = ?
+#    };
+#
+#    my $res = undef;
+#    $self->{SQL} = $sql; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
+#    if ( $self->dbh->do($self->{SQL}, undef, $self->{$pkey}) ) {
+#        $self->{$param}++;
+#
+#        $res = 1;
+#    }
+#
+#    return $res;
+#}
+
+#sub decrement {
+#    my ($self, $param) = @_;
+#
+#    return unless $self->dbh;
+#    return unless $param;
+#
+#    my $table_name = $self->_get_table_name;
+#    my $pkey = $self->_get_primary_key;
+#    return unless $self->{$pkey};
+#
+#    my $sql = qq{
+#        update "$table_name" set $param = $param - 1 where $pkey = ?
+#    };
+#
+#    my $res = undef;
+#    $self->{SQL} = $sql; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
+#    if ( $self->dbh->do($self->{SQL}, undef, $self->{$pkey}) ) {
+#        $self->{$param}--;
+#
+#        $res = 1;
+#    }
+#
+#    return $res;
+#}
 
 1;
 
