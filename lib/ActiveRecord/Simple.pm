@@ -33,7 +33,7 @@ sub new {
     if ($class->can('_get_relations')) {
         my $relations = $class->_get_relations();
 
-	    no strict 'refs';
+        no strict 'refs';
 
         RELNAME:
         for my $relname ( keys %{ $relations } ) {
@@ -182,17 +182,17 @@ sub _mk_accessors {
     no strict 'refs';
     FIELD:
     for my $f (@$fields) {
-	    my $pkg_accessor_name = $class . '::' . $f;
-	    next FIELD if $class->can($pkg_accessor_name);
-	    *{$pkg_accessor_name} = sub {
-	        if ( scalar @_ > 1 ) {
+        my $pkg_accessor_name = $class . '::' . $f;
+        next FIELD if $class->can($pkg_accessor_name);
+        *{$pkg_accessor_name} = sub {
+            if ( scalar @_ > 1 ) {
                 $_[0]->{$f} = $_[1];
 
-		        return $_[0];
-	        }
+                return $_[0];
+            }
 
-	        return $_[0]->{$f};
-	    }
+            return $_[0]->{$f};
+        }
     }
     use strict 'refs';
 
@@ -236,8 +236,8 @@ sub _mk_attribute_getter {
 
     my $pkg_method_name = $class . '::' . $method_name;
     if ( !$class->can($pkg_method_name) ) {
-	    no strict 'refs';
-	    *{$pkg_method_name} = sub { $return };
+        no strict 'refs';
+        *{$pkg_method_name} = sub { $return };
     }
 }
 
@@ -352,7 +352,7 @@ sub save {
 
     my $result;
     if ($self->{isin_database}) {
-	    $result = $self->_update($save_param);
+        $result = $self->_update($save_param);
     }
     else {
         $result = $self->_insert($save_param);
@@ -384,19 +384,19 @@ sub _insert {
     if ( $self->dbh->{Driver}{Name} eq 'Pg' ) {
         $sql_stm .= ' returning ' . $primary_key if $primary_key;
         $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
-	    $pkey_val = $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
+        $pkey_val = $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
     }
     else {
         $self->{SQL} = $sql_stm; $self->_quote_sql_stmt(); say $self->{SQL} if $TRACE;
-	    my $sth = $self->dbh->prepare($self->{SQL});
+        my $sth = $self->dbh->prepare($self->{SQL});
         $sth->execute(@bind);
 
-	    if ( $primary_key && defined $self->{$primary_key} ) {
-	        $pkey_val = $self->{$primary_key};
-    	}
-	    else {
-	        $pkey_val = $self->dbh->last_insert_id(undef, undef, $table_name, undef);
-    	}
+        if ( $primary_key && defined $self->{$primary_key} ) {
+            $pkey_val = $self->{$primary_key};
+        }
+        else {
+            $pkey_val = $self->dbh->last_insert_id(undef, undef, $table_name, undef);
+        }
     }
 
     if (defined $primary_key && $self->can($primary_key) && $pkey_val) {
@@ -449,10 +449,10 @@ sub delete {
     my $res = undef;
     $self->{SQL} = $sql; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
     if ( $self->dbh->do($self->{SQL}, undef, $self->{$pkey}) ) {
-	    $self->{isin_database} = undef;
-	    delete $self->{$pkey};
+        $self->{isin_database} = undef;
+        delete $self->{$pkey};
 
-	    $res = 1;
+        $res = 1;
     }
 
     return $res;
@@ -742,6 +742,56 @@ sub to_hash {
     }
 
     return $attrs;
+}
+
+sub increment {
+    my ($self, $param) = @_;
+
+    return unless $self->dbh;
+    return unless $param;
+
+    my $table_name = $self->_get_table_name;
+    my $pkey = $self->_get_primary_key;
+    return unless $self->{$pkey};
+
+    my $sql = qq{
+        update "$table_name" set $param = $param + 1 where $pkey = ?
+    };
+    
+    my $res = undef;
+    $self->{SQL} = $sql; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
+    if ( $self->dbh->do($self->{SQL}, undef, $self->{$pkey}) ) {
+        $self->{$param}++;
+
+        $res = 1;
+    }
+
+    return $res;
+}
+
+sub decrement {
+    my ($self, $param) = @_;
+
+    return unless $self->dbh;
+    return unless $param;
+
+    my $table_name = $self->_get_table_name;
+    my $pkey = $self->_get_primary_key;
+    return unless $self->{$pkey};
+
+    my $sql = qq{
+        update "$table_name" set $param = $param - 1 where $pkey = ?
+    };
+    
+    my $res = undef;
+    $self->{SQL} = $sql; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
+    if ( $self->dbh->do($self->{SQL}, undef, $self->{$pkey}) ) {
+        $self->{$param}--;
+
+        $res = 1;
+    }
+
+    return $res;
 }
 
 1;
