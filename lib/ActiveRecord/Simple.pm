@@ -1028,6 +1028,41 @@ just keep this simple schema in youre mind:
 
     $package_instance->[relation key]->[any method from the related class];
 
+=head2 belongs_to
+
+    __PACKAGE__->belongs_to(home => 'Home', 'home_id');
+
+    This is equal to:
+    __PACKAGE__->relations({
+        home => {
+            class => 'Home',
+            key => 'home_id',
+            type => 'one'
+        }
+    });
+
+=head2 has_many
+
+    __PACKAGE__->has_many(cars => 'Car', 'car_id');
+
+    This is equal to:
+    __PACKAGE__->relations({
+        home => {
+            class => 'Car',
+            type => 'many',
+            hey => 'car_id'
+        }
+    });
+
+=head2 generic
+
+    __PACKAGE__->generic(photos => { release_date => 'pub_date' });
+
+    Creates a generic relations.
+
+    my $single = Song->find({ type => 'single' })->fetch();
+    my @photos = $single->photos->fetch();  # fetch all photos with pub_date = single.release_date
+
 =head2 use_smart_saving
 
 This method provides two features:
