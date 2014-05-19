@@ -73,7 +73,7 @@ Revision history for Perl module ActiveRecord::Simple
         + Added method "increment" (thnx @lifeofguenter)
         + Added method "decrement" (thnx @lifeofguenter)
 
-0.6.0   2014-05-19
+0.60.0   2014-05-19
         + Added new relationships aliases
         + Added generic relations
         * Improved increment/decrement methods
