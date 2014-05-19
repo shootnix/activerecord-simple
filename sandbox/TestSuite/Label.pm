@@ -11,17 +11,7 @@ __PACKAGE__->table_name('label');
 __PACKAGE__->columns(['id', 'name']);
 __PACKAGE__->primary_key('id');
 
-__PACKAGE__->relations({
-    artists => {
-        class => 'Artist',
-        type  => 'many',
-        key   => 'label_id'
-    },
-    cd => {
-        class => 'CD',
-        type  => 'one',
-        key   => 'label_id',
-    },
-});
+__PACKAGE__->has_many(artists => 'Artist', 'label_id');
+__PACKAGE__->belongs_to(cd => 'CD', 'label_id');
 
 1;

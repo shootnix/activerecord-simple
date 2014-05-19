@@ -11,21 +11,9 @@ __PACKAGE__->table_name('cd');
 __PACKAGE__->columns(['id', 'title', 'release', 'label_id']);
 __PACKAGE__->primary_key('id');
 
-__PACKAGE__->relations({
-    artists => {
-        class => { 'ArtistCD' => 'Artist' },
-        type  => 'many',
-    },
-    label => {
-        class => 'Label',
-        type => 'one',
-        key => 'label_id',
-    },
-    songs => {
-        class => { CDSong => 'Song' },
-        type  => 'many',
-    }
-});
+__PACKAGE__->has_many(artists => { 'ArtistCD' => 'Artist' });
+__PACKAGE__->has_many(songs => { 'CDSong' => 'Song' });
+__PACKAGE__->belongs_to(label => 'Label', 'label_id');
 
 #__PACKAGE__->use_smart_saving();
 

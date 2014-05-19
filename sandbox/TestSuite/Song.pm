@@ -11,9 +11,6 @@ __PACKAGE__->table_name('song');
 __PACKAGE__->columns(['id', 'title']);
 __PACKAGE__->primary_key('id');
 
-__PACKAGE__->relations({
-    albums => {
-        class => { 'CDSong' => 'CD' },
-        type  => 'many',
-    }
-})
+__PACKAGE__->has_many(albums => {'CDSong' => 'CD'});
+
+1;

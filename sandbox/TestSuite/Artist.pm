@@ -10,33 +10,12 @@ use base 'ActiveRecord::Simple';
 __PACKAGE__->table_name('artist');
 __PACKAGE__->columns(['id', 'name', 'label_id']);
 __PACKAGE__->primary_key('id');
-#__PACKAGE__->columns_details({
-#    id => ''
-#});
 
-__PACKAGE__->relations({
-    label => {
-        class => 'Label',
-        type => 'one',
-        key => 'label_id',
-    },
-    rating => {
-        class => 'Rating',
-        type => 'one',
-        key => 'artist_id',
-    },
-    albums => {
-        class => { ArtistCD => 'CD' },
-        type => 'many',
-    },
-    cvs => {
-        class => 'Cvs',
-        type => 'generic',
-        find => {
-            name => 'artist_name'
-        }
-    },
-});
+__PACKAGE__->belongs_to(label => 'Label', 'label_id');
+__PACKAGE__->belongs_to(rating => 'Rating', 'artist_id');
+__PACKAGE__->has_many(albums => { ArtistCD => 'CD' });
+__PACKAGE__->generic(cvs => 'Cvs', { name => 'artist_name' });
+
 
 __PACKAGE__->use_smart_saving;
 

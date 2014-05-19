@@ -109,7 +109,7 @@ sub new {
                     }
                     elsif ($type eq 'generic_to_generic') {
                         my %find_attrs;
-                        while (my ($k, $v) = each %{ $rel->{find} }) {
+                        while (my ($k, $v) = each %{ $rel->{key} }) {
                             $find_attrs{$v} = $self->$k;
                         }
                         $self->{"relation_instance_$relname"} =
@@ -206,6 +206,58 @@ sub _mk_accessors {
     use strict 'refs';
 
     return 1;
+}
+
+sub belongs_to {
+    my ($class, $rel_name, $rel_class, $key) = @_;
+
+    my $new_relation = {
+        class => $rel_class,
+        type => 'one',
+        key => $key
+    };
+
+    return $class->_append_relation($rel_name => $new_relation);
+}
+
+sub has_many {
+    my ($class, $rel_name, $rel_class, $key) = @_;
+
+    my $new_relation = {
+        class => $rel_class,
+        type => 'many'
+    };
+    $new_relation->{key} = $key if defined $key;
+
+    return $class->_append_relation($rel_name => $new_relation);
+}
+
+sub generic {
+    my ($class, $rel_name, $rel_class, $key) = @_;
+
+    my $new_relation = {
+        class => $rel_class,
+        type => 'generic',
+        key => $key
+    };
+
+    return $class->_append_relation($rel_name => $new_relation);
+}
+
+sub _append_relation {
+    my ($class, $rel_name, $rel_hashref) = @_;
+
+    if ($class->can('_get_relations')) {
+        my $relations = $class->_get_relations();
+
+        $relations->{$rel_name} = $rel_hashref;
+        $class->relations($relations);
+    }
+    else {
+        $class->relations({ $rel_name => $rel_hashref });
+    }
+
+    return;
 }
 
 sub columns {
