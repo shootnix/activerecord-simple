@@ -46,6 +46,7 @@ sub new {
 
                 my $rel = $class->_get_relations->{$relname};
                 my $fkey = $rel->{foreign_key} || $rel->{key};
+                #$fkey ||= 'generic';
                 if ($new_rel_class) {
                     $rel->{type} eq 'one' or return; ### works only with one object
                     ref $new_rel_class eq $rel->{class} or return;
@@ -105,6 +106,14 @@ sub new {
                                 m_class    => (%{ $rel->{class} })[0],
                                 self       => $self,
                             });
+                    }
+                    elsif ($type eq 'generic_to_generic') {
+                        my %find_attrs;
+                        while (my ($k, $v) = each %{ $rel->{find} }) {
+                            $find_attrs{$v} = $self->$k;
+                        }
+                        $self->{"relation_instance_$relname"} =
+                            $rel_class->find(\%find_attrs);
                     }
                 }
 

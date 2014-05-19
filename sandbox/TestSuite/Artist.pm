@@ -17,8 +17,8 @@ __PACKAGE__->primary_key('id');
 __PACKAGE__->relations({
     label => {
         class => 'Label',
-        type  => 'one',
-        key   => 'label_id',
+        type => 'one',
+        key => 'label_id',
     },
     rating => {
         class => 'Rating',
@@ -27,8 +27,15 @@ __PACKAGE__->relations({
     },
     albums => {
         class => { ArtistCD => 'CD' },
-        type  => 'many',
-    }
+        type => 'many',
+    },
+    cvs => {
+        class => 'Cvs',
+        type => 'generic',
+        find => {
+            name => 'artist_name'
+        }
+    },
 });
 
 __PACKAGE__->use_smart_saving;

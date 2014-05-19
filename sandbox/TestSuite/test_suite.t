@@ -15,6 +15,9 @@ use CD;
 use ArtistCD;
 use CDSong;
 use Song;
+use Cvs;
+
+unlink 'test_suite.db';
 
 system 'sqlite3 test_suite.db < test_suite.sqlite.sql';
 
@@ -30,8 +33,12 @@ Artist->dbh($dbh);
     ok my $artist1 = Artist->new({ name => 'Metallica', label_id => $label->id });
     ok $artist1->save();
 
+    ok(Cvs->new({ artist_name => $artist1->name })->save());
+
     ok my $artist2 = Artist->new({ name => 'U2', label_id => $label->id });
     ok $artist2->save();
+
+    ok(Cvs->new({ artist_name => $artist2->name })->save());
 
     ok my $rating = Rating->new();
     ok !$rating->is_defined;
@@ -340,6 +347,22 @@ Artist->dbh($dbh);
 
     $artist = Artist->new({ name => 'Blink=182' });
     ok !$artist->exists;
+}
+
+{
+    pass '~ cvs ~';
+    ok my @cvs = Cvs->find()->fetch();
+    is scalar @cvs, 2;
+}
+
+{
+
+    pass '~ generics ~';
+    my $artist = Artist->get(1);
+
+    ok $artist->cvs->fetch();
+    my $cvs = Cvs->get(1);
+    ok $cvs->artist->fetch();
 }
 
 
