@@ -10,7 +10,7 @@ ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord 
 
 =head1 VERSION
 
-Version 0.60.0
+Version 0.60.1
 
 =cut
 
@@ -829,56 +829,6 @@ sub decrement {
     return $self;
 }
 
-#sub increment {
-#    my ($self, $param) = @_;
-#
-#    return unless $self->dbh;
-#    return unless $param;
-#
-#    my $table_name = $self->_get_table_name;
-#    my $pkey = $self->_get_primary_key;
-#    return unless $self->{$pkey};
-#
-#    my $sql = qq{
-#        update "$table_name" set $param = $param + 1 where $pkey = ?
-#    };
-#
-#    my $res = undef;
-#    $self->{SQL} = $sql; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
-#    if ( $self->dbh->do($self->{SQL}, undef, $self->{$pkey}) ) {
-#        $self->{$param}++;
-#
-#        $res = 1;
-#    }
-#
-#    return $res;
-#}
-
-#sub decrement {
-#    my ($self, $param) = @_;
-#
-#    return unless $self->dbh;
-#    return unless $param;
-#
-#    my $table_name = $self->_get_table_name;
-#    my $pkey = $self->_get_primary_key;
-#    return unless $self->{$pkey};
-#
-#    my $sql = qq{
-#        update "$table_name" set $param = $param - 1 where $pkey = ?
-#    };
-#
-#    my $res = undef;
-#    $self->{SQL} = $sql; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
-#    if ( $self->dbh->do($self->{SQL}, undef, $self->{$pkey}) ) {
-#        $self->{$param}--;
-#
-#        $res = 1;
-#    }
-#
-#    return $res;
-#}
-
 1;
 
 __END__;
@@ -889,7 +839,7 @@ ActiveRecord::Simple
 
 =head1 VERSION
 
-0.60.0
+0.60.1
 
 =head1 DESCRIPTION
 

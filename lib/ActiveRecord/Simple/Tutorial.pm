@@ -1,9 +1,5 @@
 package ActiveRecord::Simple::Tutorial;
 
-use strict;
-use warnings;
-use 5.010;
-
 1;
 
 __END__
@@ -139,6 +135,9 @@ In Authors.pm (one-to-many):
 	    }
     });
 
+    # or, more simple:
+    __PACKAGE__->has_many(articless => 'Articles', 'author_id');
+
 In Articles.pm (one-to-one):
 
     __PACKAGE__->relations({
@@ -148,6 +147,9 @@ In Articles.pm (one-to-one):
 	        key  => 'author_id'
 	    }
     });
+
+    # or:
+    __PACKAGE__->belongs_to(author => 'Authors', 'author_id');
 
 The foreign key is "author_id".
 

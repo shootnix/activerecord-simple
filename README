@@ -2,6 +2,7 @@ ActiveRecord::Simple
 ====================
 
 ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord pattern.
+The main feature of ActiveRecord::Simple - it's based on your SQL-code and not other way round as ORM's usually does.
 
 It is fast, don't have any dependencies and realy easy to use.
 
@@ -14,6 +15,8 @@ The basic setup of your package should be:
     __PACKAGE__->table_name('foo');
     __PACKAGE__->columns(['id', 'bar', 'baz']);
     __PACKAGE__->primary_key('id');
+
+    __PACKAGE__->belongs_to(bla => 'Bla::Bla::Bla', 'bla_id');
 
     1;
 
@@ -32,6 +35,7 @@ And then, you can use your package in a program:
     $foo->bar('new value')->save();
 
     say $foo->bar;
+    say $foo->bla->bla_bla_bla;
 
 That's it. ActiveRecord::Simple provides a variety of techniques to make your work with
 data little easier. It contains only a basic set of operations, such as
@@ -84,7 +88,7 @@ perldoc command.
 LICENSE AND COPYRIGHT
 =====================
 
-Copyright (C) 2013 shootnix
+Copyright (C) 2013-2014 shootnix
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
