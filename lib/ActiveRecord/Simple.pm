@@ -189,7 +189,7 @@ sub _mk_accessors {
         *{$pkg_accessor_name} = sub {
             if ( scalar @_ > 1 ) {
                 $class->_validate_field($f, $_[1])
-                    or die "Validation error for `$f`: " . $class->_get_validation_error;
+                    or croak "Validation error for `$f`: " . $class->_get_validation_error;
 
 
                 $_[0]->{$f} = $_[1];
@@ -252,7 +252,7 @@ sub belongs_to {
         key => $key
     };
 
-    if ($class->can('_get_schema_table')) {
+    if ($class->can('_get_schema_table') && $class->can('_get_primary_key')) {
         load $rel_class;
         $class->_get_schema_table->add_constraint(
             type => 'foreign_key',
@@ -340,7 +340,7 @@ sub fields {
     $class->columns([keys %fields]);
 }
 
-sub add_index {
+sub index {
     my ($class, $index_name, $fields) = @_;
 
     if ($class->can('_get_schema_table')) {
@@ -542,11 +542,6 @@ sub _insert {
 
             $sth->execute(@bind);
         }
-
-        #say 'SQL: ' . $self->{SQL};
-        #say 'BIND: ' . (join q/,/, @bind);
-
-
     }
     else {
         $self->{SQL} = $sql_stm; $self->_quote_sql_stmt(); say $self->{SQL} if $TRACE;
@@ -970,7 +965,7 @@ sub _check_for_data_type {
         time => \&_check_DUMMY, # DUMMY
 
         char => \&_check_char,
-        varchar => \&_check_char,
+        varchar => \&_check_varchar,
 
         binary => \&_check_DUMMY, # DUMMY
         varbinary => \&_check_DUMMY, # DUMMY
@@ -984,10 +979,15 @@ sub _check_for_data_type {
 
 sub _check_DUMMY { 1 }
 sub _check_int { shift =~ /^\d+$/ }
-sub _check_char {
+sub _check_varchar {
     my ($val, $size) = @_;
 
     return length $val <= $size->[0];
+}
+sub _check_char {
+    my ($val, $size) = @_;
+
+    return length $val == $size->[0];
 }
 sub _check_float { shift =~ /^\d+\.\d+$/ }
 
@@ -1110,6 +1110,33 @@ just creates a new record in memory.
 Set names of the table columns and add accessors to object of the class. This
 method is required to use in the child (your model) classes.
 
+=head2 fields
+
+    __PACKAGE__->fields(
+        id_person => {
+            data_type => 'int',
+            is_auto_increment => 1,
+            is_primary_key => 1
+        },
+        first_name => {
+            data_type => 'varchar',
+            size => 64,
+            is_nullable => 0
+        },
+        second_name => {
+            data_type => 'varchar',
+            size => 64,
+            is_nullable => 0,
+        }
+    );
+
+Create SQL-Schema and data type validation for each specified field using SQL::Translator features.
+No need "columns" method, if you use "fields".
+
+See SQL::Translator for more information about schema, SQL::Translator::Field for information
+about available data types.
+
+
 =head2 primary_key
 
     __PACKAGE__->primary_key('id_person');
@@ -1124,7 +1151,7 @@ Set name of the primary key. This method is not required to use in the child
 Set name of the table. This method is required to use in the child (your model)
 classes.
 
-=head2 relations
+=head2 relations [!OLD!, may be deprecated in the future]
 
     __PACKAGE__->relations({
         cars => {
@@ -1295,6 +1322,12 @@ Decrement the field value:
     say $person->age;  # prints e.g. 100
     $person->decrement('age');
     say $person->age; # prints 99
+
+=head2 as_sql
+
+    say MyModel::Person->as_sql('PostgreSQL');
+
+Create an SQL-schema from method "fields". See SQL::Translator for more details.
 
 =head2 dbh
 

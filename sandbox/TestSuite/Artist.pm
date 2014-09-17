@@ -28,7 +28,7 @@ __PACKAGE__->fields(
     }
 );
 __PACKAGE__->primary_key('id');
-__PACKAGE__->add_index('index_artist_id', ['id']);
+__PACKAGE__->index('index_artist_id', ['id']);
 
 
 __PACKAGE__->belongs_to(label => 'Label', 'label_id');
