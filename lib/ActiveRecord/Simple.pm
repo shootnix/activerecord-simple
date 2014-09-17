@@ -281,6 +281,9 @@ sub has_many {
 sub as_sql {
     my ($class, $producer_name, %args) = @_;
 
+    $class->can('_get_schema_table')
+        or return;
+
     my $t = SQL::Translator->new;
     my $schema = $t->schema;
     $schema->add_table($class->_get_schema_table);
