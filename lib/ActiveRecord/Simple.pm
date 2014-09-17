@@ -42,22 +42,10 @@ sub new {
             next RELNAME if $class->can($pkg_method_name);
 
             *{$pkg_method_name} = sub {
-                my ($self, $new_rel_class) = @_;
+                my ($self, @rels) = @_;
 
                 my $rel = $class->_get_relations->{$relname};
                 my $fkey = $rel->{foreign_key} || $rel->{key};
-                #$fkey ||= 'generic';
-                if ($new_rel_class) {
-                    $rel->{type} eq 'one' or return; ### works only with one object
-                    ref $new_rel_class eq $rel->{class} or return;
-                    $new_rel_class->can('_get_primary_key') or return;
-                    my $pkey = $new_rel_class->_get_primary_key or return;
-                    my $pkeyval = $new_rel_class->$pkey or return;
-                    delete $self->{"relation_instance_$relname"};
-
-                    $self->{$fkey} = $new_rel_class->$pkey;
-                    return $self;
-                }
                 ### else
                 if (!$self->{"relation_instance_$relname"}) {
                     my $rel  = $class->_get_relations->{$relname};
@@ -136,6 +124,10 @@ sub _find_many_to_many {
     my $mc_fkey;
     my $class_opts = {};
     my $root_class_opts = {};
+
+    #my $m_class = $param->{m_class};
+    #load $m_class;
+    load $param->{m_class};
 
     for my $opts ( values %{ $param->{m_class}->_get_relations } ) {
         if ($opts->{class} eq $param->{root_class}) {
@@ -443,9 +435,23 @@ sub _insert {
     };
 
     if ( $self->dbh->{Driver}{Name} eq 'Pg' ) {
-        $sql_stm .= ' returning ' . $primary_key if $primary_key;
-        $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
-        $pkey_val = $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
+        if ($primary_key) {
+            $sql_stm .= ' returning ' . $primary_key if $primary_key;
+            $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
+
+            $pkey_val = $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
+        }
+        else {
+            $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
+            my $sth = $self->dbh->prepare($self->{SQL});
+
+            $sth->execute(@bind);
+        }
+
+        #say 'SQL: ' . $self->{SQL};
+        #say 'BIND: ' . (join q/,/, @bind);
+
+
     }
     else {
         $self->{SQL} = $sql_stm; $self->_quote_sql_stmt(); say $self->{SQL} if $TRACE;

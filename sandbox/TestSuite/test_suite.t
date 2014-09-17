@@ -261,24 +261,24 @@ Artist->dbh($dbh);
     is scalar @cd, 1;
 }
 
-{
-    pass '~ new rel system ~';
-    my $artist = Artist->find({ name => 'U2' })->fetch;
-    is $artist->name, 'U2';
-
-    ok $artist->label;
-    is $artist->label->name, 'EMI';
-    ok $artist->label(Label->new({name => 'FooBarBaz'})->save)->save;
-    is $artist->label->name, 'FooBarBaz';
-
-    my $artist_again = Artist->find({ name => 'U2' })->fetch;
-    is $artist_again->label->name, 'FooBarBaz';
-
-    my $metallica = Artist->find({ name => 'Metallica' })->fetch;
-    is $metallica->label->name, 'EMI';
-
-    ok !$artist->label(Label->new({ name => 'NewFooBarBaz' }));
-}
+#{
+#    pass '~ new rel system ~';
+#    my $artist = Artist->find({ name => 'U2' })->fetch;
+#    is $artist->name, 'U2';
+#
+#    ok $artist->label;
+#    is $artist->label->name, 'EMI';
+#    ok $artist->label(Label->new({name => 'FooBarBaz'})->save)->save;
+#    is $artist->label->name, 'FooBarBaz';
+#
+#    my $artist_again = Artist->find({ name => 'U2' })->fetch;
+#    is $artist_again->label->name, 'FooBarBaz';
+#
+#    my $metallica = Artist->find({ name => 'Metallica' })->fetch;
+#    is $metallica->label->name, 'EMI';
+#
+#    ok !$artist->label(Label->new({ name => 'NewFooBarBaz' }));
+#}
 
 {
     pass '~ testing "only" ~';
@@ -345,7 +345,7 @@ Artist->dbh($dbh);
     my $artist = Artist->new({ name => 'U2' });
     ok $artist->exists;
 
-    $artist = Artist->new({ name => 'Blink=182' });
+    $artist = Artist->new({ name => 'Blink-182' });
     ok !$artist->exists;
 }
 
@@ -364,6 +364,5 @@ Artist->dbh($dbh);
     my $cvs = Cvs->get(1);
     ok $cvs->artist->fetch();
 }
-
 
 done_testing;
