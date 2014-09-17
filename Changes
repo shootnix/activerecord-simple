@@ -73,8 +73,13 @@ Revision history for Perl module ActiveRecord::Simple
         + Added method "increment" (thnx @lifeofguenter)
         + Added method "decrement" (thnx @lifeofguenter)
 
-0.60.0   2014-05-19
+0.60.0  2014-05-19
         + Added new relationships aliases
         + Added generic relations
         * Improved increment/decrement methods
         * Migrated to semver
+
+0.61.0  2014-09-17
+        + Added schema builder (with method "fields")
+        + Added fields validation (only when "fields" method is used)
+        + Added class method "as_sql"

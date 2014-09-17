@@ -6,7 +6,7 @@ be used all the time. We use search, create, delete and update. But we don't
 use any sophisticated search every day, so why not write it yourself? ;-)
 
 
-2. Why does ActiveRecord::Simple allow me to getting wrong (names of database fields, setters etc)?
+2. (OLD) Why does ActiveRecord::Simple allow me to getting wrong (names of database fields, setters etc)?
 ---------------------------------------------------------------------------------------------------
 
 Because of Perl allows. Perl doesn't have native types of variables, structures

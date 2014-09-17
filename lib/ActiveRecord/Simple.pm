@@ -10,17 +10,18 @@ ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord 
 
 =head1 VERSION
 
-Version 0.60.1
+Version 0.61.0
 
 =cut
 
-our $VERSION = '0.60';
+our $VERSION = '0.61.0';
 
 use utf8;
 use Encode;
 use Module::Load;
 use Carp;
 use Storable qw/freeze/;
+use SQL::Translator;
 
 my $dbhandler = undef;
 my $TRACE     = defined $ENV{ACTIVE_RECORD_SIMPLE_TRACE} ? 1 : undef;
@@ -209,8 +210,6 @@ sub _validate_field {
 
     return 1 unless $class->can('_get_schema_table');
 
-    use ActiveRecord::Simple::Validator;
-
     my $fld = $class->_get_schema_table->get_field($name);
 
     my $check_result = _check($val, {
@@ -282,15 +281,11 @@ sub has_many {
 sub as_sql {
     my ($class, $producer_name, %args) = @_;
 
-    use SQL::Translator;
-
     my $t = SQL::Translator->new;
     my $schema = $t->schema;
     $schema->add_table($class->_get_schema_table);
 
     $t->producer($producer_name || 'PostgreSQL', %args);
-
-    no SQL::Translator;
 
     return $t->translate;
 }
@@ -332,7 +327,6 @@ sub columns {
 sub fields {
     my ($class, %fields) = @_;
 
-    use SQL::Translator;
     my $sql_translator = SQL::Translator->new(no_comments => 1);
     my $schema = $sql_translator->schema;
     my $table = $schema->add_table(name => $class->_get_table_name);
@@ -344,8 +338,6 @@ sub fields {
 
     $class->_mk_attribute_getter('_get_schema_table', $table);
     $class->columns([keys %fields]);
-
-    no SQL::Translator;
 }
 
 sub add_index {
