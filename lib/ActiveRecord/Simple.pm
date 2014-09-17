@@ -187,6 +187,10 @@ sub _mk_accessors {
         next FIELD if $class->can($pkg_accessor_name);
         *{$pkg_accessor_name} = sub {
             if ( scalar @_ > 1 ) {
+                $class->_validate_field($f, $_[1])
+                    or die "Validation error for `$f`: " . $class->_get_validation_error;
+
+
                 $_[0]->{$f} = $_[1];
 
                 return $_[0];
@@ -200,6 +204,46 @@ sub _mk_accessors {
     return 1;
 }
 
+sub _validate_field {
+    my ($class, $name, $val) = @_;
+
+    return 1 unless $class->can('_get_schema_table');
+
+    use ActiveRecord::Simple::Validator;
+
+    my $fld = $class->_get_schema_table->get_field($name);
+
+    my $check_result = _check($val, {
+        data_type   => $fld->{data_type},
+        is_nullable => $fld->{is_nullable},
+        size        => $fld->{size},
+    });
+
+    if ($check_result->{error}) {
+        $class->_mk_attribute_getter('_get_validation_error', $check_result->{error});
+
+        return;
+    }
+
+    return 1;
+}
+
+sub _check {
+    my ($val, $fld) = @_;
+
+    if (exists $fld->{is_nullable}) {
+        _check_for_null($val, $fld->{is_nullable})
+            or return { error => "Can't be null" };
+    }
+
+    if (exists $fld->{data_type}) {
+        _check_for_data_type($val, $fld->{data_type}, $fld->{size})
+            or return { error => "Invalid value for type " . $fld->{data_type} };
+    }
+
+    return { result => 1 };
+}
+
 sub belongs_to {
     my ($class, $rel_name, $rel_class, $key) = @_;
 
@@ -208,6 +252,17 @@ sub belongs_to {
         type => 'one',
         key => $key
     };
+
+    if ($class->can('_get_schema_table')) {
+        load $rel_class;
+        $class->_get_schema_table->add_constraint(
+            type => 'foreign_key',
+            fields => $key,
+            reference_fields => $class->_get_primary_key,
+            reference_table => $rel_class->_get_table_name,
+            on_delete => 'cascade'
+        );
+    }
 
     return $class->_append_relation($rel_name => $new_relation);
 }
@@ -222,6 +277,22 @@ sub has_many {
     $new_relation->{key} = $key if defined $key;
 
     return $class->_append_relation($rel_name => $new_relation);
+}
+
+sub as_sql {
+    my ($class, $producer_name, %args) = @_;
+
+    use SQL::Translator;
+
+    my $t = SQL::Translator->new;
+    my $schema = $t->schema;
+    $schema->add_table($class->_get_schema_table);
+
+    $t->producer($producer_name || 'PostgreSQL', %args);
+
+    no SQL::Translator;
+
+    return $t->translate;
 }
 
 sub generic {
@@ -258,10 +329,42 @@ sub columns {
     $class->_mk_attribute_getter('_get_columns', $columns);
 }
 
+sub fields {
+    my ($class, %fields) = @_;
+
+    use SQL::Translator;
+    my $sql_translator = SQL::Translator->new(no_comments => 1);
+    my $schema = $sql_translator->schema;
+    my $table = $schema->add_table(name => $class->_get_table_name);
+
+    FIELD:
+    for my $field (keys %fields) {
+        $table->add_field(name => $field, %{ $fields{$field} });
+    }
+
+    $class->_mk_attribute_getter('_get_schema_table', $table);
+    $class->columns([keys %fields]);
+
+    no SQL::Translator;
+}
+
+sub add_index {
+    my ($class, $index_name, $fields) = @_;
+
+    if ($class->can('_get_schema_table')) {
+        $class->_get_schema_table->add_index(
+            name => $index_name,
+            fields => $fields
+        );
+    }
+}
+
 sub primary_key {
     my ($class, $primary_key) = @_;
 
     $class->_mk_attribute_getter('_get_primary_key', $primary_key);
+    $class->_get_schema_table->primary_key($primary_key)
+        if $class->can('_get_schema_table')
 }
 
 sub table_name {
@@ -835,6 +938,89 @@ sub decrement {
     return $self;
 }
 
+sub _check_for_null {
+    my ($val, $is_nullable) = @_;
+
+    if ($is_nullable == 0 && (not defined $val || $val eq '')) {
+        return undef;
+    }
+    # else
+    return 1;
+}
+
+sub _check_for_data_type {
+    my ($val, $data_type, $size) = @_;
+
+    return 1 unless $data_type;
+
+    my %TYPE_CHECKS = (
+        int      => \&_check_int,
+        integer  => \&_check_int,
+        tinyint  => \&_check_int,
+        smallint => \&_check_int,
+        bigint   => \&_check_int,
+
+        double => \&_check_numeric,
+       'double precision' => \&_check_numeric,
+
+        decimal => \&_check_numeric,
+        dec => \&_check_numeric,
+        numeric => \&_check_numeric,
+
+        real => \&_check_float,
+        float => \&_check_float,
+
+        bit => \&_check_bit,
+
+        date => \&_check_DUMMY, # DUMMY
+        datetime => \&_check_DUMMY, # DUMMY
+        timestamp => \&_check_DUMMY, # DUMMY
+        time => \&_check_DUMMY, # DUMMY
+
+        char => \&_check_char,
+        varchar => \&_check_char,
+
+        binary => \&_check_DUMMY, # DUMMY
+        varbinary => \&_check_DUMMY, # DUMMY
+        tinyblob => \&_check_DUMMY, # DUMMY
+        blob => \&_check_DUMMY, # DUMMY
+        text => \&_check_DUMMY,
+    );
+
+    return (exists $TYPE_CHECKS{$data_type}) ? $TYPE_CHECKS{$data_type}->($val, $size) : 1;
+}
+
+sub _check_DUMMY { 1 }
+sub _check_int { shift =~ /^\d+$/ }
+sub _check_char {
+    my ($val, $size) = @_;
+
+    return length $val <= $size->[0];
+}
+sub _check_float { shift =~ /^\d+\.\d+$/ }
+
+sub _check_numeric {
+    my ($val, $size) = @_;
+
+    return 1 unless
+        defined $size &&
+        ref $size eq 'ARRAY' &&
+        scalar @$size == 2;
+
+    my ($first, $last) = $val =~ /^(\d+)\.(\d+)$/;
+
+    $first && length $first <= $size->[0] or return;
+    $last && length $last <= $size->[1] or return;
+
+    return 1;
+}
+
+sub _check_bit {
+    my ($val) = @_;
+
+    return ($val == 0 || $val == 1) ? 1 : undef;
+}
+
 1;
 
 __END__;
@@ -893,18 +1079,8 @@ That's it! Now you're ready to use your active-record class in the application:
     }
 
     # You can add any relationships to your tables:
-    __PACKAGE__->relations({
-        cars => {
-            class => 'MyModel::Car',
-            key   => 'id_person',
-            type  => 'many',
-        },
-        wife => {
-            class => 'MyModel::Wife',
-            key   => 'id_person',
-            type  => 'one',
-        }
-    });
+    __PACKAGE__->has_many(cars => 'MyModel::Car' => 'id_preson');
+    __PACKAGE__->belongs_to(wife => 'MyModel::Wife' => 'id_person');
 
     # And then, you're ready to go:
     say $person->cars->fetch->id; # if the relation is one to many
