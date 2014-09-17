@@ -10,11 +10,11 @@ ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord 
 
 =head1 VERSION
 
-Version 0.61.1
+Version 0.62
 
 =cut
 
-our $VERSION = '0.61';
+our $VERSION = '0.62';
 
 use utf8;
 use Encode;
