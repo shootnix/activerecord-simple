@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="Activerecord-simple : ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord pattern.">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Activerecord-simple</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/shootnix/activerecord-simple">View on GitHub</a>
+
+          <h1 id="project_title">Activerecord-simple</h1>
+          <h2 id="project_tagline">ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord pattern.</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/shootnix/activerecord-simple/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/shootnix/activerecord-simple/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a name="activerecordsimple" class="anchor" href="#activerecordsimple"><span class="octicon octicon-link"></span></a>ActiveRecord::Simple</h1>
+
+<p>ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord pattern.</p>
+
+<p>It is fast, don't have any dependencies and realy easy to use.</p>
+
+<p>The basic setup of your package should be:</p>
+
+<pre><code>package Model::Foo;
+
+use base 'ActiveRecord::Simple';
+
+__PACKAGE__-&gt;table_name('foo');
+__PACKAGE__-&gt;columns(['id', 'bar', 'baz']);
+__PACKAGE__-&gt;primary_key('id');
+
+1;
+</code></pre>
+
+<p>And then, you can use your package in a program:</p>
+
+<pre><code>use Foo;
+
+my $foo = Foo-&gt;new({ bar =&gt; 'value', baz =&gt; 'value' });
+$foo-&gt;save();
+
+# or
+my $foo = Foo-&gt;get(1);
+say $foo-&gt;bar;
+
+# or
+$foo-&gt;bar('new value')-&gt;save();
+
+say $foo-&gt;bar;
+</code></pre>
+
+<p>That's it. ActiveRecord::Simple provides a variety of techniques to make your work with
+data little easier. It contains only a basic set of operations, such as
+search, create, update and delete data.</p>
+
+<p>ActiveRecord::Simple doesn't handle your database connection, but you may keep
+it in the special method (class attribute) "dbh":</p>
+
+<pre><code>Foo-&gt;dbh($dbh);
+
+# or
+ActiveRecord::Simple-&gt;dbh($dbh);
+
+# or you can use a special function, like this:
+sub dbhandler {
+    unless ( $dbh-&gt;ping ) {
+        $dbh-&gt;connect("...");
+    }
+
+    return $dbh;
+}
+
+ActiveRecord::Simple-&gt;dbh( &amp;dbhandler );
+</code></pre>
+
+<p>See pod documentation of the module for more information about using
+ActiveRecord::Simple.</p>
+
+<h1>
+<a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>INSTALLATION</h1>
+
+<p>To install this module, run the following commands:</p>
+
+<pre><code>$ perl Makefile.PL
+$ make
+$ make test
+$ make install
+</code></pre>
+
+<p>or:</p>
+
+<pre><code>    $ sudo cpan ActiveRecord::Simple
+</code></pre>
+
+<h1>
+<a name="support-and-documentation" class="anchor" href="#support-and-documentation"><span class="octicon octicon-link"></span></a>SUPPORT AND DOCUMENTATION</h1>
+
+<p>After installing, you can find documentation for this module with the
+perldoc command.</p>
+
+<pre><code>perldoc ActiveRecord::Simple
+</code></pre>
+
+<p>Join us at google-groups: <a href="https://groups.google.com/forum/#!forum/activerecord-simple">https://groups.google.com/forum/#!forum/activerecord-simple</a></p>
+
+<h1>
+<a name="license-and-copyright" class="anchor" href="#license-and-copyright"><span class="octicon octicon-link"></span></a>LICENSE AND COPYRIGHT</h1>
+
+<p>Copyright (C) 2013 shootnix</p>
+
+<p>This program is free software; you can redistribute it and/or modify it
+under the terms of either: the GNU General Public License as published
+by the Free Software Foundation; or the Artistic License.</p>
+
+<p>See <a href="http://dev.perl.org/licenses/">http://dev.perl.org/licenses/</a> for more information.</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Activerecord-simple maintained by <a href="https://github.com/shootnix">shootnix</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
