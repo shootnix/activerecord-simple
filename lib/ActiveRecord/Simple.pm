@@ -14,7 +14,7 @@ Version 0.61.0
 
 =cut
 
-our $VERSION = '0.61.0';
+our $VERSION = '0.61';
 
 use utf8;
 use Encode;
@@ -1143,6 +1143,12 @@ about available data types.
 
 Set name of the primary key. This method is not required to use in the child
 (your model) classes.
+
+=head2 index
+
+    __PACKAGE__->index('index_id_person', ['id_person']);
+
+Create an index and add it to the schema. Works only when method "fields" is using.
 
 =head2 table_name
 
