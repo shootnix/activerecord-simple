@@ -10,11 +10,11 @@ ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord 
 
 =head1 VERSION
 
-Version 0.62
+Version 0.63
 
 =cut
 
-our $VERSION = '0.62';
+our $VERSION = '0.63';
 
 use utf8;
 use Encode;
@@ -80,6 +80,13 @@ sub new {
 
                         $self->{"relation_instance_$relname"} =
                             $rel_class->find("$pkey = ?", $fkey_val)->fetch;
+                    }
+                    elsif ($type eq 'only_to_one') {
+                        my $self_pkey = $self->_get_primary_key;
+                        my $pkey_val = $self->$self_pkey;
+
+                        $self->{"relation_instance_$relname"} =
+                            $rel_class->find("$rel->{key} = ?", $pkey_val)->fetch;
                     }
                     elsif ($type eq 'many_to_one') {
                         return $rel_class->new() if not $self->can('_get_primary_key');
@@ -278,6 +285,13 @@ sub has_many {
     return $class->_append_relation($rel_name => $new_relation);
 }
 
+sub has_one {
+    my ($class, $rel_name, $rel_class, $key) = @_;
+
+    #$class->_mk_attribute_getter('_get_secondary_key', $key);
+    $class->_append_relation($rel_name => { class => $rel_class, key => $key, type => 'only' });
+}
+
 sub as_sql {
     my ($class, $producer_name, %args) = @_;
 
@@ -360,6 +374,12 @@ sub primary_key {
     $class->_mk_attribute_getter('_get_primary_key', $primary_key);
     $class->_get_schema_table->primary_key($primary_key)
         if $class->can('_get_schema_table')
+}
+
+sub secondary_key {
+    my ($class, $key) = @_;
+
+    $class->_mk_attribute_getter('_get_secondary_key', $key);
 }
 
 sub table_name {
@@ -520,7 +540,8 @@ sub _insert {
 
     my $table_name  = $self->_get_table_name;
     my @field_names  = grep { defined $param->{$_} } sort keys %$param;
-    my $primary_key = ($self->can('_get_primary_key')) ? $self->_get_primary_key : undef;
+    my $primary_key = ($self->can('_get_primary_key')) ? $self->_get_primary_key :
+                      ($self->can('_get_secondary_key')) ? $self->_get_secondary_key : undef;
 
     my $field_names_str = join q/, /, map { q/"/ . $_ . q/"/ } @field_names;
     my $values          = join q/, /, map { '?' } @field_names;
@@ -548,6 +569,7 @@ sub _insert {
     }
     else {
         $self->{SQL} = $sql_stm; $self->_quote_sql_stmt(); say $self->{SQL} if $TRACE;
+
         my $sth = $self->dbh->prepare($self->{SQL});
         $sth->execute(@bind);
 
@@ -574,7 +596,8 @@ sub _update {
 
     my $table_name      = $self->_get_table_name;
     my @field_names     = sort keys %$param;
-    my $primary_key     = $self->_get_primary_key;
+    my $primary_key     = ($self->can('_get_primary_key')) ? $self->_get_primary_key :
+                          ($self->can('_get_secondary_key')) ? $self->_get_secondary_key : undef;
 
     my $setstring = join ', ', map { "$_ = ?" } @field_names;
     my @bind = map { $param->{$_} } @field_names;
@@ -1026,7 +1049,7 @@ ActiveRecord::Simple
 
 =head1 VERSION
 
-0.61.1
+0.63
 
 =head1 DESCRIPTION
 
@@ -1147,6 +1170,14 @@ about available data types.
 Set name of the primary key. This method is not required to use in the child
 (your model) classes.
 
+=head2 secondary_key
+
+    __PACKAGE__->secondary_key('some_id');
+
+If you don't need to use primary key, but need to insert or update data, using specific
+parameters, you can try this one: secondary key. It doesn't reflect schema, it's just about
+the code.
+
 =head2 index
 
     __PACKAGE__->index('index_id_person', ['id_person']);
@@ -1213,6 +1244,14 @@ just keep this simple schema in youre mind:
             hey => 'car_id'
         }
     });
+
+=head2 has_one
+
+    __PACKAGE__->has_one(wife => 'Wife', 'person_id');
+
+You can specify one object via another one using "has_one" method. It works like that:
+
+    say $person->wife->name; # SELECT name FROM Wife WHERE person_id = $self._primary_key
 
 =head2 generic
 
