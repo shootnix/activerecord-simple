@@ -2,7 +2,6 @@ ActiveRecord::Simple
 ====================
 
 ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord pattern.
-The main feature of ActiveRecord::Simple - it's based on your SQL-code and not other way round as ORM's usually does.
 
 It is fast, don't have any dependencies and realy easy to use.
 
@@ -16,8 +15,6 @@ The basic setup of your package should be:
     __PACKAGE__->columns(['id', 'bar', 'baz']);
     __PACKAGE__->primary_key('id');
 
-    __PACKAGE__->belongs_to(bla => 'Bla::Bla::Bla', 'bla_id');
-
     1;
 
 And then, you can use your package in a program:
@@ -28,14 +25,13 @@ And then, you can use your package in a program:
     $foo->save();
 
     # or
-    my $foo = Foo->find(1);
+    my $foo = Foo->get(1);
     say $foo->bar;
 
     # or
     $foo->bar('new value')->save();
 
     say $foo->bar;
-    say $foo->bla->bla_bla_bla;
 
 That's it. ActiveRecord::Simple provides a variety of techniques to make your work with
 data little easier. It contains only a basic set of operations, such as
@@ -68,14 +64,14 @@ INSTALLATION
 
 To install this module, run the following commands:
 
-	$ perl Makefile.PL
-	$ make
-	$ make test
-	$ make install
+    $ perl Makefile.PL
+    $ make
+    $ make test
+    $ make install
 
 or:
 
-        $ sudo cpan ActiveRecord::Simple
+    $ sudo cpan ActiveRecord::Simple
 
 SUPPORT AND DOCUMENTATION
 =========================
@@ -84,6 +80,12 @@ After installing, you can find documentation for this module with the
 perldoc command.
 
     perldoc ActiveRecord::Simple
+
+Feel free to join as at google groups:
+https://groups.google.com/forum/#!forum/activerecord-simple
+
+Also the github page:
+http://shootnix.github.io/activerecord-simple/
 
 LICENSE AND COPYRIGHT
 =====================

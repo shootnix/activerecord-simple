@@ -84,10 +84,13 @@ perldoc command.
 Feel free to join as at google groups:
 https://groups.google.com/forum/#!forum/activerecord-simple
 
+Also the github page:
+http://shootnix.github.io/activerecord-simple/
+
 LICENSE AND COPYRIGHT
 =====================
 
-Copyright (C) 2013 shootnix
+Copyright (C) 2013-2014 shootnix
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
