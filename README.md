@@ -81,6 +81,9 @@ perldoc command.
 
     perldoc ActiveRecord::Simple
 
+Feel free to join as at google groups:
+https://groups.google.com/forum/#!forum/activerecord-simple
+
 LICENSE AND COPYRIGHT
 =====================
 
