@@ -10,11 +10,11 @@ ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord 
 
 =head1 VERSION
 
-Version 0.61.0
+Version 0.62
 
 =cut
 
-our $VERSION = '0.61';
+our $VERSION = '0.62';
 
 use utf8;
 use Encode;
@@ -280,6 +280,9 @@ sub has_many {
 
 sub as_sql {
     my ($class, $producer_name, %args) = @_;
+
+    $class->can('_get_schema_table')
+        or return;
 
     my $t = SQL::Translator->new;
     my $schema = $t->schema;
@@ -1023,7 +1026,7 @@ ActiveRecord::Simple
 
 =head1 VERSION
 
-0.60.1
+0.61.1
 
 =head1 DESCRIPTION
 
