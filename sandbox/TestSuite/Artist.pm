@@ -17,8 +17,9 @@ __PACKAGE__->fields(
     },
     name => {
         data_type => 'varchar',
-        size => 64,
+        size => 63,
         is_nullable => 0,
+        default_value => undef
     },
     label_id => {
         data_type => 'int',

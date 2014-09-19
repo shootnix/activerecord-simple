@@ -68,31 +68,23 @@ sub new {
                     }
 
                     if ($type eq 'one_to_many' or $type eq 'one_to_one' or $type eq 'one_to_only') {
-                        ### THE NEW ONE:
-                        my $fkey = $rel->{params}{fk} || $rel->{params}{foreign_key};
-                        my $pkey = $rel->{params}{pk} || $rel->{params}{primary_key};
+                        my $fkey = $rel->{params}{fk};
+                        my $pkey = $rel->{params}{pk};
 
-                        #my @l = $rel_class->find("$pkey = ?", $self->$fkey)->to_sql;
                         $self->{"relation_instance_$relname"} =
                             $rel_class->find("$pkey = ?", $self->$fkey)->fetch // $rel_class;
                     }
                     elsif ($type eq 'only_to_one') {
-                        my $fkey = $rel->{params}{fk} || $rel->{params}{foreign_key};
-                        my $pkey = $rel->{params}{pk} || $rel->{params}{primary_key};
+                        my $fkey = $rel->{params}{fk};
+                        my $pkey = $rel->{params}{pk};
 
                         $self->{"relation_instance_$relname"} =
                             $rel_class->find("$fkey = ?", $self->$pkey)->fetch;
-                        #my $self_pkey = $self->_get_primary_key;
-                        #my $pkey_val = $self->$self_pkey;
-                        #
-                        #$self->{"relation_instance_$relname"} =
-                        #    $rel_class->find("$rel->{key} = ?", $pkey_val)->fetch;
                     }
                     elsif ($type eq 'many_to_one') {
                         return $rel_class->new() if not $self->can('_get_primary_key');
-                        # THE NEW ONE:
-                        my $fkey = $rel->{params}{fk} || $rel->{params}{foreign_key};
-                        my $pkey = $rel->{params}{pk} || $rel->{params}{primary_key};
+                        my $fkey = $rel->{params}{fk};
+                        my $pkey = $rel->{params}{pk};
 
                         $self->{"relation_instance_$relname"}
                             = $rel_class->find("$fkey = ?", $self->$pkey);
@@ -220,9 +212,10 @@ sub _validate_field {
     my $fld = $class->_get_schema_table->get_field($name);
 
     my $check_result = _check($val, {
-        data_type   => $fld->{data_type},
-        is_nullable => $fld->{is_nullable},
-        size        => $fld->{size},
+        data_type     => $fld->{data_type},
+        is_nullable   => $fld->{is_nullable},
+        size          => $fld->{size},
+        default_value => $fld->{default_value},
     });
 
     if ($check_result->{error}) {
@@ -238,8 +231,12 @@ sub _check {
     my ($val, $fld) = @_;
 
     if (exists $fld->{is_nullable}) {
-        _check_for_null($val, $fld->{is_nullable})
-            or return { error => "Can't be null" };
+        _check_for_null(
+            $val,
+            $fld->{is_nullable},
+            (exists $fld->{default_value} && defined $fld->{default_value})
+        )
+        or return { error => "Can't be null" };
     }
 
     if (exists $fld->{data_type}) {
@@ -1020,10 +1017,10 @@ sub decrement {
 }
 
 sub _check_for_null {
-    my ($val, $is_nullable) = @_;
+    my ($val, $is_nullable, $has_default_value) = @_;
 
-    if ($is_nullable == 0 && (not defined $val || $val eq '')) {
-        return undef;
+    if ($is_nullable == 0 && (not defined $val or $val eq '')) {
+        return $has_default_value ? 1 : undef;
     }
     # else
     return 1;
