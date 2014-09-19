@@ -1590,6 +1590,17 @@ Convert objects data to the simple perl hash:
 
     say encode_json({ person => $peron->to_hash });
 
+=head2 to_sql
+
+Convert aobject to SQL-query:
+
+    my $sql = Person->find({ name => 'Bill' })->limit(1)->to_sql;
+    # select * from persons where name = ? limit 1;
+
+    my ($sql, $binds) = Person->find({ name => 'Bill' })->to_sql;
+    # sql: select * from persons where name = ? limit 1;
+    # binds: ['Bill']
+
 =head2 is_defined
 
 Checks weather an object is defined:
