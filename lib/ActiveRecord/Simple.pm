@@ -1143,7 +1143,7 @@ ActiveRecord::Simple
 
 =head1 VERSION
 
-0.63
+0.64
 
 =head1 DESCRIPTION
 
