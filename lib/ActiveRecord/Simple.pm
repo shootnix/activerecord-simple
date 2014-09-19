@@ -413,8 +413,8 @@ sub columns {
 
         if (ref $we_got[1] && ref $we_got[1] eq 'HASH') {
             # hash of hashes
-            push @$columns, keys {@we_got};
-            $class->fields(@we_got);
+            push @$columns, keys my %fields = @we_got;
+            $class->fields(%fields);
         }
         else {
             # or plain array?
