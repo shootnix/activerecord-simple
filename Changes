@@ -84,3 +84,8 @@ Revision history for Perl module ActiveRecord::Simple
         + Added fields validation (only when "fields" method is used)
         + Added class method "as_sql"
         + Added PACKAGE method "index"
+
+0.64    2014-09-19
+        + Improved method "columns"
+        + Improved relationship framework
+        * Fixed bugs
