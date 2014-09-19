@@ -365,4 +365,13 @@ Artist->dbh($dbh);
     ok $cvs->artist->fetch();
 }
 
+{
+    pass '~ to_sql ~';
+
+    ok(Artist->find({ name => 'Metallica' })->order_by('name')->limit(10)->to_sql, 'to_sql, scalar');
+    ok my @list = Artist->find('name = ?', 'Metallica')->to_sql, 'to_sql, list';
+    is scalar @list, 2, 'list size is 2';
+    is $list[1][0], 'Metallica', 'bind is good'
+}
+
 done_testing;
