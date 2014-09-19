@@ -8,7 +8,6 @@ use lib '../../lib';
 use base 'ActiveRecord::Simple';
 
 __PACKAGE__->table_name('rating');
-#__PACKAGE__->columns(['range', 'artist_id']);
 __PACKAGE__->fields(
     range => {
         data_type => 'dec',
@@ -22,7 +21,8 @@ __PACKAGE__->fields(
     },
 );
 
-__PACKAGE__->belongs_to(artist => 'Artist', 'artist_id');
+#__PACKAGE__->belongs_to(artist => 'Artist', { fk => 'artist_id', pk => 'id' });
+__PACKAGE__->belongs_to(artist => 'Artist');
 
 sub insert { __PACKAGE__->new($_[1])->save() }
 

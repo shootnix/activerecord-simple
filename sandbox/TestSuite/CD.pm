@@ -33,7 +33,7 @@ __PACKAGE__->primary_key('id');
 
 __PACKAGE__->has_many(artists => { 'ArtistCD' => 'Artist' });
 __PACKAGE__->has_many(songs => { 'CDSong' => 'Song' });
-__PACKAGE__->belongs_to(label => 'Label', 'label_id');
+__PACKAGE__->belongs_to(label => 'Label');
 
 #__PACKAGE__->use_smart_saving();
 

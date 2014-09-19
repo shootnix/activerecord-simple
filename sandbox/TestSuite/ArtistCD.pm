@@ -19,8 +19,8 @@ __PACKAGE__->fields(
     },
 );
 
-__PACKAGE__->belongs_to(artist => 'Artist', 'artist_id');
-__PACKAGE__->belongs_to(cd => 'CD', 'cd_id');
+__PACKAGE__->belongs_to(artist => 'Artist');
+__PACKAGE__->belongs_to(cd => 'CD');
 
 
 #__PACKAGE__->check_before_update(1);

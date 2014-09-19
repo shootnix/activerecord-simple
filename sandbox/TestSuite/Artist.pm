@@ -23,7 +23,6 @@ __PACKAGE__->fields(
     label_id => {
         data_type => 'int',
         size => 100,
-        is_nullable => 0,
         is_foreign_key => 1,
     }
 );
@@ -31,8 +30,9 @@ __PACKAGE__->primary_key('id');
 __PACKAGE__->index('index_artist_id', ['id']);
 
 
-__PACKAGE__->belongs_to(label => 'Label', 'label_id');
-__PACKAGE__->belongs_to(rating => 'Rating', 'artist_id');
+#__PACKAGE__->belongs_to(label => 'Label', { fk => 'label_id', pk => 'id' });
+__PACKAGE__->belongs_to(label => 'Label');
+__PACKAGE__->has_one(rating => 'Rating');
 __PACKAGE__->has_many(albums => { ArtistCD => 'CD' });
 __PACKAGE__->generic(cvs => 'Cvs', { name => 'artist_name' });
 
