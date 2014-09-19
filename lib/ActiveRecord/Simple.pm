@@ -21,7 +21,6 @@ use Encode;
 use Module::Load;
 use Carp;
 use Storable qw/freeze/;
-use SQL::Translator;
 
 my $dbhandler = undef;
 my $TRACE     = defined $ENV{ACTIVE_RECORD_SIMPLE_TRACE} ? 1 : undef;
@@ -1286,7 +1285,7 @@ another method, "fields".
 
 This method requires L<SQL::Translator> to be installed.
 Create SQL-Schema and data type validation for each specified field using SQL::Translator features.
-You don't to call "columns" method explictly, if you use "fields".
+You don't need to call "columns" method explicitly, if you use "fields".
 
 See L<SQL::Translator> for more information about schema and L<SQL::Translator::Field>
 for information about available data types.
