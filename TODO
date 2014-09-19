@@ -5,3 +5,8 @@ $artist->label(undef)->save;
 $artist->label->delete;
 
 say $artist->label->name; ### 'EMI'
+
+Add optional dependency Test::Perl::Critic tests to enforce uniform perl style,
+some best practices and avoid potential bugs.
+
+Add files to MANIFEST and create a MANIFEST.SKIP file
