@@ -30,8 +30,6 @@ __PACKAGE__->fields(
 __PACKAGE__->primary_key('id');
 __PACKAGE__->index('index_artist_id', ['id']);
 
-
-#__PACKAGE__->belongs_to(label => 'Label', { fk => 'label_id', pk => 'id' });
 __PACKAGE__->belongs_to(label => 'Label');
 __PACKAGE__->has_one(rating => 'Rating');
 __PACKAGE__->has_many(albums => { ArtistCD => 'CD' });
