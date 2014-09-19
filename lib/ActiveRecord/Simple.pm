@@ -392,7 +392,36 @@ sub _append_relation {
 }
 
 sub columns {
-    my ($class, $columns) = @_;
+    my ($class, @we_got) = @_;
+
+    my $columns = [];
+    if (scalar @we_got == 1) {
+        #$columns = $we_got[0];
+        if (ref $we_got[0] && ref $we_got[0] eq 'ARRAY') {
+            $columns = $we_got[0];
+        }
+        elsif (ref $we_got[0] && ref $we_got[0] eq 'HASH') {
+            $columns = [keys %{ $we_got[0] }];
+            $class->fields(%{ $we_got[0] });
+        }
+        else {
+            # just one column?
+            push @$columns, @we_got;
+        }
+    }
+    elsif (scalar @we_got > 1) {
+
+        if (ref $we_got[1] && ref $we_got[1] eq 'HASH') {
+            # hash of hashes
+            push @$columns, keys {@we_got};
+            $class->fields(@we_got);
+        }
+        else {
+            # or plain array?
+            push @$columns, @we_got;
+        }
+
+    }
 
     $class->_mk_attribute_getter('_get_columns', $columns);
 }

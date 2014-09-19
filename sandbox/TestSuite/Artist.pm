@@ -8,7 +8,7 @@ use lib '../../lib';
 use parent 'ActiveRecord::Simple';
 
 __PACKAGE__->table_name('artist');
-__PACKAGE__->fields(
+__PACKAGE__->columns(
     id => {
         data_type => 'int',
         is_auto_increment => 1,
