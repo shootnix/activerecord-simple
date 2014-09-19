@@ -3,20 +3,25 @@
 use strict;
 use warnings;
 use 5.010;
-
+use Test::More;
 use Data::Dumper;
 use DBI;
-use Test::More;
-
-use Artist;
-use Label;
-use Rating;
-use CD;
-use ArtistCD;
-use CDSong;
-use Song;
-use Cvs;
 use List::Util qw(first);
+
+unless (eval { require SQL::Translator }) {
+    plan(skip_all => 'SQL::Translator is required for this test');
+}
+
+
+
+require Artist;
+require Label;
+require Rating;
+require CD;
+require ArtistCD;
+require CDSong;
+require Song;
+require Cvs;
 
 unlink 'test_suite.db';
 

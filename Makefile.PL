@@ -14,7 +14,6 @@ WriteMakefile1(
         'Module::Load' => 0,
         'DBI' => 0,
         'Storable' => 0,
-        'SQL::Translator' => 0,
     },
     MIN_PERL_VERSION => '5.010',
     META_MERGE => {
@@ -60,4 +59,3 @@ sub WriteMakefile1 {  #Compatibility code for old versions of EU::MM. Written by
 
     WriteMakefile(%params);
 }
-
