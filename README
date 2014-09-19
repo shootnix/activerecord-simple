@@ -12,7 +12,7 @@ The basic setup of your package should be:
     use base 'ActiveRecord::Simple';
 
     __PACKAGE__->table_name('foo');
-    __PACKAGE__->columns(['id', 'bar', 'baz']);
+    __PACKAGE__->columns('id', 'bar', 'baz');
     __PACKAGE__->primary_key('id');
 
     1;
@@ -47,14 +47,14 @@ it in the special method (class attribute) "dbh":
 
     # or you can use a special function, like this:
     sub dbhandler {
-        unless ( $dbh->ping ) {
+        unless ($dbh->ping) {
             $dbh->connect("...");
         }
 
         return $dbh;
     }
 
-    ActiveRecord::Simple->dbh( &dbhandler );
+    ActiveRecord::Simple->dbh(&dbhandler);
 
 See pod documentation of the module for more information about using
 ActiveRecord::Simple.
@@ -81,7 +81,7 @@ perldoc command.
 
     perldoc ActiveRecord::Simple
 
-Feel free to join as at google groups:
+Feel free to join us at the google group:
 https://groups.google.com/forum/#!forum/activerecord-simple
 
 Also the github page:

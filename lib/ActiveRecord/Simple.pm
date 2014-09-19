@@ -1157,7 +1157,7 @@ pattern. It's fast, very simple and very light.
     use base 'ActiveRecord::Simple';
 
     __PACKAGE__->table_name('persons');
-    __PACKAGE__->columns(['id', 'name']);
+    __PACKAGE__->columns('id', 'name');
     __PACKAGE__->primary_key('id');
 
     1;
@@ -1226,9 +1226,37 @@ just creates a new record in memory.
 =head2 columns
 
     __PACKAGE__->columns([qw/id_person first_name second_name]);
+    # or
+    __PACKAGE__->columns('id_person', 'first_name', 'second_name');
+    # or
+    __PACKAGE__->columns({
+        id_person => {
+            # ...
+        },
+        first_name => {
+            # ...
+        },
+        second_name => {
+            # ...
+        }
+    });
+    # or
+    __PACKAGE__->columns(
+        id_person => {
+            # ...
+        },
+        first_name => {
+            # ...
+        },
+        second_name => {
+            # ...
+        }
+    );
 
-Set names of the table columns and add accessors to object of the class. This
-method is required to use in the child (your model) classes.
+This method is required.
+Set names of the table columns and add accessors to object of the class.
+If you set a hash or a hashref with additional parameters, the method will be dispatched to
+another method, "fields".
 
 =head2 fields
 
@@ -1255,7 +1283,6 @@ No need "columns" method, if you use "fields".
 
 See SQL::Translator for more information about schema, SQL::Translator::Field for information
 about available data types.
-
 
 =head2 primary_key
 
@@ -1315,33 +1342,34 @@ just keep this simple schema in youre mind:
 
 =head2 belongs_to
 
-    __PACKAGE__->belongs_to(home => 'Home', 'home_id');
+    __PACKAGE__->belongs_to(home => 'Home');
 
-    This is equal to:
-    __PACKAGE__->relations({
-        home => {
-            class => 'Home',
-            key => 'home_id',
-            type => 'one'
-        }
+This method describes one-to-one objects relationship. By default ARS think
+that primary key name is "id", foreign key name is "[table_name]_id".
+You can specify it by parameters:
+
+    __PACKAGE__->belongs_to(home => 'Home', {
+        primary_key => 'id',
+        foreign_key => 'home_id'
     });
 
 =head2 has_many
 
-    __PACKAGE__->has_many(cars => 'Car', 'car_id');
+    __PACKAGE__->has_many(cars => 'Car');
+    __PACKAGE__->has_many(cars => 'Car', {
+        primary_key => 'id',
+        foreign_key => 'car_id'
+    })
 
-    This is equal to:
-    __PACKAGE__->relations({
-        home => {
-            class => 'Car',
-            type => 'many',
-            hey => 'car_id'
-        }
-    });
+This method describes one-to-many objects relationship.
 
 =head2 has_one
 
-    __PACKAGE__->has_one(wife => 'Wife', 'person_id');
+    __PACKAGE__->has_one(wife => 'Wife');
+    __PACKAGE__->has_one(wife => 'Wife', {
+        primary_key => 'id',
+        foreign_key => 'wife_id'
+    });
 
 You can specify one object via another one using "has_one" method. It works like that:
 
