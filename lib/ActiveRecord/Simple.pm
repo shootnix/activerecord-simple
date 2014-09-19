@@ -718,6 +718,15 @@ sub only {
     return $self;
 }
 
+sub to_sql {
+    my ($self) = @_;
+
+    $self->_finish_sql_stmt();
+    $self->_quote_sql_stmt();
+
+    return wantarray ? ($self->{SQL}, $self->{BIND}) : $self->{SQL};
+}
+
 sub fetch {
     my ($self, $param) = @_;
 
