@@ -16,6 +16,7 @@ use ArtistCD;
 use CDSong;
 use Song;
 use Cvs;
+use List::Util qw(first);
 
 unlink 'test_suite.db';
 
@@ -143,7 +144,7 @@ Artist->dbh($dbh);
     is scalar @artists, 2;
 
     for my $artist (@artists) {
-        ok $artist->name ~~ ['Metallica', 'U2'];
+        ok scalar first {$artist->name eq $_} ('Metallica', 'U2');
     }
 
     ### Another ways for search
