@@ -3,19 +3,25 @@
 use strict;
 use warnings;
 use 5.010;
-
+use Test::More;
 use Data::Dumper;
 use DBI;
-use Test::More;
+use List::Util qw(first);
 
-use Artist;
-use Label;
-use Rating;
-use CD;
-use ArtistCD;
-use CDSong;
-use Song;
-use Cvs;
+unless (eval { require SQL::Translator }) {
+    plan(skip_all => 'SQL::Translator is required for this test');
+}
+
+
+
+require Artist;
+require Label;
+require Rating;
+require CD;
+require ArtistCD;
+require CDSong;
+require Song;
+require Cvs;
 
 unlink 'test_suite.db';
 
@@ -143,7 +149,7 @@ Artist->dbh($dbh);
     is scalar @artists, 2;
 
     for my $artist (@artists) {
-        ok $artist->name ~~ ['Metallica', 'U2'];
+        ok scalar first {$artist->name eq $_} ('Metallica', 'U2');
     }
 
     ### Another ways for search

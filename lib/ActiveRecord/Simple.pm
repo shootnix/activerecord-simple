@@ -21,7 +21,6 @@ use Encode;
 use Module::Load;
 use Carp;
 use Storable qw/freeze/;
-use SQL::Translator;
 
 my $dbhandler = undef;
 my $TRACE     = defined $ENV{ACTIVE_RECORD_SIMPLE_TRACE} ? 1 : undef;
@@ -351,6 +350,9 @@ sub has_one {
 sub as_sql {
     my ($class, $producer_name, %args) = @_;
 
+    eval { require SQL::Translator }
+      || croak('Please install SQL::Translator to use this feature.');
+
     $class->can('_get_schema_table')
         or return;
 
@@ -413,8 +415,8 @@ sub columns {
 
         if (ref $we_got[1] && ref $we_got[1] eq 'HASH') {
             # hash of hashes
-            push @$columns, keys {@we_got};
-            $class->fields(@we_got);
+            push @$columns, keys my %fields = @we_got;
+            $class->fields(%fields);
         }
         else {
             # or plain array?
@@ -428,6 +430,9 @@ sub columns {
 
 sub fields {
     my ($class, %fields) = @_;
+
+    eval { require SQL::Translator }
+      || croak('Please install SQL::Translator to use this feature. ');
 
     my $sql_translator = SQL::Translator->new(no_comments => 1);
     my $schema = $sql_translator->schema;
@@ -1278,11 +1283,12 @@ another method, "fields".
         }
     );
 
+This method requires L<SQL::Translator> to be installed.
 Create SQL-Schema and data type validation for each specified field using SQL::Translator features.
-No need "columns" method, if you use "fields".
+You don't need to call "columns" method explicitly, if you use "fields".
 
-See SQL::Translator for more information about schema, SQL::Translator::Field for information
-about available data types.
+See L<SQL::Translator> for more information about schema and L<SQL::Translator::Field>
+for information about available data types.
 
 =head2 primary_key
 
@@ -1497,7 +1503,8 @@ Decrement the field value:
 
     say MyModel::Person->as_sql('PostgreSQL');
 
-Create an SQL-schema from method "fields". See SQL::Translator for more details.
+This method requires L<SQL::Translator> to be installed.
+Create an SQL-schema using method "fields". See SQL::Translator for more details.
 
 =head2 dbh
 
@@ -1662,7 +1669,8 @@ Another syntax of command "fetch" allows you to make read-only objects:
 
 =head1 SEE ALSO
 
-    DBIx::ActiveRecord
+    L<DBIx::ActiveRecord>, L<SQL::Translator>
+
 
 =head1 MORE INFO
 
