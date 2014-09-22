@@ -398,7 +398,6 @@ sub columns {
 
     my $columns = [];
     if (scalar @we_got == 1) {
-        #$columns = $we_got[0];
         if (ref $we_got[0] && ref $we_got[0] eq 'ARRAY') {
             $columns = $we_got[0];
         }
@@ -415,8 +414,7 @@ sub columns {
 
         if (ref $we_got[1] && ref $we_got[1] eq 'HASH') {
             # hash of hashes
-            push @$columns, keys my %fields = @we_got;
-            $class->fields(%fields);
+            $class->fields(@we_got);
         }
         else {
             # or plain array?
