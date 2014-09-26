@@ -10,11 +10,11 @@ ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord 
 
 =head1 VERSION
 
-Version 0.64
+Version 0.65
 
 =cut
 
-our $VERSION = '0.64';
+our $VERSION = '0.65';
 
 use utf8;
 use Encode;
@@ -394,31 +394,32 @@ sub _append_relation {
 }
 
 sub columns {
-    my ($class, @we_got) = @_;
+    my ($class, @args) = @_;
 
     my $columns = [];
-    if (scalar @we_got == 1) {
-        if (ref $we_got[0] && ref $we_got[0] eq 'ARRAY') {
-            $columns = $we_got[0];
+    if (scalar @args == 1) {
+        my $arg = shift @args;
+        if (ref $arg && ref $arg eq 'ARRAY') {
+            $columns = $arg;
         }
-        elsif (ref $we_got[0] && ref $we_got[0] eq 'HASH') {
-            $columns = [keys %{ $we_got[0] }];
-            $class->fields(%{ $we_got[0] });
+        elsif (ref $arg && ref $arg eq 'HASH') {
+            $columns = [keys %$arg];
+            $class->fields(%$arg);
         }
         else {
             # just one column?
-            push @$columns, @we_got;
+            push @$columns, $arg;
         }
     }
-    elsif (scalar @we_got > 1) {
-
-        if (ref $we_got[1] && ref $we_got[1] eq 'HASH') {
+    elsif (scalar @args > 1) {
+        if (@args % 2 == 0) {
             # hash of hashes
-            $class->fields(@we_got);
+            my %fields = @args;
+            $class->fields(%fields);
         }
         else {
             # or plain array?
-            push @$columns, @we_got;
+            push @$columns, @args;
         }
 
     }
