@@ -10,11 +10,11 @@ ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord 
 
 =head1 VERSION
 
-Version 0.65
+Version 0.66
 
 =cut
 
-our $VERSION = '0.65';
+our $VERSION = '0.66';
 
 use utf8;
 use Encode;
@@ -1606,6 +1606,26 @@ once at the session.
 =head1 Object Methods
 
 Object methods usefull to manipulating single rows as a separate objects.
+
+=head2 with
+
+Left outer join. Names of joined table fileds are have accessors with the current object
+with prefix that equal table name:
+
+    my $artist = MyModel::Artist->find(1)->with('manager')->fetch;
+    say $person->name; # persons.name in DB
+    say $rerson->managers_name; managers.name in DB
+
+The method can get list of parameters:
+
+    my $person = MyModel::Person->find(1)->with('car', 'home', 'dog')->fetch;
+    say $person->name;
+    say $person->dogs_name;
+    say $person->homes_addres;
+
+=head2 left_join
+
+Same as "with" method.
 
 =head2 only
 
