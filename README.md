@@ -47,14 +47,14 @@ it in the special method (class attribute) "dbh":
 
     # or you can use a special function, like this:
     sub dbhandler {
-        unless ( $dbh->ping ) {
+        unless ($dbh->ping) {
             $dbh->connect("...");
         }
 
         return $dbh;
     }
 
-    ActiveRecord::Simple->dbh( &dbhandler );
+    ActiveRecord::Simple->dbh(&dbhandler);
 
 See pod documentation of the module for more information about using
 ActiveRecord::Simple.
