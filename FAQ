@@ -50,3 +50,15 @@ Yes. There are two methods: limit and offset:
 
    my @two_persons = MyModel::Person->find()->limit(2)->offset(1)->fetch();
 
+7. May I use join tables in queries?
+------------------------------------
+
+Yes, you can use LEFT OUTER JOIN with method "with". Or "left_join", which is the same.
+
+    my $artist = App::Artist->find(1)->with('label')->fetch;
+
+Note that 'label' is a relationship key. Type of the relationship must be "one":
+
+    # in your Artist class:
+    __PACKAGE__->belongs_to(label => Label);
+

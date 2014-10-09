@@ -983,7 +983,7 @@ sub with {
 
         #push @{ $self->{prep_select_fields} }, qq/"$rel_table_name".*/;
         push @{ $self->{prep_select_fields} },
-            map { qq/"$rel_table_name"."$_" AS "$rel_table_name\_$_"/  }
+            map { qq/"$rel_table_name"."$_" AS "$rel_name\_$_"/  }
                 @{ $relation->{class}->_get_columns };
 
         if ($relation->{type} eq 'one') {
@@ -1609,19 +1609,19 @@ Object methods usefull to manipulating single rows as a separate objects.
 
 =head2 with
 
-Left outer join. Names of joined table fileds are have accessors with the current object
-with prefix that equal table name:
+Left outer join. Field names of the joined table have prefixes that are equal
+to the name of the relation.
 
     my $artist = MyModel::Artist->find(1)->with('manager')->fetch;
     say $person->name; # persons.name in DB
-    say $rerson->managers_name; managers.name in DB
+    say $rerson->manager_name; managers.name in DB
 
-The method can get list of parameters:
+The method can take a list of parameters:
 
     my $person = MyModel::Person->find(1)->with('car', 'home', 'dog')->fetch;
     say $person->name;
-    say $person->dogs_name;
-    say $person->homes_addres;
+    say $person->dog_name;
+    say $person->home_addres;
 
 =head2 left_join
 
