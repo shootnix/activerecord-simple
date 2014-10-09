@@ -59,6 +59,73 @@ it in the special method (class attribute) "dbh":
 See pod documentation of the module for more information about using
 ActiveRecord::Simple.
 
+What we've got?
+===============
+
+1. Flexible search
+
+    Person->find(1); # by ID
+    Person->find([1, 2, 3]); # by several ID's
+    Person->find({ name => 'Foo' }); # by parameters
+    Person->find('name = ? OR lastname = ?', 'Foo', 'Bar'); # by condition
+
+    Person->last;
+    Person->first;
+
+2. Easy fetch
+
+    # Just one object:
+    my $bill = Person->find({ name => 'Bill' })->fetch;
+
+    # Only 3 objects:
+    my @list = Person->find('age > ?', 21)->fetch(3);
+
+    # All objects:
+    my @list = Person->find->fetch;
+
+    # Even more:
+    while (my $person = Person->find->fetch) {
+        say $person->name;
+    }
+
+3. Simple ordering:
+
+    Person->find->order_by('name');
+    Person->find->order_by('name', 'last_name');
+    Person->find->order_by('name')->desc;
+
+4. Limit, Offset:
+
+    Person->find->limit(3);
+    Person->find->offset(10);
+    Person->find->limit(3)->offset(12);
+
+5. Left joins:
+
+    my $person = Person->find->with('misc_info')->fetch;
+    say $person->name;
+    say $person->misc_info_zip;
+
+6. And, of course, all of this together:
+
+    my $new_customer =
+        Person->find
+              ->only('name')
+              ->oreder_by('date_register')
+              ->desc
+              ->limit(1)
+              ->with('misc_info', 'payment_info')
+              ->fetch;
+
+    say $new_customer->name;
+    say $new_customer->misc_info_zip;
+    say $new_customer->payment_info_last_payment;
+
+7. Also one-to-one, one-to-many, many-to-one and many-to-many relations, smart_saving and even more.
+
+Check it out!
+
+
 INSTALLATION
 ============
 
