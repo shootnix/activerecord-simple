@@ -880,13 +880,28 @@ sub _get_slice {
 sub order_by {
     my ($self, @param) = @_;
 
-    return if not defined $self->{SQL};
+    return if not defined $self->{SQL}; ### TODO: die
     return $self if exists $self->{prep_order_by};
 
     $self->{prep_order_by} = \@param;
 
     return $self;
 }
+
+sub with {
+    my ($self, @rels) = @_;
+
+    return if not defined $self->{SQL}; ### TODO: die
+    return $self if exists $self->{prep_left_join};
+    return $self unless @rels;
+
+    $self->{prep_left_join} = \@rels;
+
+    return $self;
+}
+
+# same as "with"
+sub left_join { shift->with(@_) }
 
 sub desc {
     my ($self) = @_;
@@ -934,6 +949,29 @@ sub offset {
 
 sub _finish_sql_stmt {
     my ($self) = @_;
+
+    use Data::Dumper;
+    #say 'relations: ' . Dumper $self->_get_relations;
+
+    say 'SQL: ' . $self->{SQL};
+    if (defined $self->{prep_left_join}) {
+        die "Class doesn't have any relations"
+            unless $self->can('_get_relations');
+
+        say 'relations: ' . Dumper $self->_get_relations;
+
+        my @rels = @{ $self->{prep_left_join} };
+        RELATION:
+        for my $rel_name (@rels) {
+            #say $rel_name;
+            next RELATION unless exists $self->_get_relations->{$rel_name};
+            my $relation = $self->_get_relations->{$rel_name};
+
+            next RELATION unless grep { $_ eq $relation->{type} } qw/one only/;
+
+            say 'GOTCHS!';
+        }
+    }
 
     if (defined $self->{prep_order_by}) {
         $self->{SQL} .= ' order by ';

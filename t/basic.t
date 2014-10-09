@@ -16,6 +16,8 @@ __PACKAGE__->table_name('t');
 __PACKAGE__->columns(['foo', 'bar']);
 __PACKAGE__->primary_key('foo');
 
+#__PACKAGE__->belongs_to(class2 => 't::class2');
+
 1;
 
 package t::class2;
@@ -25,6 +27,8 @@ use base 'ActiveRecord::Simple';
 __PACKAGE__->table_name('t');
 __PACKAGE__->columns(['foo', 'bar']);
 __PACKAGE__->primary_key('foo');
+
+#__PACKAGE__->belongs_to(class => 't::class');
 
 __PACKAGE__->use_smart_saving;
 
@@ -138,5 +142,11 @@ ok $r = t::class->last(10), 'last 10';
 is $r->{prep_limit}, 10, 'limit is 10, last ok';
 
 ok( t::class->exists({ foo => 'bar' }), 'exists' );
+
+my $t = t::class->find->with('aaa')->order_by('aaa')->fetch;
+
+use Data::Dumper;
+#say Dumper $t->fetch;
+
 
 done_testing();
