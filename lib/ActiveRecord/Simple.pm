@@ -738,55 +738,61 @@ sub find {
     my $table_name = ($self->can('_get_table_name'))  ? $self->_get_table_name  : undef;
     my $pkey       = ($self->can('_get_primary_key')) ? $self->_get_primary_key : undef;
 
+    $self->{prep_select_fields} //= [];
+    $self->{prep_select_from}   //= [];
+    $self->{prep_select_where}  //= [];
+
+    my ($fields, $from, $where);
+
     if (!ref $param[0] && scalar @param == 1) {
-        # find one by primary key
-        $self->{SQL} = qq{
-            select * from "$table_name"
-                where
-                    "$pkey" = ?
-        };
+        $fields = qq/"$table_name".*/;
+        $from   = qq/"$table_name"/;
+        $where  = qq/"$table_name"."$pkey" = ?/;
+
         $self->{BIND} = \@param
     }
     elsif (!ref $param[0] && scalar @param == 0) {
-        # find all
-        $self->{SQL} = qq{
-            select * from "$table_name"
-        };
+        $fields = qq/"$table_name".*/;
+        $from   = qq/"$table_name"/;
+
         $self->{BIND} = undef;
     }
     elsif (ref $param[0] && ref $param[0] eq 'HASH') {
         # find many by params
-        my $where_str = join q/ and /, map { q/"/ . $_ . q/"/ .' = ?' } keys %{ $param[0] };
+        #my $where_str = join q/ and /, map { q/"/ . $_ . q/"/ .' = ?' } keys %{ $param[0] };
+        my $where_str = join q/ and /, map { qq/"$table_name"."$_" = ?/ } keys %{ $param[0] };
         my @bind = values %{ $param[0] };
 
-        $self->{SQL} = qq{
-            select * from "$table_name"
-            where
-                $where_str
-        };
+        $fields = qq/"$table_name".*/;
+        $from   = qq/"$table_name"/;
+        $where  = $where_str;
+
         $self->{BIND} = \@bind;
     }
     elsif (ref $param[0] && ref $param[0] eq 'ARRAY') {
         # find many by primary keys
         my $whereinstr = join ', ', @{ $param[0] };
 
-        $self->{SQL} = qq{
-            select * from "$table_name"
-            where
-                "$pkey" in ($whereinstr)
-        };
+        $fields = qq/"$table_name".*/;
+        $from   = qq/"$table_name"/;
+        $where  = qq/"$table_name"."$pkey" in ($whereinstr)/;
+
         $self->{BIND} = undef;
     }
     else {
         # find many by condition
         my $wherestr = shift @param;
-        $self->{SQL} = qq{
-            select * from "$table_name"
-            where
-                $wherestr
-        };
+
+        $fields = qq/"$table_name".*/;
+        $from   = qq/"$table_name"/;
+        $where  = $wherestr;
+
         $self->{BIND} = \@param;
     }
+
+    push @{ $self->{prep_select_fields} }, $fields if $fields;
+    push @{ $self->{prep_select_from} }, $from if $from;
+    push @{ $self->{prep_select_where} }, $where if $where;
 
     return $self;
 }
@@ -795,14 +801,22 @@ sub only {
     my ($self, @fields) = @_;
 
     scalar @fields > 0 or croak 'Not defined fields for method "only"';
-    exists $self->{SQL} or croak 'Not executed method "find" before "only"';
+    exists $self->{prep_select_fields}
+        or croak 'Not executed method "find" before "only"';
 
     if ($self->can('_get_primary_key')) {
         push @fields, $self->_get_primary_key;
     }
 
-    my $fields_str = join q/, /, map { q/"/ . $_ . q/"/ } @fields;
-    $self->{SQL} =~ s/\*/$fields_str/;
+    my $table_name = $self->_get_table_name;
+
+    my @filtered_prep_select_fields =
+        grep {
+            $_ ne qq/"$table_name".*/
+        }
+        @{ $self->{prep_select_fields} };
+    push @filtered_prep_select_fields, map { qq/"$table_name"."$_"/ } @fields;
+    $self->{prep_select_fields} = \@filtered_prep_select_fields;
 
     return $self;
 }
@@ -848,6 +862,16 @@ sub fetch {
         my $class = ref $self;
         for my $object_data (@$resultset) {
             my $obj = bless $object_data, $class;
+
+            if ($self->{has_joined_table}) {
+                for my $k (keys %$object_data) {
+                    _mk_attribute_getter(ref $obj, $k, $object_data->{$k})
+                        unless $obj->can($k);
+                }
+
+                delete $self->{has_joined_table};
+            }
+
             $obj->{read_only} = 1 if defined $read_only;
             $obj->{snapshoot} = freeze($object_data) if $obj->_smart_saving_used;
             $obj->{isin_database} = 1;
@@ -880,22 +904,10 @@ sub _get_slice {
 sub order_by {
     my ($self, @param) = @_;
 
-    return if not defined $self->{SQL}; ### TODO: die
+    #return if not defined $self->{SQL}; ### TODO: die
     return $self if exists $self->{prep_order_by};
 
     $self->{prep_order_by} = \@param;
-
-    return $self;
-}
-
-sub with {
-    my ($self, @rels) = @_;
-
-    return if not defined $self->{SQL}; ### TODO: die
-    return $self if exists $self->{prep_left_join};
-    return $self unless @rels;
-
-    $self->{prep_left_join} = \@rels;
 
     return $self;
 }
@@ -906,7 +918,7 @@ sub left_join { shift->with(@_) }
 sub desc {
     my ($self) = @_;
 
-    return if not defined $self->{SQL};
+    #return if not defined $self->{SQL};
     return $self if exists $self->{prep_desc};
 
     $self->{prep_desc} = 1;
@@ -917,7 +929,7 @@ sub desc {
 sub asc {
     my ($self, @param) = @_;
 
-    return if not defined $self->{SQL};
+    #return if not defined $self->{SQL};
     return $self if exists $self->{prep_asc};
 
     $self->{prep_asc} = 1;
@@ -928,10 +940,10 @@ sub asc {
 sub limit {
     my ($self, $limit) = @_;
 
-    return if not defined $self->{SQL};
+    #return if not defined $self->{SQL};
     return $self if exists $self->{prep_limit};
 
-    $self->{prep_limit} = $limit;
+    $self->{prep_limit} = $limit; ### TODO: move $limit to $self->{BIND}
 
     return $self;
 }
@@ -939,10 +951,49 @@ sub limit {
 sub offset {
     my ($self, $offset) = @_;
 
-    return if not defined $self->{SQL};
+    #return if not defined $self->{SQL};
     return $self if exists $self->{prep_offset};
 
-    $self->{prep_offset} = $offset;
+    $self->{prep_offset} = $offset; ### TODO: move $offset to $self->{BIND}
+
+    return $self;
+}
+
+sub with {
+    my ($self, @rels) = @_;
+
+    return $self if exists $self->{prep_left_joins};
+    return $self unless @rels;
+
+    $self->can('_get_relations')
+        or die "Class doesn't have any relations";
+
+    my $table_name = $self->_get_table_name;
+
+    $self->{prep_left_joins} = [];
+    RELATION:
+    for my $rel_name (@rels) {
+        my $relation = $self->_get_relations->{$rel_name}
+            or next RELATION;
+
+        next RELATION unless grep { $_ eq $relation->{type} } qw/one only/;
+        my $rel_table_name = $relation->{class}->_get_table_name;
+
+        my $rel_columns = $relation->{class}->_get_columns;
+
+        #push @{ $self->{prep_select_fields} }, qq/"$rel_table_name".*/;
+        push @{ $self->{prep_select_fields} },
+            map { qq/"$rel_table_name"."$_" AS "$rel_table_name\_$_"/  }
+                @{ $relation->{class}->_get_columns };
+
+        if ($relation->{type} eq 'one') {
+            my $join_sql = qq/LEFT JOIN "$rel_table_name" ON /;
+            $join_sql .= qq/"$rel_table_name"."$relation->{params}{pk}"/;
+            $join_sql .= qq/ = "$table_name"."$relation->{params}{fk}"/;
+
+            push @{ $self->{prep_left_joins} }, $join_sql;
+        }
+    }
 
     return $self;
 }
@@ -950,27 +1001,21 @@ sub offset {
 sub _finish_sql_stmt {
     my ($self) = @_;
 
-    use Data::Dumper;
-    #say 'relations: ' . Dumper $self->_get_relations;
+    $self->{SQL} = "SELECT " . (join q/, /, @{ $self->{prep_select_fields} }) . "\n";
+    $self->{SQL} .= "FROM " . (join q/, /, @{ $self->{prep_select_from} }) . "\n";
 
-    say 'SQL: ' . $self->{SQL};
-    if (defined $self->{prep_left_join}) {
-        die "Class doesn't have any relations"
-            unless $self->can('_get_relations');
+    if (defined $self->{prep_left_joins}) {
+        $self->{SQL} .= "$_\n" for @{ $self->{prep_left_joins} };
+        $self->{has_joined_table} = 1;
+    }
 
-        say 'relations: ' . Dumper $self->_get_relations;
-
-        my @rels = @{ $self->{prep_left_join} };
-        RELATION:
-        for my $rel_name (@rels) {
-            #say $rel_name;
-            next RELATION unless exists $self->_get_relations->{$rel_name};
-            my $relation = $self->_get_relations->{$rel_name};
-
-            next RELATION unless grep { $_ eq $relation->{type} } qw/one only/;
-
-            say 'GOTCHS!';
-        }
+    if (
+        defined $self->{prep_select_where}
+        && ref $self->{prep_select_where} eq 'ARRAY'
+        && scalar @{ $self->{prep_select_where} } > 0
+    ) {
+        $self->{SQL} .= "WHERE\n";
+        $self->{SQL} .= join " AND ", @{ $self->{prep_select_where} };
     }
 
     if (defined $self->{prep_order_by}) {
