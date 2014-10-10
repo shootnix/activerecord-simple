@@ -26,7 +26,8 @@ my $dbhandler = undef;
 my $TRACE     = defined $ENV{ACTIVE_RECORD_SIMPLE_TRACE} ? 1 : undef;
 
 sub new {
-    my ($class, $param) = @_;
+    my $class = shift;
+    my $param = (scalar @_ > 1) ? {@_} : $_[0];
 
     $class->_mk_accessors($class->_get_columns());
 

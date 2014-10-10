@@ -33,18 +33,18 @@ Artist->dbh($dbh);
 
 {
     pass '~ Populating database ~';
-    ok my $label = Label->new({ name => 'EMI' });
+    ok my $label = Label->new(name => 'EMI');
     ok $label->save();
 
-    ok my $artist1 = Artist->new({ name => 'Metallica', label_id => $label->id });
+    ok my $artist1 = Artist->new(name => 'Metallica', label_id => $label->id);
     ok $artist1->save();
 
-    ok(Cvs->new({ artist_name => $artist1->name })->save());
+    ok(Cvs->new(artist_name => $artist1->name)->save());
 
-    ok my $artist2 = Artist->new({ name => 'U2', label_id => $label->id });
+    ok my $artist2 = Artist->new(name => 'U2', label_id => $label->id);
     ok $artist2->save();
 
-    ok(Cvs->new({ artist_name => $artist2->name })->save());
+    ok(Cvs->new(artist_name => $artist2->name)->save());
 
     ok my $rating = Rating->new();
     ok !$rating->is_defined;
@@ -52,30 +52,30 @@ Artist->dbh($dbh);
     ok $rating->insert({ range => 1, artist_id => $artist1->id });
     ok $rating->insert({ range => 2, artist_id => $artist2->id });
 
-    ok my $album1 = CD->new({ title => 'Load', release => '1996', label_id => $label->id });
+    ok my $album1 = CD->new(title => 'Load', release => '1996', label_id => $label->id);
     ok $album1->save();
 
-    ok my $album2 = CD->new({ title => 'Reload', release => '1992', label_id => $label->id });
+    ok my $album2 = CD->new(title => 'Reload', release => '1992', label_id => $label->id);
     ok $album2->save();
 
-    ok my $album3 = CD->new({ title => 'Boy', release => '1980', label_id => $label->id });
+    ok my $album3 = CD->new(title => 'Boy', release => '1980', label_id => $label->id);
     ok $album3->save();
 
-    ok my $album4 = CD->new({ title => 'Zooropa', release => '1993', label_id => $label->id });
+    ok my $album4 = CD->new(title => 'Zooropa', release => '1993', label_id => $label->id);
     ok $album4->save();
 
-    ok( ArtistCD->new({ artist_id => $artist1->id, cd_id => $album1->id })->save() );
-    ok( ArtistCD->new({ artist_id => $artist1->id, cd_id => $album2->id })->save() );
-    ok( ArtistCD->new({ artist_id => $artist2->id, cd_id => $album3->id })->save() );
-    ok( ArtistCD->new({ artist_id => $artist2->id, cd_id => $album4->id })->save() );
+    ok( ArtistCD->new(artist_id => $artist1->id, cd_id => $album1->id)->save() );
+    ok( ArtistCD->new(artist_id => $artist1->id, cd_id => $album2->id)->save() );
+    ok( ArtistCD->new(artist_id => $artist2->id, cd_id => $album3->id)->save() );
+    ok( ArtistCD->new(artist_id => $artist2->id, cd_id => $album4->id)->save() );
 
-    ok my $song1 = Song->new({ title => '2x4' });
+    ok my $song1 = Song->new(title => '2x4');
     ok $song1->save();
-    ok my $song2 = Song->new({ title => 'Mama Said' });
+    ok my $song2 = Song->new(title => 'Mama Said');
     ok $song2->save();
 
-    ok( CDSong->new({ song_id => $song1->id, cd_id => $album1->id })->save() );
-    ok( CDSong->new({ song_id => $song1->id, cd_id => $album1->id })->save() );
+    ok( CDSong->new(song_id => $song1->id, cd_id => $album1->id)->save() );
+    ok( CDSong->new(song_id => $song1->id, cd_id => $album1->id)->save() );
 };
 
 {
@@ -348,10 +348,10 @@ Artist->dbh($dbh);
     ok( !Artist->exists({ name => 'Blink-182' }) );
     ok( !Artist->exists(100) );
 
-    my $artist = Artist->new({ name => 'U2' });
+    my $artist = Artist->new(name => 'U2');
     ok $artist->exists;
 
-    $artist = Artist->new({ name => 'Blink-182' });
+    $artist = Artist->new(name => 'Blink-182');
     ok !$artist->exists;
 }
 
