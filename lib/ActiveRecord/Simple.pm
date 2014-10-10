@@ -141,17 +141,17 @@ sub _find_many_to_many {
     my $connected_table_name = $class->_get_table_name;
     my $sql_stm;
     $sql_stm .=
-        'select ' .
+        'SELECT ' .
         "$connected_table_name\.*" .
-        ' from ' .
+        ' FROM ' .
         $param->{m_class}->_get_table_name .
-        ' join ' .
+        ' JOIN ' .
         $connected_table_name .
-        ' on ' .
+        ' ON ' .
         $connected_table_name . '.' . $class->_get_primary_key .
         ' = ' .
         $param->{m_class}->_get_table_name . '.' . $class_opts->{params}{fk} .
-        ' where ' .
+        ' WHERE ' .
         $root_class_opts->{params}{fk} .
         ' = ' .
         $param->{self}->{ $param->{root_class}->_get_primary_key };
@@ -517,7 +517,7 @@ sub count {
     my $table_name = $class->_get_table_name;
     my ($count, $sql, @bind);
     if (scalar @param == 0) {
-        $self->{SQL} = qq/select count(*) from "$table_name"/;
+        $self->{SQL} = qq/SELECT COUNT(*) FROM "$table_name"/;
     }
     elsif (scalar @param == 1) {
         my $params_hash = shift @param;
@@ -525,13 +525,13 @@ sub count {
 
         my $wherestr = join q/ and /, map { q/"/ . $_ . q/"/ .' = ?' } keys %{ $params_hash };
         @bind = values %{ $params_hash };
-        $self->{SQL} = qq/select count(*) from "$table_name" where $wherestr/;
+        $self->{SQL} = qq/SELECT COUNT(*) FROM "$table_name" WHERE $wherestr/;
     }
     elsif (scalar @param > 1) {
         my $wherestr = shift @param;
         @bind = @param;
 
-        $self->{SQL} = qq/select count(*) from "$table_name" where $wherestr/;
+        $self->{SQL} = qq/SELECT COUNT(*) FROM "$table_name" WHERE $wherestr/;
     }
     $self->_quote_sql_stmt;
     $count = $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
@@ -639,13 +639,13 @@ sub _insert {
 
     my $pkey_val;
     my $sql_stm = qq{
-        insert into "$table_name" ($field_names_str)
-        values ($values)
+        INSERT INTO "$table_name" ($field_names_str)
+        VALUES ($values)
     };
 
     if ( $self->dbh->{Driver}{Name} eq 'Pg' ) {
         if ($primary_key) {
-            $sql_stm .= ' returning ' . $primary_key if $primary_key;
+            $sql_stm .= ' RETURINIG ' . $primary_key if $primary_key;
             $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
 
             $pkey_val = $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
@@ -694,8 +694,8 @@ sub _update {
     push @bind, $self->{$primary_key};
 
     my $sql_stm = qq{
-        update "$table_name" set $setstring
-        where
+        UPDATE "$table_name" SET $setstring
+        WHERE
             $primary_key = ?
     };
     $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
@@ -715,9 +715,9 @@ sub delete {
     return unless $self->{$pkey};
 
     my $sql = qq{
-        delete from "$table_name" where $pkey = ?
+        DELETE FROM "$table_name" WHERE $pkey = ?
     };
-    $sql .= ' cascade ' if $param && $param->{cascade};
+    $sql .= ' CASCADE ' if $param && $param->{cascade};
 
     my $res = undef;
     $self->{SQL} = $sql; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
@@ -761,7 +761,7 @@ sub find {
     elsif (ref $param[0] && ref $param[0] eq 'HASH') {
         # find many by params
         #my $where_str = join q/ and /, map { q/"/ . $_ . q/"/ .' = ?' } keys %{ $param[0] };
-        my $where_str = join q/ and /, map { qq/"$table_name"."$_" = ?/ } keys %{ $param[0] };
+        my $where_str = join q/ AND /, map { qq/"$table_name"."$_" = ?/ } keys %{ $param[0] };
         my @bind = values %{ $param[0] };
 
         $fields = qq/"$table_name".*/;
@@ -776,7 +776,7 @@ sub find {
 
         $fields = qq/"$table_name".*/;
         $from   = qq/"$table_name"/;
-        $where  = qq/"$table_name"."$pkey" in ($whereinstr)/;
+        $where  = qq/"$table_name"."$pkey" IN ($whereinstr)/;
 
         $self->{BIND} = undef;
     }
@@ -1040,24 +1040,24 @@ sub _finish_sql_stmt {
     }
 
     if (defined $self->{prep_order_by}) {
-        $self->{SQL} .= ' order by ';
+        $self->{SQL} .= ' ORDER BY ';
         $self->{SQL} .= join q/, /, map { q/"/.$_.q/"/ } @{ $self->{prep_order_by} };
     }
 
     if (defined $self->{prep_desc}) {
-        $self->{SQL} .= ' desc';
+        $self->{SQL} .= ' DESC';
     }
 
     if (defined $self->{prep_asc}) {
-        $self->{SQL} .= ' asc';
+        $self->{SQL} .= ' ACS';
     }
 
     if (defined $self->{prep_limit}) {
-        $self->{SQL} .= ' limit ' . $self->{prep_limit};
+        $self->{SQL} .= ' LIMIT ' . $self->{prep_limit};
     }
 
     if (defined $self->{prep_offset}) {
-        $self->{SQL} .= ' offset ' . $self->{prep_offset};
+        $self->{SQL} .= ' OFFSET ' . $self->{prep_offset};
     }
 
     $self->_delete_keys(qr/^prep\_/);
@@ -1086,15 +1086,15 @@ sub _is_exists_in_database {
 
     my $table_name = $self->_get_table_name;
     my @fields = sort keys %$param;
-    my $where_str = join q/ and /, map { q/"/. $_ . q/"/ .' = ?' } @fields;
+    my $where_str = join q/ AND /, map { q/"/. $_ . q/"/ .' = ?' } @fields;
     my @bind;
     for my $f (@fields) {
         push @bind, $self->$f;
     }
 
     my $sql = qq{
-        select 1 from "$table_name"
-        where
+        SELECT 1 FROM "$table_name"
+        WHERE
             $where_str
     };
     $self->{SQL} = $sql; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
