@@ -1248,10 +1248,6 @@ __END__;
 
 ActiveRecord::Simple
 
-=head1 VERSION
-
-0.64
-
 =head1 DESCRIPTION
 
 ActiveRecord::Simple is a simple lightweight implementation of ActiveRecord
