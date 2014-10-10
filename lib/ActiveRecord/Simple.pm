@@ -31,6 +31,8 @@ sub new {
 
     $class->_mk_accessors($class->_get_columns());
 
+    use Data::Dumper;
+
     if ($class->can('_get_relations')) {
         my $relations = $class->_get_relations();
 
@@ -43,10 +45,28 @@ sub new {
             next RELNAME if $class->can($pkg_method_name);
 
             *{$pkg_method_name} = sub {
-                my ($self, @rels) = @_;
+                my ($self, @objects) = @_;
 
                 my $rel = $class->_get_relations->{$relname};
                 my $fkey = $rel->{foreign_key} || $rel->{key};
+                if (@objects) {
+                    OBJECT:
+                    for my $object (@objects) {
+                        next OBJECT unless ref $object;
+                        my $relation = $relations->{$relname};
+                        next OBJECT unless grep { $relation->{type} eq $_ } qw/one/;
+
+                        if ($relation->{type} eq 'one') {
+                            $self->{"relation_instance_$relname"} = $object;
+                            my $pk = $relation->{params}{pk} or next OBJECT;
+                            my $fk = $relation->{params}{fk} or next OBJECT;
+
+                            $self->$fk($object->$pk);
+                        }
+                    }
+
+                    return $self;
+                }
                 ### else
                 if (!$self->{"relation_instance_$relname"}) {
                     my $rel  = $class->_get_relations->{$relname};
@@ -592,7 +612,8 @@ sub _quote_sql_stmt {
 sub save {
     my ($self) = @_;
 
-    return unless $self->dbh;
+    #return unless $self->dbh;
+    croak "Undefined database handler" unless $self->dbh;
 
     return 1 if $self->_smart_saving_used
         and defined $self->{snapshoot}
@@ -619,6 +640,7 @@ sub save {
         $result = $self->_insert($save_param);
     }
     $self->{need_to_save} = 0 if $result;
+    delete $self->{SQL} if $result;
 
     return (defined $result) ? $self : undef;
 }

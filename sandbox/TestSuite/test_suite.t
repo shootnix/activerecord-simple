@@ -393,4 +393,14 @@ Artist->dbh($dbh);
     ok exists $artist->{relation_instance_label};
 }
 
+{
+    pass '~ smart relation accessors ~';
+
+    my $label = Label->new(name => 'Brand New Label')->save;
+    my $artist = Artist->find('artist.name = ?', 'Metallica')->fetch;
+
+    ok $artist->label($label)->save;
+    is(Artist->find('artist.name = ?', 'Metallica')->fetch->label->name, 'Brand New Label');
+}
+
 done_testing;
