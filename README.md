@@ -104,7 +104,7 @@ Left joins:
 
     my $person = Person->find->with('misc_info')->fetch;
     say $person->name;
-    say $person->misc_info_zip;
+    say $person->misc_info->zip;
 
 And, of course, all of this together:
 
@@ -118,8 +118,8 @@ And, of course, all of this together:
               ->fetch;
 
     say $new_customer->name;
-    say $new_customer->misc_info_zip;
-    say $new_customer->payment_info_last_payment;
+    say $new_customer->misc_info->zip;
+    say $new_customer->payment_info->last_payment;
 
 Also one-to-one, one-to-many, many-to-one and many-to-many relations, smart_saving and even more.
 

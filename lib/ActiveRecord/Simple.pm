@@ -864,9 +864,28 @@ sub fetch {
             my $obj = bless $object_data, $class;
 
             if ($self->{has_joined_table}) {
-                for my $k (keys %$object_data) {
-                    _mk_attribute_getter(ref $obj, $k, $object_data->{$k})
-                        unless $obj->can($k);
+                RELATION:
+                for my $rel_name (@{ $self->{with} }) {
+                    my $relation = $self->_get_relations->{$rel_name}
+                        or next RELATION;
+
+                    my %pairs =
+                        map { $_, $object_data->{$_} }
+                            grep { $_ =~ /^JOINED\_$rel_name\_/ }
+                                keys %$object_data;
+
+                    next RELATION unless %pairs;
+
+                    for my $key (keys %pairs) {
+                        my $val = delete $pairs{$key};
+                        $key =~ s/^JOINED\_$rel_name\_//;
+                        $pairs{$key} = $val;
+                    }
+                    $obj->{"relation_instance_$rel_name"} =
+                        $relation->{class}->new(\%pairs);
+                        #bless \%pairs, $relation->{class};
+
+                    $obj->_delete_keys(qr/^JOINED\_$rel_name/);
                 }
 
                 delete $self->{has_joined_table};
@@ -971,6 +990,7 @@ sub with {
     my $table_name = $self->_get_table_name;
 
     $self->{prep_left_joins} = [];
+    $self->{with} = \@rels;
     RELATION:
     for my $rel_name (@rels) {
         my $relation = $self->_get_relations->{$rel_name}
@@ -983,7 +1003,7 @@ sub with {
 
         #push @{ $self->{prep_select_fields} }, qq/"$rel_table_name".*/;
         push @{ $self->{prep_select_fields} },
-            map { qq/"$rel_table_name"."$_" AS "$rel_name\_$_"/  }
+            map { qq/"$rel_table_name"."$_" AS "JOINED_$rel_name\_$_"/  }
                 @{ $relation->{class}->_get_columns };
 
         if ($relation->{type} eq 'one') {
@@ -1609,19 +1629,38 @@ Object methods usefull to manipulating single rows as a separate objects.
 
 =head2 with
 
-Left outer join. Field names of the joined table have prefixes that are equal
-to the name of the relation.
+Left outer join.
 
     my $artist = MyModel::Artist->find(1)->with('manager')->fetch;
     say $person->name; # persons.name in DB
-    say $rerson->manager_name; managers.name in DB
+    say $rerson->manager->name; managers.name in DB
 
 The method can take a list of parameters:
 
     my $person = MyModel::Person->find(1)->with('car', 'home', 'dog')->fetch;
     say $person->name;
-    say $person->dog_name;
-    say $person->home_addres;
+    say $person->dog->name;
+    say $person->home->addres;
+
+This method allows to use just one request to the database (using left outer join)
+to create the main object with all relations. For example, without "with":
+
+    my $person = MyModel::Person->find(1)->fetch; # Request no 1:
+    # select * from persons where id = ?
+    say $person->name; # no requests, becouse the objects is loaded already
+
+    say $person->dog->name; # request no 2. (to create Dog object):
+    # select * from dogs where person_id = ?
+    say $person->dog->burk; # no requests, the object Dog is loaded too
+
+Using "with":
+
+    my $person = MyModel::Person->find(1)->with('dog')->fetch; # Just one request:
+    # select * fom persons left join dogs on dogs.person_id = perosn.id
+    #     where person.id = ?
+
+    say $person->name; # no requests
+    say $person->dog->name; # no requests too! The object Dog was loaded by "with"
 
 =head2 left_join
 

@@ -385,12 +385,12 @@ Artist->dbh($dbh);
 
     my $artist = Artist->find('artist.name = ?', 'Metallica')->with('label', 'albums')->fetch;
     is $artist->name, 'Metallica';
-    ok $artist->label_name;
-    is $artist->label_name, $artist->label->name;
+    ok exists $artist->{relation_instance_label}, 'joided';
+    ok ! exists $artist->{relation_instance_albums}, 'not joined';
+    ok $artist->label->name;
 
     $artist = Artist->find('artist.name = ?', 'Metallica')->left_join('label')->fetch;
-    ok $artist->label_name;
-    is $artist->label_name, $artist->label->name;
+    ok exists $artist->{relation_instance_label};
 }
 
 done_testing;
