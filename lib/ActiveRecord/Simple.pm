@@ -10,11 +10,11 @@ ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord 
 
 =head1 VERSION
 
-Version 0.67
+Version 0.68
 
 =cut
 
-our $VERSION = '0.67';
+our $VERSION = '0.68';
 
 use utf8;
 use Encode;
@@ -178,7 +178,8 @@ sub _find_many_to_many {
 
     my $container_class = $class->new();
     my $self = bless {}, $class;
-    $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
+    $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; #say $self->{SQL} if $TRACE;
+    $self->_trace_sql;
 
     my $resultset = $class->dbh->selectall_arrayref($self->{SQL}, { Slice => {} });
     my @bulk_objects;
@@ -668,19 +669,22 @@ sub _insert {
     if ( $self->dbh->{Driver}{Name} eq 'Pg' ) {
         if ($primary_key) {
             $sql_stm .= ' RETURINIG ' . $primary_key if $primary_key;
-            $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
+            $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; #say $self->{SQL} if $TRACE;
+            $self->_trace_sql;
 
             $pkey_val = $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
         }
         else {
-            $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
+            $self->{SQL} = $sql_stm; $self->_quote_sql_stmt;# say $self->{SQL} if $TRACE;
+            $self->_trace_sql;
             my $sth = $self->dbh->prepare($self->{SQL});
 
             $sth->execute(@bind);
         }
     }
     else {
-        $self->{SQL} = $sql_stm; $self->_quote_sql_stmt(); say $self->{SQL} if $TRACE;
+        $self->{SQL} = $sql_stm; $self->_quote_sql_stmt(); #say $self->{SQL} if $TRACE;
+        $self->_trace_sql;
 
         my $sth = $self->dbh->prepare($self->{SQL});
         $sth->execute(@bind);
@@ -720,7 +724,8 @@ sub _update {
         WHERE
             $primary_key = ?
     };
-    $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
+    $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; #say $self->{SQL} if $TRACE;
+    $self->_trace_sql;
 
     return $self->dbh->do($self->{SQL}, undef, @bind);
 }
@@ -742,7 +747,8 @@ sub delete {
     $sql .= ' CASCADE ' if $param && $param->{cascade};
 
     my $res = undef;
-    $self->{SQL} = $sql; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
+    $self->{SQL} = $sql; $self->_quote_sql_stmt; #say $self->{SQL} if $TRACE;
+    $self->_trace_sql;
     if ( $self->dbh->do($self->{SQL}, undef, $self->{$pkey}) ) {
         $self->{isin_database} = undef;
         delete $self->{$pkey};
@@ -782,9 +788,19 @@ sub find {
     }
     elsif (ref $param[0] && ref $param[0] eq 'HASH') {
         # find many by params
-        #my $where_str = join q/ and /, map { q/"/ . $_ . q/"/ .' = ?' } keys %{ $param[0] };
-        my $where_str = join q/ AND /, map { qq/"$table_name"."$_" = ?/ } keys %{ $param[0] };
-        my @bind = values %{ $param[0] };
+        my ($where_str, @bind, @condition_pairs);
+        for my $param_name (keys %{ $param[0] }) {
+            if (ref $param[0]{$param_name}) {
+                my $instr = join q/, /, map { '?' } @{ $param[0]{$param_name} };
+                push @condition_pairs, qq/"$table_name"."$param_name" IN ($instr)/;
+                push @bind, @{ $param[0]{$param_name} };
+            }
+            else {
+                push @condition_pairs, qq/"$table_name"."$param_name" = ?/;
+                push @bind, $param[0]{$param_name};
+            }
+        }
+        $where_str = join q/ AND /, @condition_pairs;
 
         $fields = qq/"$table_name".*/;
         $from   = qq/"$table_name"/;
@@ -868,7 +884,9 @@ sub fetch {
     if (not exists $self->{_objects}) {
         $self->_finish_sql_stmt();
         $self->_quote_sql_stmt();
-        say $self->{SQL} if $TRACE;
+        $self->_trace_sql;
+        #say $self->{SQL} if $TRACE;
+        #say join q/, /, @{ $self->{BIND} } if $TRACE;
 
         my @objects;
         my $resultset =
@@ -1119,7 +1137,8 @@ sub _is_exists_in_database {
         WHERE
             $where_str
     };
-    $self->{SQL} = $sql; $self->_quote_sql_stmt; say $self->{SQL} if $TRACE;
+    $self->{SQL} = $sql; $self->_quote_sql_stmt; #say $self->{SQL} if $TRACE;
+    $self->_trace_sql;
 
     return $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
 }
@@ -1261,6 +1280,20 @@ sub _check_bit {
     my ($val) = @_;
 
     return ($val == 0 || $val == 1) ? 1 : undef;
+}
+
+sub _trace_sql {
+    my ($self) = @_;
+
+    return unless $TRACE;
+
+    say $self->{SQL};
+    if ($self->{BIND} && ref $self->{BIND} eq 'ARRAY') {
+        say join q/, /, @{ $self->{BIND} };
+    }
+    else {
+        say '-- no binded values --';
+    }
 }
 
 1;

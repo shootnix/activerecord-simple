@@ -403,4 +403,23 @@ Artist->dbh($dbh);
     is(Artist->find('artist.name = ?', 'Metallica')->fetch->label->name, 'Brand New Label');
 }
 
+{
+    pass '~ where-in request ~';
+
+    my @artists = Artist->find({ name => ['Metallica', 'U2'] })->fetch;
+    is scalar @artists, 2;
+
+    my @cds = CD->find({ id => [1, 2] })->fetch;
+    is scalar @cds, 2;
+}
+
+{
+    pass '~ skip empty params hash ~';
+
+    my @cds1 = CD->find({})->fetch;
+    my @cds2 = CD->find()->fetch;
+
+    is scalar @cds1, scalar @cds2;
+}
+
 done_testing;

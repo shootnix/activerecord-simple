@@ -45,28 +45,6 @@ if ($sql) {
         load $class;
 
         say $class->as_sql;
-
-        #my $table_name  = $class->_get_table_name  if $class->can('_get_table_name');
-        #my $columns     = $class->_get_columns     if $class->can('_get_columns');
-        #my $primary_key = $class->_get_primary_key if $class->can('_get_primary_key');
-        #my $relations   = $class->_get_relations   if $class->can('_get_relations');
-        #
-        #my $sql = "CREATE TABLE \"$table_name\" (\n";
-        #my @cols;
-        #for my $col (@$columns) {
-	    #    my $cs = q/"/ . $col . q/" [TYPE]/;
-	    #    $cs .= " PRIMARY KEY" if defined $primary_key && $col eq $primary_key;
-	    #    push @cols, "  $cs";
-        #}
-        #my $colstring = join ",\n", @cols;
-        #$sql .= $colstring;
-        #$sql .= "\n);";
-        #
-        #my $arself = bless {}, 'ActiveRecord::Simple';
-        #$arself->{SQL} = $sql;
-        #$arself->_quote_sql_stmt();
-        # 
-        #say $arself->{SQL};
     }
 }
 
@@ -175,9 +153,9 @@ Set a directory with ARSimple-based classes or .sql files
 
 Get SQL from the code
 
-=item B<-code>
+=item B<-perl>
 
-Get code from the SQL
+Create perl classes from SQL
 
 =item B<-driver>
 

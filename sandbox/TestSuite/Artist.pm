@@ -37,4 +37,6 @@ __PACKAGE__->generic(cvs => 'Cvs', { name => 'artist_name' });
 
 __PACKAGE__->use_smart_saving;
 
+#__PACKAGE__->ttt('hello');
+
 1;
