@@ -544,9 +544,20 @@ sub count {
         my $params_hash = shift @param;
         return unless ref $params_hash eq 'HASH';
 
-        my $wherestr = join q/ and /, map { q/"/ . $_ . q/"/ .' = ?' } keys %{ $params_hash };
-        @bind = values %{ $params_hash };
-        $self->{SQL} = qq/SELECT COUNT(*) FROM "$table_name" WHERE $wherestr/;
+        my @condition_pairs;
+        for my $param_name (keys %$params_hash) {
+            if (ref $params_hash->{$param_name} eq 'ARRAY') {
+                my $instr = join q/, /, map { '?' } @{ $params_hash->{$param_name} };
+                push @condition_pairs, qq/"$table_name"."$param_name" IN ($instr)/;
+                push @bind, @{ $params_hash->{$param_name} };
+            }
+            else {
+                push @condition_pairs, qq/"$table_name"."$param_name" = ?/;
+                push @bind, $params_hash->{$param_name};
+            }
+        }
+        my $wherestr = (scalar @condition_pairs > 0 ) ? ' WHERE ' . join(q/ AND /, @condition_pairs) : '';
+        $self->{SQL} = qq/SELECT COUNT(*) FROM "$table_name" $wherestr/;
     }
     elsif (scalar @param > 1) {
         my $wherestr = shift @param;
@@ -554,7 +565,7 @@ sub count {
 
         $self->{SQL} = qq/SELECT COUNT(*) FROM "$table_name" WHERE $wherestr/;
     }
-    $self->_quote_sql_stmt;
+    $self->_quote_sql_stmt; $self->_trace_sql;
     $count = $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
 
     return $count;

@@ -411,6 +411,9 @@ Artist->dbh($dbh);
 
     my @cds = CD->find({ id => [1, 2] })->fetch;
     is scalar @cds, 2;
+
+    my $cnt = Artist->count({ name => ['Metallica', 'U2'] });
+    is $cnt, 2;
 }
 
 {
@@ -420,6 +423,11 @@ Artist->dbh($dbh);
     my @cds2 = CD->find()->fetch;
 
     is scalar @cds1, scalar @cds2;
+
+    my $cnt1 = CD->count();
+    my $cnt2 = CD->count({});
+
+    is $cnt1, $cnt2;
 }
 
 done_testing;
