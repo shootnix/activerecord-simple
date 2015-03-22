@@ -430,4 +430,18 @@ Artist->dbh($dbh);
     is $cnt1, $cnt2;
 }
 
+{
+    pass '~ update ~';
+
+    my $cv = Cvs->first->fetch;
+
+    ok $cv->update({ n_golds => 10, n_platinums => 10, n_grammies => 10 });
+    ok $cv->save;
+
+    my $cv2 = Cvs->get($cv->id);
+    is $cv2->n_grammies, 10;
+    is $cv2->n_platinums, 10;
+    is $cv2->n_golds, 10;
+}
+
 done_testing;

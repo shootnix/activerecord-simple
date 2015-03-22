@@ -4,17 +4,8 @@ use 5.010;
 use strict;
 use warnings;
 
-=head1 NAME
 
-ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord pattern.
-
-=head1 VERSION
-
-Version 0.68
-
-=cut
-
-our $VERSION = '0.68';
+our $VERSION = '0.69';
 
 use utf8;
 use Encode;
@@ -659,6 +650,21 @@ sub save {
     delete $self->{SQL} if $result;
 
     return (defined $result) ? $self : undef;
+}
+
+sub update {
+    my ($self, $params) = @_;
+
+    my $fields = $self->_get_columns();
+    FIELD:
+    for my $field (@$fields) {
+        next FIELD if ! exists $params->{$field};
+        next FIELD if !$params->{$field};
+
+        $self->$field($params->{$field});
+    }
+
+    return $self;
 }
 
 sub _insert {
@@ -1793,8 +1799,8 @@ by the new method and never has been saved before, method will insert your data.
 If you took the object using the find method, "save" will mean "update".
 
     my $person = MyModel::Person->new({
-        first_name => 'Foo',
-        secnd_name => 'Bar',
+        first_name  => 'Foo',
+        second_name => 'Bar',
     });
 
     $person->save() # -> insert
@@ -1807,6 +1813,16 @@ If you took the object using the find method, "save" will mean "update".
     my $person = MyModel::Person->find(1);
     $person->first_name('Baz');
     $person->save() # update
+
+=head2 update
+
+To quick update object's fields, use "update":
+
+    $person->update({
+        first_name  => 'Foo',
+        second_name => 'Bar'
+    });
+    $person->save;
 
 =head2 delete
 
@@ -1871,7 +1887,7 @@ Another syntax of command "fetch" allows you to make read-only objects:
 
 =head1 TRACING QUERIES
 
-   use ACTIVE_RECORD_SIMPLE_TRACE=1 environment variable:
+   use ACTIVE_RECORD_SIMPLE_TRACE=1 or ARS_TRACE=1 environment variable:
 
    $ ACTIVE_RECORD_SIMPLE_TRACE=1 perl myscript.pl
 
