@@ -26,7 +26,7 @@ my $dbhandler = undef;
 my $TRACE = (
     defined $ENV{ACTIVE_RECORD_SIMPLE_TRACE}
     ||
-    defined $ENV{ARS_SIMPLE}
+    defined $ENV{ARS_TRACE}
 ) ? 1 : undef;
 
 sub new {
