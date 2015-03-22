@@ -23,7 +23,11 @@ use Carp;
 use Storable qw/freeze/;
 
 my $dbhandler = undef;
-my $TRACE     = defined $ENV{ACTIVE_RECORD_SIMPLE_TRACE} ? 1 : undef;
+my $TRACE = (
+    defined $ENV{ACTIVE_RECORD_SIMPLE_TRACE}
+    ||
+    defined $ENV{ARS_SIMPLE}
+) ? 1 : undef;
 
 sub new {
     my $class = shift;
