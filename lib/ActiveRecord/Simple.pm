@@ -1080,6 +1080,19 @@ sub with {
     return $self;
 }
 
+sub abstract {
+    my ($self, $opts) = @_;
+
+    return $self if ! ref $opts && ref $opts ne 'HASH';
+
+    while (my ($method, $param) = each %$opts) {
+        my @p = (ref $param) ? @$param : ($param);
+        $self->$method(@p);
+    }
+
+    return $self;
+}
+
 sub _finish_sql_stmt {
     my ($self) = @_;
 

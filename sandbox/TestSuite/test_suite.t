@@ -444,4 +444,19 @@ Artist->dbh($dbh);
     is $cv2->n_golds, 10;
 }
 
+{
+    pass '~ abstract ~';
+
+    my $find = Artist->find;
+    $find->abstract({
+        order_by => 'name',
+        limit => 10,
+        offset => 1,
+        desc => 1
+    });
+    my @artists = $find->fetch;
+
+    say Dumper \@artists;
+}
+
 done_testing;
