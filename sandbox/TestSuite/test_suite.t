@@ -455,8 +455,6 @@ Artist->dbh($dbh);
         desc => 1
     });
     my @artists = $find->fetch;
-
-    say Dumper \@artists;
 }
 
 done_testing;

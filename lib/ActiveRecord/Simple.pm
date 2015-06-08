@@ -8,11 +8,11 @@ our $VERSION = '0.69';
 
 use utf8;
 use Encode;
-use Module::Load;
 use Carp;
 use Storable qw/freeze/;
+use Module::Load;
 
-use ActiveRecord::Simple::Find;
+use parent 'ActiveRecord::Simple::Find';
 
 
 my $dbhandler = undef;
@@ -102,7 +102,7 @@ sub new {
                     }
                     elsif ( $type eq 'many_to_many' ) {
                         $self->{"relation_instance_$relname"} =
-                            $rel_class->_find_many_to_many({
+                            $rel_class->find_many_to_many({
                                 root_class => $class,
                                 m_class    => (%{ $rel->{class} })[0],
                                 self       => $self,
@@ -129,62 +129,6 @@ sub new {
     return bless $param || {}, $class;
 }
 
-sub _find_many_to_many {
-    my ($class, $param) = @_;
-
-    return unless $class->dbh && $param;
-
-    my $mc_fkey;
-    my $class_opts = {};
-    my $root_class_opts = {};
-
-    load $param->{m_class};
-
-    for my $opts ( values %{ $param->{m_class}->_get_relations } ) {
-        if ($opts->{class} eq $param->{root_class}) {
-            $root_class_opts = $opts;
-        }
-        elsif ($opts->{class} eq $class) {
-            $class_opts = $opts;
-        }
-    }
-
-    my $connected_table_name = $class->_get_table_name;
-    my $sql_stm;
-    $sql_stm .=
-        'SELECT ' .
-        "$connected_table_name\.*" .
-        ' FROM ' .
-        $param->{m_class}->_get_table_name .
-        ' JOIN ' .
-        $connected_table_name .
-        ' ON ' .
-        $connected_table_name . '.' . $class->_get_primary_key .
-        ' = ' .
-        $param->{m_class}->_get_table_name . '.' . $class_opts->{params}{fk} .
-        ' WHERE ' .
-        $root_class_opts->{params}{fk} .
-        ' = ' .
-        $param->{self}->{ $param->{root_class}->_get_primary_key };
-
-    my $container_class = $class->new();
-    my $self = bless {}, $class;
-    $self->{SQL} = $sql_stm; $self->_quote_sql_stmt;
-
-    my $resultset = $class->dbh->selectall_arrayref($self->{SQL}, { Slice => {} });
-    my @bulk_objects;
-    for my $params (@$resultset) {
-        my $obj = $class->new($params);
-
-        $obj->{isin_database} = 1;
-        push @bulk_objects, $obj;
-    }
-
-    $container_class->{_objects} = \@bulk_objects;
-
-    return $container_class;
-}
-
 sub _mk_accessors {
     my ($class, $fields) = @_;
 
@@ -198,13 +142,6 @@ sub _mk_accessors {
         next FIELD if $class->can($pkg_accessor_name);
         *{$pkg_accessor_name} = sub {
             if ( scalar @_ > 1 ) {
-                #if ($class->can('_get_table_schema')) {
-                #    my $fld = $class->_get_table_schema->get_field($f);
-                #    my ($success, $err_msg) =
-                #        ActiveRecord::Simple::Validate::check($fld, $_[1]);
-                #    croak "Validation error for `$f`: " . $err_msg if !$success;
-                #}
-
                 $_[0]->{$f} = $_[1];
 
                 return $_[0];
@@ -481,77 +418,6 @@ sub dbh {
     return $dbhandler;
 }
 
-sub count {
-    my ($class, @param) = @_;
-
-    my $self = bless {}, $class;
-    my $table_name = $class->_get_table_name;
-    my ($count, $sql, @bind);
-    if (scalar @param == 0) {
-        $self->{SQL} = qq/SELECT COUNT(*) FROM "$table_name"/;
-    }
-    elsif (scalar @param == 1) {
-        my $params_hash = shift @param;
-        return unless ref $params_hash eq 'HASH';
-
-        my @condition_pairs;
-        for my $param_name (keys %$params_hash) {
-            if (ref $params_hash->{$param_name} eq 'ARRAY') {
-                my $instr = join q/, /, map { '?' } @{ $params_hash->{$param_name} };
-                push @condition_pairs, qq/"$table_name"."$param_name" IN ($instr)/;
-                push @bind, @{ $params_hash->{$param_name} };
-            }
-            else {
-                push @condition_pairs, qq/"$table_name"."$param_name" = ?/;
-                push @bind, $params_hash->{$param_name};
-            }
-        }
-        my $wherestr = (scalar @condition_pairs > 0 ) ? ' WHERE ' . join(q/ AND /, @condition_pairs) : '';
-        $self->{SQL} = qq/SELECT COUNT(*) FROM "$table_name" $wherestr/;
-    }
-    elsif (scalar @param > 1) {
-        my $wherestr = shift @param;
-        @bind = @param;
-
-        $self->{SQL} = qq/SELECT COUNT(*) FROM "$table_name" WHERE $wherestr/;
-    }
-    $self->_quote_sql_stmt; $self->_trace_sql;
-    $count = $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
-
-    return $count;
-}
-
-sub exists {
-    my ($ref, @params) = @_;
-
-    if (ref $ref) {
-        ### object method
-        return $ref->_is_exists_in_database;
-    }
-    # else
-    return $ref->find(@params)->fetch;
-}
-
-sub first {
-    my ($class, $limit) = @_;
-
-    $class->can('_get_primary_key') or croak 'Can\'t use "first" without primary key';
-    my $primary_key = $class->_get_primary_key;
-    $limit //= 1;
-
-    return $class->find->order_by($primary_key)->limit($limit);
-}
-
-sub last {
-    my ($class, $limit) = @_;
-
-    $class->can('_get_primary_key') or croak 'Can\'t use "first" without primary key';
-    my $primary_key = $class->_get_primary_key;
-    $limit //= 1;
-
-    return $class->find->order_by($primary_key)->desc->limit($limit);
-}
-
 sub save {
     my ($self) = @_;
 
@@ -710,10 +576,6 @@ sub delete {
 
     return $res;
 }
-
-sub find { ActiveRecord::Simple::Find->new(shift, @_) }
-
-
 
 sub is_defined {
     my ($self) = @_;
