@@ -7,9 +7,15 @@ use Carp;
 use Storable qw/freeze/;
 use Module::Load;
 
+use Data::Dumper;
+use parent 'ActiveRecord::Simple';
 
-sub find {
-    my ($class, @param) = @_;
+
+our $MAXIMUM_LIMIT = 100_000_000_000;
+
+
+sub new {
+    my ($self_class, $class, @param) = @_;
 
     #my $self = $class->new();
     my $self = { class => $class };
@@ -83,13 +89,13 @@ sub find {
     push @{ $self->{prep_select_from} }, $from if $from;
     push @{ $self->{prep_select_where} }, $where if $where;
 
-    return bless $self, $class;
+    return bless $self, $self_class;
 }
 
 sub count {
-    my ($class, @param) = @_;
+    my ($self_class, $class, @param) = @_;
 
-    my $self = bless {}, $class;
+    my $self = bless {}, $self_class;
     my $table_name = $class->_get_table_name;
     my ($count, $sql, @bind);
     if (scalar @param == 0) {
@@ -126,111 +132,41 @@ sub count {
     return $count;
 }
 
-sub exists {
-    my ($ref, @params) = @_;
-
-    if (ref $ref) {
-        ### object method
-        return $ref->_is_exists_in_database;
-    }
-    # else
-    return $ref->find(@params)->fetch;
-}
-
 sub first {
-    my ($class, $limit) = @_;
+    my ($self_class, $class, $limit) = @_;
 
     $class->can('_get_primary_key') or croak 'Can\'t use "first" without primary key';
     my $primary_key = $class->_get_primary_key;
     $limit //= 1;
 
-    return $class->find->order_by($primary_key)->limit($limit);
+    return $self_class->new($class)->order_by($primary_key)->limit($limit);
 }
 
 sub last {
-    my ($class, $limit) = @_;
+    my ($self_class, $class, $limit) = @_;
 
     $class->can('_get_primary_key') or croak 'Can\'t use "first" without primary key';
     my $primary_key = $class->_get_primary_key;
     $limit //= 1;
 
-    return $class->find->order_by($primary_key)->desc->limit($limit);
-}
-
-sub find_many_to_many {
-    my ($class, $param) = @_;
-
-    return unless $class->dbh && $param;
-
-    my $mc_fkey;
-    my $class_opts = {};
-    my $root_class_opts = {};
-
-    load $param->{m_class};
-
-    for my $opts ( values %{ $param->{m_class}->_get_relations } ) {
-        if ($opts->{class} eq $param->{root_class}) {
-            $root_class_opts = $opts;
-        }
-        elsif ($opts->{class} eq $class) {
-            $class_opts = $opts;
-        }
-    }
-
-    my $connected_table_name = $class->_get_table_name;
-    my $sql_stm;
-    $sql_stm .=
-        'SELECT ' .
-        "$connected_table_name\.*" .
-        ' FROM ' .
-        $param->{m_class}->_get_table_name .
-        ' JOIN ' .
-        $connected_table_name .
-        ' ON ' .
-        $connected_table_name . '.' . $class->_get_primary_key .
-        ' = ' .
-        $param->{m_class}->_get_table_name . '.' . $class_opts->{params}{fk} .
-        ' WHERE ' .
-        $root_class_opts->{params}{fk} .
-        ' = ' .
-        $param->{self}->{ $param->{root_class}->_get_primary_key };
-
-    my $container_class = $class->new();
-    my $self = bless {}, $class;
-    $self->{SQL} = $sql_stm; $self->_quote_sql_stmt;
-
-    my $resultset = $class->dbh->selectall_arrayref($self->{SQL}, { Slice => {} });
-    my @bulk_objects;
-    for my $params (@$resultset) {
-        my $obj = $class->new($params);
-
-        $obj->{isin_database} = 1;
-        push @bulk_objects, $obj;
-    }
-
-    $container_class->{_objects} = \@bulk_objects;
-
-    return $container_class;
+    return $self_class->new($class)->order_by($primary_key)->desc->limit($limit);
 }
 
 sub only {
     my ($self, @fields) = @_;
 
     scalar @fields > 0 or croak 'Not defined fields for method "only"';
-    #exists $self->{prep_select_fields}
-    #    or croak 'Not executed method "find" before "only"';
+    ref $self or croak 'Create an object abstraction before using the modifiers. Use methods like `find`, `first`, `last` at the beginning';
 
-    if ($self->can('_get_primary_key')) {
-        push @fields, $self->{class}->_get_primary_key;
+    if ($self->{class}->can('_get_primary_key')) {
+        my $pk = $self->{class}->_get_primary_key;
+        push @fields, $pk if ! grep { $_ eq $pk } @fields;
     }
 
     my $table_name = $self->{class}->_get_table_name;
 
     my @filtered_prep_select_fields =
-        grep {
-            $_ ne qq/"$table_name".*/
-        }
-        @{ $self->{prep_select_fields} };
+        grep { $_ ne qq/"$table_name".*/ } @{ $self->{prep_select_fields} };
     push @filtered_prep_select_fields, map { qq/"$table_name"."$_"/ } @fields;
     $self->{prep_select_fields} = \@filtered_prep_select_fields;
 
@@ -247,9 +183,6 @@ sub order_by {
 
     return $self;
 }
-
-# same as "with"
-sub left_join { shift->with(@_) }
 
 sub desc {
     my ($self) = @_;
@@ -295,46 +228,6 @@ sub offset {
     return $self;
 }
 
-sub with {
-    my ($self, @rels) = @_;
-
-    return $self if exists $self->{prep_left_joins};
-    return $self unless @rels;
-
-    $self->{class}->can('_get_relations')
-        or die "Class doesn't have any relations";
-
-    my $table_name = $self->{class}->_get_table_name;
-
-    $self->{prep_left_joins} = [];
-    $self->{with} = \@rels;
-    RELATION:
-    for my $rel_name (@rels) {
-        my $relation = $self->{class}->_get_relations->{$rel_name}
-            or next RELATION;
-
-        next RELATION unless grep { $_ eq $relation->{type} } qw/one only/;
-        my $rel_table_name = $relation->{class}->_get_table_name;
-
-        my $rel_columns = $relation->{class}->_get_columns;
-
-        #push @{ $self->{prep_select_fields} }, qq/"$rel_table_name".*/;
-        push @{ $self->{prep_select_fields} },
-            map { qq/"$rel_table_name"."$_" AS "JOINED_$rel_name\_$_"/  }
-                @{ $relation->{class}->_get_columns };
-
-        if ($relation->{type} eq 'one') {
-            my $join_sql = qq/LEFT JOIN "$rel_table_name" ON /;
-            $join_sql .= qq/"$rel_table_name"."$relation->{params}{pk}"/;
-            $join_sql .= qq/ = "$table_name"."$relation->{params}{fk}"/;
-
-            push @{ $self->{prep_left_joins} }, $join_sql;
-        }
-    }
-
-    return $self;
-}
-
 sub abstract {
     my ($self, $opts) = @_;
 
@@ -346,6 +239,32 @@ sub abstract {
     }
 
     return $self;
+}
+
+sub select {
+    my ($self_class, $class, @params) = @_;
+
+    my @find_params;
+    my $abstract_params_hashref;
+
+    my $first_param = shift @params;
+    push @find_params, $first_param if defined $first_param;
+
+    for my $param (@params) {
+        #push @find_params, $param if ref $param ne 'HASH';
+        if (ref $param eq 'HASH') {
+            $abstract_params_hashref = $param;
+            last;
+        }
+        else {
+            push @find_params, $param;
+        }
+    }
+
+    my $finder = $self_class->new($class, @find_params);
+    $finder->abstract($abstract_params_hashref);
+
+    return $finder->fetch;
 }
 
 
@@ -374,27 +293,29 @@ sub _finish_sql_stmt {
         $self->{SQL} .= join q/, /, map { q/"/.$_.q/"/ } @{ $self->{prep_order_by} };
     }
 
-    if (defined $self->{prep_desc}) {
-        $self->{SQL} .= ' DESC';
-    }
+    $self->{SQL} .= ' DESC ' if defined $self->{prep_desc};
+    $self->{SQL} .= ' ASC '  if defined $self->{prep_asc};
 
-    if (defined $self->{prep_asc}) {
-        $self->{SQL} .= ' ACS';
-    }
-
-    if (defined $self->{prep_limit}) {
-        $self->{SQL} .= ' LIMIT ' . $self->{prep_limit};
-    }
-
-    if (defined $self->{prep_offset}) {
-        $self->{SQL} .= ' OFFSET ' . $self->{prep_offset};
-    }
+    $self->{SQL} .= ' LIMIT ' .  ($self->{prep_limit}  // $MAXIMUM_LIMIT);
+    $self->{SQL} .= ' OFFSET '.  ($self->{prep_offset} // 0);
 
     $self->_delete_keys(qr/^prep\_/);
 }
 
+#sub get {
+#    my ($class, $pkeyval) = @_;
+#
+#    return $class->find($pkeyval)->fetch();
+#}
+
 sub fetch {
     my ($self, $param) = @_;
+
+    croak "Can't fetch the data, already fetched?"
+        if !$self->{class};
+
+    croak "Database connection is not defined"
+        unless $self->dbh;
 
     my ($read_only, $limit);
     if (ref $param eq 'HASH') {
@@ -414,7 +335,7 @@ sub fetch {
             $self->dbh->selectall_arrayref(
                 $self->{SQL},
                 { Slice => {} },
-                @{ $self->{BIND}}
+                @{ $self->{BIND} }
             );
 
         return unless defined $resultset
@@ -423,7 +344,8 @@ sub fetch {
 
         my $class = $self->{class};
         for my $object_data (@$resultset) {
-            my $obj = bless $object_data, $class;
+            #my $obj = bless $object_data, $class;
+            my $obj = $class->new($object_data);
 
             if ($self->{has_joined_table}) {
                 RELATION:
@@ -454,7 +376,8 @@ sub fetch {
             }
 
             $obj->{read_only} = 1 if defined $read_only;
-            $obj->{snapshoot} = freeze($object_data) if $obj->_smart_saving_used;
+            $obj->{snapshoot} = freeze($object_data)
+                if $obj->can('_smart_saving_used') && $obj->_smart_saving_used;
             $obj->{isin_database} = 1;
 
             push @objects, $obj;
@@ -464,6 +387,78 @@ sub fetch {
     }
 
     return $self->_get_slice($limit);
+}
+
+sub to_sql {
+    my ($self) = @_;
+
+    $self->_finish_sql_stmt();
+    $self->_quote_sql_stmt();
+
+    return wantarray ? ($self->{SQL}, $self->{BIND}) : $self->{SQL};
+}
+
+
+### Private
+
+
+sub _find_many_to_many {
+    my ($self_class, $class, $param) = @_;
+
+    return unless $self_class->dbh && $class && $param;
+
+    my $mc_fkey;
+    my $class_opts = {};
+    my $root_class_opts = {};
+
+    eval { load $param->{m_class} };
+
+    for my $opts ( values %{ $param->{m_class}->_get_relations } ) {
+        if ($opts->{class} eq $param->{root_class}) {
+            $root_class_opts = $opts;
+        }
+        elsif ($opts->{class} eq $class) {
+            $class_opts = $opts;
+        }
+    }
+
+    my $connected_table_name = $class->_get_table_name;
+    my $sql_stm;
+    $sql_stm .=
+        'SELECT ' .
+        "$connected_table_name\.*" .
+        ' FROM ' .
+        $param->{m_class}->_get_table_name .
+        ' JOIN ' .
+        $connected_table_name .
+        ' ON ' .
+        $connected_table_name . '.' . $class->_get_primary_key .
+        ' = ' .
+        $param->{m_class}->_get_table_name . '.' . $class_opts->{params}{fk} .
+        ' WHERE ' .
+        $root_class_opts->{params}{fk} .
+        ' = ' .
+        $param->{self}->{ $param->{root_class}->_get_primary_key };
+
+    my $self = bless {}, $self_class;
+    $self->{SQL} = $sql_stm; $self->_quote_sql_stmt;
+
+    my $resultset = $class->dbh->selectall_arrayref($self->{SQL}, { Slice => {} });
+
+    my @bulk_objects;
+    for my $params (@$resultset) {
+        my $obj = $class->new($params);
+
+        $obj->{isin_database} = 1;
+        push @bulk_objects, $obj;
+    }
+
+    $self->{_objects} = \@bulk_objects;
+    $self->{class} = $class;
+
+    delete $self->{SQL};
+
+    return $self;
 }
 
 sub _get_slice {
@@ -482,19 +477,23 @@ sub _get_slice {
     }
 }
 
-sub to_sql {
+sub _quote_sql_stmt {
     my ($self) = @_;
 
-    $self->_finish_sql_stmt();
-    $self->_quote_sql_stmt();
+    return unless $self->{SQL} && $self->dbh;
 
-    return wantarray ? ($self->{SQL}, $self->{BIND}) : $self->{SQL};
-}
+    my $driver_name = $self->dbh->{Driver}{Name};
+    $driver_name //= 'Pg';
+    my $quotes_map = {
+        Pg => q/"/,
+        mysql => q/`/,
+        SQLite => q/`/,
+    };
+    my $quote = $quotes_map->{$driver_name};
 
-sub _delete_keys {
-    my ($self, $rx) = @_;
+    $self->{SQL} =~ s/"/$quote/g;
 
-    map { delete $self->{$_} if $_ =~ $rx } keys %$self;
+    return 1;
 }
 
 1;

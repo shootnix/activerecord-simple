@@ -50,7 +50,7 @@ TODO: {
   );
 
   module_boilerplate_ok('lib/ActiveRecord/Simple.pm');
-
-
+  module_boilerplate_ok('lib/ActiveRecord/Simple/Find.pm');
+  module_boilerplate_ok('lib/ActiveRecord/Simple/Validate.pm');
 }
 

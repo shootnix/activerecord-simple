@@ -95,3 +95,7 @@ Revision history for Perl module ActiveRecord::Simple
         + Added Credits - list of contributors (see README)
         * Fixed bugs
         * Improved tests
+
+0.80    2015
+        + Added method "abstract"
+        + Added method "select"

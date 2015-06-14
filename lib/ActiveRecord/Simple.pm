@@ -12,7 +12,9 @@ use Carp;
 use Storable qw/freeze/;
 use Module::Load;
 
-use parent 'ActiveRecord::Simple::Find';
+#use parent 'ActiveRecord::Simple::Find';
+use ActiveRecord::Simple::Find;
+use ActiveRecord::Simple::Utils;
 
 
 my $dbhandler = undef;
@@ -68,7 +70,7 @@ sub new {
                         ( %{ $rel->{class} } )[1]
                         : $rel->{class};
 
-                    load $rel_class;
+                   ### load $rel_class;
 
                     ### TODO: check for relation existing
                     while (my ($rel_key, $rel_opts) = each %{ $rel_class->_get_relations }) {
@@ -102,7 +104,7 @@ sub new {
                     }
                     elsif ( $type eq 'many_to_many' ) {
                         $self->{"relation_instance_$relname"} =
-                            $rel_class->find_many_to_many({
+                            $rel_class->_find_many_to_many({
                                 root_class => $class,
                                 m_class    => (%{ $rel->{class} })[0],
                                 self       => $self,
@@ -178,7 +180,7 @@ sub belongs_to {
     };
 
     if ($class->can('_get_table_schema') && $class->can('_get_primary_key')) {
-        load $rel_class;
+       ### load $rel_class;
         $class->_get_table_schema->add_constraint(
             type => 'foreign_key',
             fields => $params, ### TODO: !!!this is wrong!!!
@@ -222,10 +224,18 @@ sub _guess {
 
     return 'id' if $what_key eq 'primary_key';
 
-    load $class;
+   eval { load $class };
 
     my $table_name = $class->_get_table_name;
+    $table_name =~ s/s$// if $what_key eq 'foreign_key';
+
     return ($what_key eq 'foreign_key') ? "$table_name\_id" : undef;
+}
+
+sub _delete_keys {
+    my ($self, $rx) = @_;
+
+    map { delete $self->{$_} if $_ =~ $rx } keys %$self;
 }
 
 sub has_one {
@@ -291,7 +301,6 @@ sub _append_relation {
 
     if ($class->can('_get_relations')) {
         my $relations = $class->_get_relations();
-
         $relations->{$rel_name} = $rel_hashref;
         $class->relations($relations);
     }
@@ -321,16 +330,7 @@ sub columns {
         }
     }
     elsif (scalar @args > 1) {
-        if (@args % 2 == 0) {
-            # hash of hashes
-            my %fields = @args;
-            $class->fields(%fields);
-        }
-        else {
-            # or plain array?
-            push @$columns, @args;
-        }
-
+        push @$columns, @args;
     }
 
     $class->_mk_attribute_getter('_get_columns', $columns);
@@ -492,21 +492,21 @@ sub _insert {
     if ( $self->dbh->{Driver}{Name} eq 'Pg' ) {
         if ($primary_key) {
             $sql_stm .= ' RETURINIG ' . $primary_key if $primary_key;
-            $self->{SQL} = $sql_stm; $self->_quote_sql_stmt;
-
-            $pkey_val = $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
+            $sql_stm = ActiveRecord::Simple::Utils::quote_sql_stmt($sql_stm, $self->dbh->{Driver}{Name});
+            $pkey_val = $self->dbh->selectrow_array($sql_stm, undef, @bind);
         }
         else {
-            $self->{SQL} = $sql_stm; $self->_quote_sql_stmt;
-            my $sth = $self->dbh->prepare($self->{SQL});
+            my $sth = $self->dbh->prepare(
+                ActiveRecord::Simple::Utils::quote_sql_stmt($sql_stm, $self->dbh->{Driver}{Name})
+            );
 
             $sth->execute(@bind);
         }
     }
     else {
-        $self->{SQL} = $sql_stm; $self->_quote_sql_stmt();
-
-        my $sth = $self->dbh->prepare($self->{SQL});
+        my $sth = $self->dbh->prepare(
+            ActiveRecord::Simple::Utils::quote_sql_stmt($sql_stm, $self->dbh->{Driver}{Name})
+        );
         $sth->execute(@bind);
 
         if ( $primary_key && defined $self->{$primary_key} ) {
@@ -539,14 +539,16 @@ sub _update {
     my @bind = map { $param->{$_} } @field_names;
     push @bind, $self->{$primary_key};
 
-    my $sql_stm = qq{
-        UPDATE "$table_name" SET $setstring
-        WHERE
-            $primary_key = ?
-    };
-    $self->{SQL} = $sql_stm; $self->_quote_sql_stmt;
+    my $sql_stm = ActiveRecord::Simple::Utils::quote_sql_stmt(
+        qq{
+            UPDATE "$table_name" SET $setstring
+            WHERE
+                $primary_key = ?
+        },
+        $self->dbh->{Driver}{Name}
+    );
 
-    return $self->dbh->do($self->{SQL}, undef, @bind);
+    return $self->dbh->do($sql_stm, undef, @bind);
 }
 
 # param:
@@ -558,6 +560,7 @@ sub delete {
 
     my $table_name = $self->_get_table_name;
     my $pkey = $self->_get_primary_key;
+
     return unless $self->{$pkey};
 
     my $sql = qq{
@@ -566,8 +569,9 @@ sub delete {
     $sql .= ' CASCADE ' if $param && $param->{cascade};
 
     my $res = undef;
-    $self->{SQL} = $sql; $self->_quote_sql_stmt;
-    if ( $self->dbh->do($self->{SQL}, undef, $self->{$pkey}) ) {
+    $sql = ActiveRecord::Simple::Utils::quote_sql_stmt($sql, $self->dbh->{Driver}{Name});
+
+    if ( $self->dbh->do($sql, undef, $self->{$pkey}) ) {
         $self->{isin_database} = undef;
         delete $self->{$pkey};
 
@@ -581,39 +585,6 @@ sub is_defined {
     my ($self) = @_;
 
     return grep { defined $self->{$_} } @{ $self->_get_columns };
-}
-
-# param:
-#      name => .., id => .., <something_else> => ...
-sub _is_exists_in_database {
-    my ($self, $param) = @_;
-
-    return unless $self->dbh;
-
-    $param ||= $self->to_hash({ only_defined_fields => 1 });
-
-    my $table_name = $self->_get_table_name;
-    my @fields = sort keys %$param;
-    my $where_str = join q/ AND /, map { q/"/. $_ . q/"/ .' = ?' } @fields;
-    my @bind;
-    for my $f (@fields) {
-        push @bind, $self->$f;
-    }
-
-    my $sql = qq{
-        SELECT 1 FROM "$table_name"
-        WHERE
-            $where_str
-    };
-    $self->{SQL} = $sql; $self->_quote_sql_stmt;
-
-    return $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
-}
-
-sub get {
-    my ($class, $pkeyval) = @_;
-
-    return $class->find($pkeyval)->fetch();
 }
 
 # param:
@@ -661,25 +632,20 @@ sub decrement {
     return $self;
 }
 
-sub _quote_sql_stmt {
-    my ($self) = @_;
+#### Find ####
 
-    return unless $self->{SQL} && $self->dbh;
+sub find   { ActiveRecord::Simple::Find->new(shift, @_) }
+sub get    { shift->find(@_)->fetch } ### TODO: move to Finder
+sub count  { ActiveRecord::Simple::Find->count(shift, @_) }
+sub exists { defined shift->find(@_)->fetch ? 1 : 0 }
+sub first  { ActiveRecord::Simple::Find->first(@_) }
+sub last   { ActiveRecord::Simple::Find->last(@_) }
+sub select { ActiveRecord::Simple::Find->select(shift, @_) }
 
-    my $driver_name = $self->dbh->{Driver}{Name};
-    $driver_name //= 'Pg';
-    my $quotes_map = {
-        Pg => q/"/,
-        mysql => q/`/,
-        SQLite => q/`/,
-    };
-    my $quote = $quotes_map->{$driver_name};
+sub _find_many_to_many { ActiveRecord::Simple::Find->_find_many_to_many(shift, @_) }
 
-    $self->{SQL} =~ s/"/$quote/g;
 
-    return 1;
-}
-
+### Private
 
 
 1;
