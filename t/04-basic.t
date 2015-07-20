@@ -68,16 +68,16 @@ is $c->foo, 100, 'update in memory ok';
 ok $c->save(), 'update in database ok';
 
 ok my $c2 = t::class->find(1), 'find, primary key';
-isa_ok $c2, 't::class';
+isa_ok $c2, 'ActiveRecord::Simple::Find';
 
 ok my $c21 = t::class->get(1), 'get';
 isa_ok $c21, 't::class';
 
 ok my $c3 = t::class->find({ foo => 'bar' }), 'find, params';
-isa_ok $c3, 't::class';
+isa_ok $c3, 'ActiveRecord::Simple::Find';
 
 ok my $c4 = t::class->find([1, 2, 3]), 'find, primary keys';
-isa_ok $c4, 't::class';
+isa_ok $c4, 'ActiveRecord::Simple::Find';
 
 ok my @fetched = $c4->fetch(), 'fetch';
 is scalar @fetched, 2;
@@ -86,12 +86,12 @@ is $fetched[0]->foo, 1;
 
 
 ok my $c5 = t::class->find('foo = ?', 'bar'), 'find, binded params';
-isa_ok $c5, 't::class';
+isa_ok $c5, 'ActiveRecord::Simple::Find';
 
 is ref $c->to_hash, 'HASH', 'to_hash';
 ok $c->_smart_saving_used == 0, 'no use smart saving';
 
-my $t2 = t::class2->find(1);
+my $t2 = t::class2->get(1);
 ok $t2->_smart_saving_used == 1, 'smart_saving_used, on founded';
 
 my $t22 = t::class2->new({ foo => 1 });
