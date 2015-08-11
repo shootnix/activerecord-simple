@@ -689,7 +689,7 @@ sub _insert {
 
     if ( $self->dbh->{Driver}{Name} eq 'Pg' ) {
         if ($primary_key) {
-            $sql_stm .= ' RETURINIG ' . $primary_key if $primary_key;
+            $sql_stm .= ' RETURNING ' . $primary_key if $primary_key;
             $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; #say $self->{SQL} if $TRACE;
             $self->_trace_sql;
 
