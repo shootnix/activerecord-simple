@@ -95,3 +95,12 @@ Revision history for Perl module ActiveRecord::Simple
         + Added Credits - list of contributors (see README)
         * Fixed bugs
         * Improved tests
+
+0.70    2015-08-14
+        + Added ARS_TRACE
+        + Created method "update" for quick objects update
+        + New mars command "--upload"
+        * Improved `find` and `count` methods, now you can use find({ id => [1, 2, 3] }) as '.. where id in (1, 2, 3)'
+        * Improved error handling
+        * Method `new` now takes simple hashes (not only hashrefs)
+        * Improved documentation
