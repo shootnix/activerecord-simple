@@ -389,6 +389,48 @@ sub fetch {
     return $self->_get_slice($limit);
 }
 
+sub with {
+    my ($self, @rels) = @_;
+
+    return $self if exists $self->{prep_left_joins};
+    return $self unless @rels;
+
+    $self->{class}->can('_get_relations')
+        or die "Class doesn't have any relations";
+
+    my $table_name = $self->{class}->_get_table_name;
+
+    $self->{prep_left_joins} = [];
+    $self->{with} = \@rels;
+    RELATION:
+    for my $rel_name (@rels) {
+        my $relation = $self->{class}->_get_relations->{$rel_name}
+            or next RELATION;
+
+        next RELATION unless grep { $_ eq $relation->{type} } qw/one only/;
+        my $rel_table_name = $relation->{class}->_get_table_name;
+
+        my $rel_columns = $relation->{class}->_get_columns;
+
+        #push @{ $self->{prep_select_fields} }, qq/"$rel_table_name".*/;
+        push @{ $self->{prep_select_fields} },
+            map { qq/"$rel_table_name"."$_" AS "JOINED_$rel_name\_$_"/  }
+                @{ $relation->{class}->_get_columns };
+
+        if ($relation->{type} eq 'one') {
+            my $join_sql = qq/LEFT JOIN "$rel_table_name" ON /;
+            $join_sql .= qq/"$rel_table_name"."$relation->{params}{pk}"/;
+            $join_sql .= qq/ = "$table_name"."$relation->{params}{fk}"/;
+
+            push @{ $self->{prep_left_joins} }, $join_sql;
+        }
+    }
+
+    return $self;
+}
+
+sub left_join { shift->with(@_) }
+
 sub to_sql {
     my ($self) = @_;
 
