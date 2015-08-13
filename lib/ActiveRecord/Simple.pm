@@ -433,11 +433,13 @@ sub save {
 
     my $save_param = {};
     my $fields = $self->_get_columns;
+
     my $pkey = ($self->can('_get_primary_key')) ? $self->_get_primary_key : undef;
 
     FIELD:
     for my $field (@$fields) {
         next FIELD if defined $pkey && $field eq $pkey && !$self->{$pkey};
+        next FIELD if ref $field && ref $field eq 'HASH';
         $save_param->{$field} = $self->{$field};
     }
 
@@ -597,6 +599,7 @@ sub to_hash {
     my $attrs = {};
 
     for my $field (@$field_names) {
+        next if ref $field;
         if ( $param && $param->{only_defined_fields} ) {
             $attrs->{$field} = $self->{$field} if $self->$field;
         }
@@ -637,7 +640,24 @@ sub decrement {
 sub find   { ActiveRecord::Simple::Find->new(shift, @_) }
 sub get    { shift->find(@_)->fetch } ### TODO: move to Finder
 sub count  { ActiveRecord::Simple::Find->count(shift, @_) }
-sub exists { defined shift->find(@_)->fetch ? 1 : 0 }
+
+sub exists {
+    my $first_arg = shift;
+
+    my ($class, @search_criteria);
+    if (ref $first_arg) {
+        # object method
+        $class = ref $first_arg;
+        push @search_criteria, $first_arg->to_hash({ only_defined_fields => 1 });
+    }
+    else {
+        $class = $first_arg;
+        @search_criteria = @_;
+    }
+
+    return defined $class->find(@search_criteria)->fetch ? 1 : 0;
+}
+
 sub first  { ActiveRecord::Simple::Find->first(@_) }
 sub last   { ActiveRecord::Simple::Find->last(@_) }
 sub select { ActiveRecord::Simple::Find->select(shift, @_) }

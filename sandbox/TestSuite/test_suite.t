@@ -237,10 +237,14 @@ Artist->dbh($dbh);
 
 {
     pass '~ ordering ~';
-    my $artists_find = Artist->find('id != ?', 100)->order_by('name')->desc();
-    my $artist = $artists_find->fetch(1);
-    ok $artists_find->{SQL} =~ /order by/i;
-    ok $artists_find->{SQL} =~ /desc$/i;
+    my $artists_find = Artist->find('id != ?', 100)->order_by('name')->desc(1);
+
+    #my $artist = $artists_find->fetch(1);
+
+    is $artists_find->{prep_desc}, 1, 'desc';
+    ok ref $artists_find->{prep_order_by};
+    is ref $artists_find->{prep_order_by}, 'ARRAY';
+    is $artists_find->{prep_order_by}[0], 'name';
 }
 
 {
@@ -345,13 +349,14 @@ Artist->dbh($dbh);
     ok( Artist->exists(2) );
 
     ok( !Artist->exists('name = ?', 'Blink-182') );
-    ok( !Artist->exists({ name => 'Blink-182' }) );
+    ok( !Artist->exists({ name => 'Blink-182' }));
     ok( !Artist->exists(100) );
 
-    my $artist = Artist->new(name => 'U2');
+    my $artist = Artist->new({ name => 'U2' });
+
     ok $artist->exists;
 
-    $artist = Artist->new(name => 'Blink-182');
+    $artist = Artist->new({ name => 'Blink-182' });
     ok !$artist->exists;
 }
 
