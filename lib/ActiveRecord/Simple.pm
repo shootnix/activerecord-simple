@@ -24,7 +24,9 @@ sub new {
     my $class = shift;
     my $param = (scalar @_ > 1) ? {@_} : $_[0];
 
-    $class->_mk_accessors($class->_get_columns());
+    $class->_mk_accessors($class->_get_columns())
+        if $class->can('_get_columns');
+
 
     if ($class->can('_get_relations')) {
         my $relations = $class->_get_relations();
@@ -185,7 +187,7 @@ sub belongs_to {
             type => 'foreign_key',
             fields => $params, ### TODO: !!!this is wrong!!!
             reference_fields => $class->_get_primary_key,
-            reference_table => $rel_class->_get_table_name,
+            reference_table => $rel_class->_table_name,
             on_delete => 'cascade'
         );
     }
@@ -226,7 +228,7 @@ sub _guess {
 
    eval { load $class };
 
-    my $table_name = $class->_get_table_name;
+    my $table_name = $class->_table_name;
     $table_name =~ s/s$// if $what_key eq 'foreign_key';
 
     return ($what_key eq 'foreign_key') ? "$table_name\_id" : undef;
@@ -344,7 +346,7 @@ sub fields {
 
     my $sql_translator = SQL::Translator->new(no_comments => 1);
     my $schema = $sql_translator->schema;
-    my $table = $schema->add_table(name => $class->_get_table_name);
+    my $table = $schema->add_table(name => $class->_table_name);
 
     FIELD:
     for my $field (keys %fields) {
@@ -384,6 +386,19 @@ sub table_name {
     my ($class, $table_name) = @_;
 
     $class->_mk_attribute_getter('_get_table_name', $table_name);
+}
+
+sub _table_name {
+    my $class = ref $_[0] ? ref $_[0] : $_[0];
+
+    croak 'Invalid data class' if $class =~ /^ActiveRecord::Simple/;
+
+    my $table_name =
+        $class->can('_get_table_name') ?
+            $class->_get_table_name
+            : ActiveRecord::Simple::Utils::class_to_table_name($class);
+
+    return $table_name;
 }
 
 sub use_smart_saving {
@@ -476,7 +491,7 @@ sub _insert {
 
     return unless $self->dbh && $param;
 
-    my $table_name  = $self->_get_table_name;
+    my $table_name  = $self->_table_name;
     my @field_names  = grep { defined $param->{$_} } sort keys %$param;
     my $primary_key = ($self->can('_get_primary_key')) ? $self->_get_primary_key :
                       ($self->can('_get_secondary_key')) ? $self->_get_secondary_key : undef;
@@ -532,7 +547,7 @@ sub _update {
 
     return unless $self->dbh && $param;
 
-    my $table_name      = $self->_get_table_name;
+    my $table_name      = $self->_table_name;
     my @field_names     = sort keys %$param;
     my $primary_key     = ($self->can('_get_primary_key')) ? $self->_get_primary_key :
                           ($self->can('_get_secondary_key')) ? $self->_get_secondary_key : undef;
@@ -560,7 +575,7 @@ sub delete {
 
     return unless $self->dbh;
 
-    my $table_name = $self->_get_table_name;
+    my $table_name = $self->_table_name;
     my $pkey = $self->_get_primary_key;
 
     return unless $self->{$pkey};

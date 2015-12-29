@@ -109,6 +109,10 @@ ok my $customized = Customer->find({ first_name => 'Bob' })->only('id')->fetch, 
 is $customized->id, 1;
 ok !$customized->first_name;
 
+ok my $customized2 = Customer->find({ first_name => 'Bob' })->fields('id')->fetch, 'fields (alias to "only")';
+is $customized2->id, 1;
+ok !$customized2->first_name;
+
 $c = Customer->first->only('first_name');
 is scalar @{ $c->{prep_select_fields} }, 2;
 is_deeply $c->{prep_select_fields}, ['"customers"."first_name"', '"customers"."id"'];

@@ -34,7 +34,10 @@ __PACKAGE__->use_smart_saving;
 
 1;
 
-package t::class3;
+package t::ClaSs3;
+
+use base 'ActiveRecord::Simple';
+
 
 package MockDBI;
 
@@ -142,6 +145,15 @@ ok $r = t::class->last(10), 'last 10';
 is $r->{prep_limit}, 10, 'limit is 10, last ok';
 
 ok( t::class->exists({ foo => 'bar' }), 'exists' );
+
+is(t::ClaSs3->_table_name, 'class3s');
+is(t::class->_table_name, 't');
+
+my $cs1 = t::class->new();
+my $cs2 = t::ClaSs3->new();
+
+is $cs1->_table_name, 't';
+is $cs2->_table_name, 'class3s';
 
 
 done_testing();

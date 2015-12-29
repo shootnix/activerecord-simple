@@ -3,6 +3,8 @@ package ActiveRecord::Simple::Find;
 use 5.010;
 use strict;
 use warnings;
+use vars qw/$AUTOLOAD/;
+
 use Carp;
 use Storable qw/freeze/;
 use Module::Load;
@@ -172,6 +174,9 @@ sub only {
 
     return $self;
 }
+
+# alias to only:
+sub fields { shift->only(@_) }
 
 sub order_by {
     my ($self, @param) = @_;
@@ -536,6 +541,20 @@ sub _quote_sql_stmt {
     $self->{SQL} =~ s/"/$quote/g;
 
     return 1;
+}
+
+sub AUTOLOAD {
+    my $call = $AUTOLOAD;
+    my $self = shift;
+    my $class = ref $self;
+
+    $call =~ s/.*:://;
+    my $error = "Can't call method `$call` on class $class.\nPerhaps you have forgotten to fetch your object?";
+
+    say ref $self;
+    say 'CAN!' if $class->can($call);
+
+    croak $error;
 }
 
 1;
