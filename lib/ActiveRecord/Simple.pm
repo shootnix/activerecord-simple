@@ -159,6 +159,17 @@ sub _mk_accessors {
     return 1;
 }
 
+sub connect {
+    my ($class, $dsn, $username, $password, $options) = @_;
+
+    my $dbh = DBI->connect($dsn, $username, $password, $options)
+        or croak DBI->errstr;
+
+    $class->dbh($dbh);
+
+    return 1;
+}
+
 sub belongs_to {
     my ($class, $rel_name, $rel_class, $params) = @_;
 
