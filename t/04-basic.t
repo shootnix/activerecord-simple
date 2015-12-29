@@ -44,6 +44,7 @@ package MockDBI;
 sub selectrow_array { 1 }
 sub do { 1 }
 sub selectrow_hashref { { DUMMY => 'hash' } }
+sub fetchrow_hashref { { DUMMY => 'hash' } }
 sub prepare { bless {}, 'MockDBI' }
 sub execute { 1 }
 sub last_insert_id { 1 }
@@ -81,12 +82,6 @@ isa_ok $c3, 'ActiveRecord::Simple::Find';
 
 ok my $c4 = t::class->find([1, 2, 3]), 'find, primary keys';
 isa_ok $c4, 'ActiveRecord::Simple::Find';
-
-ok my @fetched = $c4->fetch(), 'fetch';
-is scalar @fetched, 2;
-isa_ok $fetched[0], 't::class';
-is $fetched[0]->foo, 1;
-
 
 ok my $c5 = t::class->find('foo = ?', 'bar'), 'find, binded params';
 isa_ok $c5, 'ActiveRecord::Simple::Find';

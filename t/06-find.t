@@ -59,11 +59,7 @@ $dbh->do($_DATA_SQL);
 
 use Test::More;
 
-
-ok my $c = Customer->new, 'new';
-isa_ok $c, 'Customer';
-ok(Customer->dbh($dbh), 'set DBH');
-
+Customer->dbh($dbh);
 my $finder = Customer->find({ first_name => 'Bob' });
 isa_ok $finder, 'ActiveRecord::Simple::Find';
 
@@ -96,6 +92,10 @@ is $cnt, 5;
 ok my $exists = Customer->exists({ first_name => 'Bob' }), 'exists';
 is $exists, 1;
 
+
+say '>>>> ' . Dumper( Customer->find({ first_name => 'Not Found' })->fetch );
+
+
 ok(!Customer->exists({ first_name => 'Not Found' }));
 is(Customer->exists({ first_name => 'Not Found' }), 0);
 
@@ -113,7 +113,7 @@ ok my $customized2 = Customer->find({ first_name => 'Bob' })->fields('id')->fetc
 is $customized2->id, 1;
 ok !$customized2->first_name;
 
-$c = Customer->first->only('first_name');
+my $c = Customer->first->only('first_name');
 is scalar @{ $c->{prep_select_fields} }, 2;
 is_deeply $c->{prep_select_fields}, ['"customers"."first_name"', '"customers"."id"'];
 

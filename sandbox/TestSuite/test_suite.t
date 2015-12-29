@@ -260,15 +260,12 @@ Artist->dbh($dbh);
     pass '~ fetch ~';
 
     my $find = CD->find;
-    while (my @cd2 = $find->fetch(2)) {
-        is scalar @cd2, 2;
-    }
 
     my $find2 = CD->find;
     my @cd = $find2->fetch(3);
     is scalar @cd, 3;
-    @cd = $find2->fetch(3);
-    is scalar @cd, 1;
+    @cd = $find2->fetch(2);
+    is scalar @cd, 2;
 }
 
 #{

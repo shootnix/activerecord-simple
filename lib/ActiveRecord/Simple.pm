@@ -429,6 +429,7 @@ sub dbh {
     my ($self, $dbh) = @_;
 
     $dbhandler = $dbh if defined $dbh;
+    $dbhandler or croak 'Database handler is not set';
 
     return $dbhandler;
 }
@@ -670,7 +671,7 @@ sub exists {
         @search_criteria = @_;
     }
 
-    return defined $class->find(@search_criteria)->fetch ? 1 : 0;
+    return (defined $class->find(@search_criteria)->fetch) ? 1 : 0;
 }
 
 sub first  { ActiveRecord::Simple::Find->first(@_) }

@@ -276,6 +276,9 @@ sub select {
 sub _finish_sql_stmt {
     my ($self) = @_;
 
+    ref $self->{prep_select_fields} or croak 'Invalid prepare SQL statement';
+    ref $self->{prep_select_from}   or croak 'Invalid prepare SQL statement';
+
     $self->{SQL} = "SELECT " . (join q/, /, @{ $self->{prep_select_fields} }) . "\n";
     $self->{SQL} .= "FROM " . (join q/, /, @{ $self->{prep_select_from} }) . "\n";
 
@@ -304,7 +307,7 @@ sub _finish_sql_stmt {
     $self->{SQL} .= ' LIMIT ' .  ($self->{prep_limit}  // $MAXIMUM_LIMIT);
     $self->{SQL} .= ' OFFSET '.  ($self->{prep_offset} // 0);
 
-    $self->_delete_keys(qr/^prep\_/);
+    #$self->_delete_keys(qr/^prep\_/);
 }
 
 #sub get {
@@ -313,14 +316,39 @@ sub _finish_sql_stmt {
 #    return $class->find($pkeyval)->fetch();
 #}
 
+sub _finish_object_representation {
+    my ($self, $obj, $object_data, $read_only) = @_;
+
+    if ($self->{has_joined_table}) {
+        RELATION:
+        for my $rel_name (@{ $self->{with} }) {
+            my $relation = $self->{class}->_get_relations->{$rel_name} or next RELATION;
+            my %pairs = map { $_, $object_data->{$_} } grep { $_ =~ /^JOINED\_$rel_name\_/ } keys %$object_data;
+            next RELATION unless %pairs;
+
+            for my $key (keys %pairs) {
+                my $val = delete $pairs{$key};
+                $key =~ s/^JOINED\_$rel_name\_//;
+                $pairs{$key} = $val;
+            }
+            $obj->{"relation_instance_$rel_name"} = $relation->{class}->new(\%pairs);
+                        #bless \%pairs, $relation->{class};
+
+            $obj->_delete_keys(qr/^JOINED\_$rel_name/);
+        }
+
+        delete $self->{has_joined_table};
+    }
+
+    $obj->{read_only} = 1 if defined $read_only;
+    $obj->{snapshoot} = freeze($object_data) if $obj->can('_smart_saving_used') && $obj->_smart_saving_used;
+    $obj->{isin_database} = 1;
+
+    return $obj;
+}
+
 sub fetch {
     my ($self, $param) = @_;
-
-    croak "Can't fetch the data, already fetched?"
-        if !$self->{class};
-
-    croak "Database connection is not defined"
-        unless $self->dbh;
 
     my ($read_only, $limit);
     if (ref $param eq 'HASH') {
@@ -331,67 +359,34 @@ sub fetch {
         $limit = $param;
     }
 
-    if (not exists $self->{_objects}) {
-        $self->_finish_sql_stmt();
-        $self->_quote_sql_stmt();
+    return $self->_get_slice($limit) if $self->{_objects};
 
+    $self->_finish_sql_stmt();
+    $self->_quote_sql_stmt();
+    my $class = $self->{class};
+    my $sth = $self->dbh->prepare($self->{SQL}) or croak $self->dbh->errstr;
+    $sth->execute(@{ $self->{BIND} }) or croak $self->dbh->errstr;
+    if (wantarray) {
         my @objects;
-        my $resultset =
-            $self->dbh->selectall_arrayref(
-                $self->{SQL},
-                { Slice => {} },
-                @{ $self->{BIND} }
-            );
-
-        return unless defined $resultset
-                      && ref $resultset eq 'ARRAY'
-                      && scalar @$resultset > 0;
-
-        my $class = $self->{class};
-        for my $object_data (@$resultset) {
-            #my $obj = bless $object_data, $class;
+        my $i = 0;
+        while (my $object_data = $sth->fetchrow_hashref()) {
+            $i++;
             my $obj = $class->new($object_data);
-
-            if ($self->{has_joined_table}) {
-                RELATION:
-                for my $rel_name (@{ $self->{with} }) {
-                    my $relation = $self->{class}->_get_relations->{$rel_name}
-                        or next RELATION;
-
-                    my %pairs =
-                        map { $_, $object_data->{$_} }
-                            grep { $_ =~ /^JOINED\_$rel_name\_/ }
-                                keys %$object_data;
-
-                    next RELATION unless %pairs;
-
-                    for my $key (keys %pairs) {
-                        my $val = delete $pairs{$key};
-                        $key =~ s/^JOINED\_$rel_name\_//;
-                        $pairs{$key} = $val;
-                    }
-                    $obj->{"relation_instance_$rel_name"} =
-                        $relation->{class}->new(\%pairs);
-                        #bless \%pairs, $relation->{class};
-
-                    $obj->_delete_keys(qr/^JOINED\_$rel_name/);
-                }
-
-                delete $self->{has_joined_table};
-            }
-
-            $obj->{read_only} = 1 if defined $read_only;
-            $obj->{snapshoot} = freeze($object_data)
-                if $obj->can('_smart_saving_used') && $obj->_smart_saving_used;
-            $obj->{isin_database} = 1;
-
+            $self->_finish_object_representation($obj, $object_data, $read_only);
             push @objects, $obj;
+
+            last if $limit && $i == $limit;
         }
 
-        $self->{_objects} = \@objects;
+        return @objects;
     }
+    else {
+        my $object_data = $sth->fetchrow_hashref() or return;
+        my $obj = $class->new($object_data);
+        $self->_finish_object_representation($obj, $object_data, $read_only);
 
-    return $self->_get_slice($limit);
+        return $obj;
+    }
 }
 
 sub with {
@@ -490,20 +485,19 @@ sub _find_many_to_many {
     my $self = bless {}, $self_class;
     $self->{SQL} = $sql_stm; $self->_quote_sql_stmt;
 
-    my $resultset = $class->dbh->selectall_arrayref($self->{SQL}, { Slice => {} });
+    my $sth = $self->dbh->prepare($self->{SQL}) or croak $self->dbh->errstr;
+    $sth->execute();
+    delete $self->{SQL};
 
     my @bulk_objects;
-    for my $params (@$resultset) {
+    while (my $params = $sth->fetchrow_hashref) {
         my $obj = $class->new($params);
-
         $obj->{isin_database} = 1;
         push @bulk_objects, $obj;
     }
 
     $self->{_objects} = \@bulk_objects;
-    $self->{class} = $class;
-
-    delete $self->{SQL};
+    $self->{class} = $class;\
 
     return $self;
 }
@@ -550,9 +544,6 @@ sub AUTOLOAD {
 
     $call =~ s/.*:://;
     my $error = "Can't call method `$call` on class $class.\nPerhaps you have forgotten to fetch your object?";
-
-    say ref $self;
-    say 'CAN!' if $class->can($call);
 
     croak $error;
 }
