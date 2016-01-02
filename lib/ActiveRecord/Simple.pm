@@ -12,13 +12,14 @@ use Carp;
 use Storable qw/freeze/;
 use Module::Load;
 
-#use parent 'ActiveRecord::Simple::Find';
 use ActiveRecord::Simple::Find;
 use ActiveRecord::Simple::Utils;
 use ActiveRecord::Simple::Connect;
 
 
-#my $dbhandler = undef;
+use Data::Dumper;
+
+
 my $connector;
 
 
@@ -51,7 +52,8 @@ sub new {
                     for my $object (@objects) {
                         next OBJECT unless ref $object;
                         my $relation = $relations->{$relname};
-                        next OBJECT unless grep { $relation->{type} eq $_ } qw/one/;
+
+                        next OBJECT unless grep { $relation->{type} eq $_ } qw/one many/;
 
                         if ($relation->{type} eq 'one') {
                             $self->{"relation_instance_$relname"} = $object;
@@ -59,6 +61,13 @@ sub new {
                             my $fk = $relation->{params}{fk} or next OBJECT;
 
                             $self->$fk($object->$pk);
+                        }
+                        elsif ($relation->{type} eq 'many') {
+                            my $fk = $relation->{params}{fk};
+                            my $pk = $self->_get_primary_key;
+                            $object->$fk($self->$pk);
+
+                            $object->save;
                         }
                     }
 

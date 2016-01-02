@@ -100,10 +100,6 @@ is $cnt, 5;
 ok my $exists = Customer->exists({ first_name => 'Bob' }), 'exists';
 is $exists, 1;
 
-
-say '>>>> ' . Dumper( Customer->find({ first_name => 'Not Found' })->fetch );
-
-
 ok(!Customer->exists({ first_name => 'Not Found' }));
 is(Customer->exists({ first_name => 'Not Found' }), 0);
 

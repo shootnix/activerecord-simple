@@ -124,7 +124,6 @@ BEGIN {
 
 }
 
-
 package Customer;
 
 #use parent 'Schema';
@@ -133,8 +132,6 @@ our @ISA = qw/Schema/;
 __PACKAGE__->load_info();
 __PACKAGE__->has_many('orders' => 'Order');
 __PACKAGE__->has_many('achievements' => { 'CustomersAchievement' => 'Achievement' });
-
-
 
 
 package Order;
@@ -165,23 +162,12 @@ __PACKAGE__->belongs_to(achievement => 'Achievement');
 package main;
 
 use Test::More;
+use Data::Dumper;
 
 
-ok my $Bill = Customer->get(3), 'got Bill';
-ok my @bills_orders = $Bill->orders->fetch, 'got Bill\'s orders';
+ok my $Bill = Customer->find({ first_name => 'Bill' })->fetch, 'get Bill';
+ok $Bill->orders(Order->new({ title => 'Test smart accessor', amount => '100' }))->save;
+ok my $order = Order->find({ title => 'Test smart accessor' })->fetch, 'yep!';
 
-is scalar @bills_orders, 1;
-ok my $order = Order->get(3), 'order';
-ok $order->customer, 'the order has a customer';
-is $order->customer->id, $bills_orders[0]->id, 'id == id';
-
-ok my @achievements = $Bill->achievements->fetch;
-
-is @achievements, 3;
-isa_ok $achievements[0], 'Achievement';
-
-ok my $a = Achievement->get(1);
-ok my @customers = $a->customers->fetch;
-is @customers, 3;
 
 done_testing();
