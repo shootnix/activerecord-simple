@@ -15,9 +15,11 @@ use Module::Load;
 #use parent 'ActiveRecord::Simple::Find';
 use ActiveRecord::Simple::Find;
 use ActiveRecord::Simple::Utils;
+use ActiveRecord::Simple::Connect;
 
 
-my $dbhandler = undef;
+#my $dbhandler = undef;
+my $connector;
 
 
 sub new {
@@ -133,6 +135,42 @@ sub new {
     return bless $param || {}, $class;
 }
 
+sub load_info {
+    my ($class) = @_;
+
+    my @class_name_parts = split q/::/, $class;
+    my $class_name = $class_name_parts[-1];
+
+    my $table_name = join '-', map {
+        join('_', map {lc} grep {length} split /([A-Z]{1}[^A-Z]*)/)
+    } $class_name;
+    $table_name .= 's';
+
+    # 0. check the name
+    my $table_info_sth = $class->dbh->table_info('', '%', $table_name, 'TABLE');
+    $table_info_sth->fetchrow_hashref or croak "Can't find table '$table_name' in the database";
+
+    # 1. columns list
+    my $column_info_sth = $class->dbh->column_info(undef, undef, $table_name, undef);
+    my $cols = $column_info_sth->fetchall_arrayref({});
+    my @columns = ();
+    push @columns, $_->{COLUMN_NAME} for @$cols;
+
+    # 2. Primary key
+    my $primary_key_sth = $class->dbh->primary_key_info('', '%', $table_name);
+    my $primary_key_data = $primary_key_sth->fetchrow_hashref;
+    my $primary_key = ($primary_key_data) ? $primary_key_data->{COLUMN_NAME} : undef;
+
+    #say 'primary_key: ' . Dumper $primary_key;
+
+    # 3. Foreign keys
+    # ...
+
+    $class->table_name($table_name) if $table_name;
+    $class->primary_key($primary_key) if $primary_key;
+    $class->columns(\@columns) if @columns;
+}
+
 sub _mk_accessors {
     my ($class, $fields) = @_;
 
@@ -162,10 +200,7 @@ sub _mk_accessors {
 sub connect {
     my ($class, $dsn, $username, $password, $options) = @_;
 
-    my $dbh = DBI->connect($dsn, $username, $password, $options)
-        or croak DBI->errstr;
-
-    $class->dbh($dbh);
+    $connector = ActiveRecord::Simple::Connect->new($dsn, $username, $password, $options);
 
     return 1;
 }
@@ -237,7 +272,7 @@ sub _guess {
 
     return 'id' if $what_key eq 'primary_key';
 
-   eval { load $class };
+    eval { load $class };
 
     my $table_name = $class->_table_name;
     $table_name =~ s/s$// if $what_key eq 'foreign_key';
@@ -439,10 +474,17 @@ sub _mk_attribute_getter {
 sub dbh {
     my ($self, $dbh) = @_;
 
-    $dbhandler = $dbh if defined $dbh;
-    $dbhandler or croak 'Database handler is not set';
+    if ($dbh) {
+        if ($connector) {
+            $connector->dbh($dbh);
+        }
+        else {
+            $connector = ActiveRecord::Simple::Connect->new();
+            $connector->dbh($dbh);
+        }
+    }
 
-    return $dbhandler;
+    return $connector->dbh;
 }
 
 sub save {

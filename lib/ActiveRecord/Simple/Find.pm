@@ -363,6 +363,7 @@ sub fetch {
 
     $self->_finish_sql_stmt();
     $self->_quote_sql_stmt();
+
     my $class = $self->{class};
     my $sth = $self->dbh->prepare($self->{SQL}) or croak $self->dbh->errstr;
     $sth->execute(@{ $self->{BIND} }) or croak $self->dbh->errstr;
@@ -387,6 +388,17 @@ sub fetch {
 
         return $obj;
     }
+}
+
+sub next {
+    my ($self) = @_;
+
+    if (!$self->{_objects}) {
+        my @objects = $self->fetch();
+        $self->{_objects} = \@objects;
+    }
+
+    return (scalar @{ $self->{_objects} } > 0 ) ? $self->_get_slice($self->{_objects}) : undef;
 }
 
 sub with {
@@ -487,6 +499,7 @@ sub _find_many_to_many {
 
     my $sth = $self->dbh->prepare($self->{SQL}) or croak $self->dbh->errstr;
     $sth->execute();
+
     delete $self->{SQL};
 
     my @bulk_objects;

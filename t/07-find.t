@@ -63,6 +63,14 @@ Customer->dbh($dbh);
 my $finder = Customer->find({ first_name => 'Bob' });
 isa_ok $finder, 'ActiveRecord::Simple::Find';
 
+#while (my $bob = Customer->find({ first_name => 'Bob' })->next) {
+#	say Dumper $bob;
+#}
+my $f = Customer->find({ first_name => 'Bob' });
+while (my $bob = $f->next) {
+	say Dumper $bob;
+}
+
 ok my $Bob = Customer->find({ first_name => 'Bob' })->fetch, 'find Bob';
 
 isa_ok $Bob, 'Customer';
