@@ -96,6 +96,20 @@ Revision history for Perl module ActiveRecord::Simple
         * Fixed bugs
         * Improved tests
 
-0.80    2015
+0.80    2016-01-05
         + Added method "abstract"
         + Added method "select"
+        + Added method "update"
+        + Added method "abstract"
+        + Added method "next"
+        + Added "where in ... " condition to find
+        + Added method "connect"
+        * Improved error handling
+        * Improved "new" method
+        + Added LEFT JOIN
+        * Optimization of data fetch
+        * Improved documentation
+        + Added package method "load_info"
+        + "Smart accessors"
+        + Added cookbook
+        * Improved tests

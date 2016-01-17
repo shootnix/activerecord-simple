@@ -4,7 +4,7 @@ use 5.010;
 use strict;
 use warnings;
 
-our $VERSION = '0.69';
+our $VERSION = '0.80';
 
 use utf8;
 use Encode;
@@ -761,15 +761,38 @@ pattern. It's fast, very simple and very light.
 
 =head1 SYNOPSIS
 
-    package MyModel:Person;
+    # easy way:
 
+    package MyModel:Person;
+    use base 'ActiveRecord::Simple';
+
+    __PACKAGE__->load_info()
+
+    1;
+
+    # harcore:
+
+    package MyModel::Person;
     use base 'ActiveRecord::Simple';
 
     __PACKAGE__->table_name('persons');
-    __PACKAGE__->columns('id', 'name');
-    __PACKAGE__->primary_key('id');
-
-    1;
+    __PACKAGE__->fields(
+        id_person => {
+            data_type => 'int',
+            is_auto_increment => 1,
+            is_primary_key => 1
+        },
+        first_name => {
+            data_type => 'varchar',
+            size => 64,
+            is_nullable => 0
+        },
+        second_name => {
+            data_type => 'varchar',
+            size => 64,
+            is_nullable => 0,
+        });
+    __PACKAGE__->primary_key('id_person');
 
 That's it! Now you're ready to use your active-record class in the application:
 
@@ -795,7 +818,7 @@ That's it! Now you're ready to use your active-record class in the application:
 
     # also you can do something like this:
     my $persons = MyModel::Person->find('name = ?', 'Foo');
-    while ( my $person = $persons->fetch() ) {
+    while ( my $person = $persons->next() ) {
         say $person->name;
     }
 
@@ -1056,6 +1079,16 @@ You can use the ordering of results, such as ORDER BY, ASC and DESC:
     my @persons = MyModel::Person->find('age > ?', 21)->order_by('name')->desc->fetch();
     my @persons = MyModel::Person->find('age > ?', 21)->order_by('name', 'age')->fetch();
 
+=head2 select
+
+Yet another way to select data from the database:
+
+    my $criteria = { name => 'Bill' };
+    my $select_options = { order_by => 'id', only => ['name', 'age', 'id'] };
+
+    my @bills = Person->select($criteria, $select_options);
+
+
 =head2 count
 
 Returns count of records that match the rule:
@@ -1125,9 +1158,24 @@ Or even rigth in base class:
 This decision is up to you. Anyway, this is a singleton value, and keeps only
 once at the session.
 
-=head1 Object Methods
+=head2 connect
 
-Object methods usefull to manipulating single rows as a separate objects.
+Creates connection to the database and shares with child classes. Simple to use:
+
+    package MyModel;
+
+    use parent 'ActiveRecord::Simple';
+    __PACKAGE__->connect(...);
+
+... and then:
+
+    package MyModel::Product;
+
+    use parent 'MyModel';
+
+... and then:
+
+    my @products = MyModel::Product->find->fetch; ## you don't need to set dbh() anymore!
 
 =head2 with
 

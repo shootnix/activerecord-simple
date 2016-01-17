@@ -9,7 +9,6 @@ sub quote_sql_stmt {
 
     return unless $sql && $driver_name;
 
-    #my $driver_name = $self->dbh->{Driver}{Name};
     $driver_name //= 'Pg';
     my $quotes_map = {
         Pg => q/"/,
