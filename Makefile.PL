@@ -7,7 +7,6 @@ WriteMakefile1(
     NAME                => 'ActiveRecord::Simple',
     AUTHOR              => q{shootnix <shootnix@cpan.org>},
     VERSION_FROM        => 'lib/ActiveRecord/Simple.pm',
-    ABSTRACT_FROM       => 'lib/ActiveRecord/Simple.pm',
     LICENSE             => 'perl',
     PL_FILES            => {},
     PREREQ_PM => {

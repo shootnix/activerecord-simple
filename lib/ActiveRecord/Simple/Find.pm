@@ -9,7 +9,6 @@ use Carp;
 use Storable qw/freeze/;
 use Module::Load;
 
-use Data::Dumper;
 use parent 'ActiveRecord::Simple';
 
 

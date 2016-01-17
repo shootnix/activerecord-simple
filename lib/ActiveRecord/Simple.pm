@@ -16,12 +16,7 @@ use ActiveRecord::Simple::Find;
 use ActiveRecord::Simple::Utils;
 use ActiveRecord::Simple::Connect;
 
-
-use Data::Dumper;
-
-
 my $connector;
-
 
 sub new {
     my $class = shift;
@@ -944,6 +939,10 @@ Create an index and add it to the schema. Works only when method "fields" is usi
 
 Set name of the table. This method is required to use in the child (your model)
 classes.
+
+=head2 load_info
+
+Load table info using DBI methods: table_name, primary_key, foreign_key, columns
 
 =head2 relations [!OLD!, may be deprecated in the future]
 
