@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 
+use 5.010;
 use strict;
 use warnings;
 
@@ -36,5 +37,6 @@ ok $c->foo(4)->bar(5);
 
 is $c->foo, 4;
 is $c->bar, 5;
+
 
 done_testing();

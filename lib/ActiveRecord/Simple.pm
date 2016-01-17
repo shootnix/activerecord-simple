@@ -4,29 +4,32 @@ use 5.010;
 use strict;
 use warnings;
 
-
-our $VERSION = '0.69';
+our $VERSION = '0.80';
 
 use utf8;
 use Encode;
-use Module::Load;
 use Carp;
 use Storable qw/freeze/;
+use Module::Load;
 
-my $dbhandler = undef;
-my $TRACE = (
-    defined $ENV{ACTIVE_RECORD_SIMPLE_TRACE}
-    ||
-    defined $ENV{ARS_TRACE}
-) ? 1 : undef;
+use ActiveRecord::Simple::Find;
+use ActiveRecord::Simple::Utils;
+use ActiveRecord::Simple::Connect;
+
+
+use Data::Dumper;
+
+
+my $connector;
+
 
 sub new {
     my $class = shift;
     my $param = (scalar @_ > 1) ? {@_} : $_[0];
 
-    $class->_mk_accessors($class->_get_columns());
+    $class->_mk_accessors($class->_get_columns())
+        if $class->can('_get_columns');
 
-    use Data::Dumper;
 
     if ($class->can('_get_relations')) {
         my $relations = $class->_get_relations();
@@ -49,7 +52,8 @@ sub new {
                     for my $object (@objects) {
                         next OBJECT unless ref $object;
                         my $relation = $relations->{$relname};
-                        next OBJECT unless grep { $relation->{type} eq $_ } qw/one/;
+
+                        next OBJECT unless grep { $relation->{type} eq $_ } qw/one many/;
 
                         if ($relation->{type} eq 'one') {
                             $self->{"relation_instance_$relname"} = $object;
@@ -57,6 +61,13 @@ sub new {
                             my $fk = $relation->{params}{fk} or next OBJECT;
 
                             $self->$fk($object->$pk);
+                        }
+                        elsif ($relation->{type} eq 'many') {
+                            my $fk = $relation->{params}{fk};
+                            my $pk = $self->_get_primary_key;
+                            $object->$fk($self->$pk);
+
+                            $object->save;
                         }
                     }
 
@@ -72,7 +83,7 @@ sub new {
                         ( %{ $rel->{class} } )[1]
                         : $rel->{class};
 
-                    load $rel_class;
+                   ### load $rel_class;
 
                     ### TODO: check for relation existing
                     while (my ($rel_key, $rel_opts) = each %{ $rel_class->_get_relations }) {
@@ -133,61 +144,40 @@ sub new {
     return bless $param || {}, $class;
 }
 
-sub _find_many_to_many {
-    my ($class, $param) = @_;
+sub load_info {
+    my ($class) = @_;
 
-    return unless $class->dbh && $param;
+    my @class_name_parts = split q/::/, $class;
+    my $class_name = $class_name_parts[-1];
 
-    my $mc_fkey;
-    my $class_opts = {};
-    my $root_class_opts = {};
+    my $table_name = join '-', map {
+        join('_', map {lc} grep {length} split /([A-Z]{1}[^A-Z]*)/)
+    } $class_name;
+    $table_name .= 's';
 
-    load $param->{m_class};
+    # 0. check the name
+    my $table_info_sth = $class->dbh->table_info('', '%', $table_name, 'TABLE');
+    $table_info_sth->fetchrow_hashref or croak "Can't find table '$table_name' in the database";
 
-    for my $opts ( values %{ $param->{m_class}->_get_relations } ) {
-        if ($opts->{class} eq $param->{root_class}) {
-            $root_class_opts = $opts;
-        }
-        elsif ($opts->{class} eq $class) {
-            $class_opts = $opts;
-        }
-    }
+    # 1. columns list
+    my $column_info_sth = $class->dbh->column_info(undef, undef, $table_name, undef);
+    my $cols = $column_info_sth->fetchall_arrayref({});
+    my @columns = ();
+    push @columns, $_->{COLUMN_NAME} for @$cols;
 
-    my $connected_table_name = $class->_get_table_name;
-    my $sql_stm;
-    $sql_stm .=
-        'SELECT ' .
-        "$connected_table_name\.*" .
-        ' FROM ' .
-        $param->{m_class}->_get_table_name .
-        ' JOIN ' .
-        $connected_table_name .
-        ' ON ' .
-        $connected_table_name . '.' . $class->_get_primary_key .
-        ' = ' .
-        $param->{m_class}->_get_table_name . '.' . $class_opts->{params}{fk} .
-        ' WHERE ' .
-        $root_class_opts->{params}{fk} .
-        ' = ' .
-        $param->{self}->{ $param->{root_class}->_get_primary_key };
+    # 2. Primary key
+    my $primary_key_sth = $class->dbh->primary_key_info('', '%', $table_name);
+    my $primary_key_data = $primary_key_sth->fetchrow_hashref;
+    my $primary_key = ($primary_key_data) ? $primary_key_data->{COLUMN_NAME} : undef;
 
-    my $container_class = $class->new();
-    my $self = bless {}, $class;
-    $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; #say $self->{SQL} if $TRACE;
-    $self->_trace_sql;
+    #say 'primary_key: ' . Dumper $primary_key;
 
-    my $resultset = $class->dbh->selectall_arrayref($self->{SQL}, { Slice => {} });
-    my @bulk_objects;
-    for my $params (@$resultset) {
-        my $obj = $class->new($params);
+    # 3. Foreign keys
+    # ...
 
-        $obj->{isin_database} = 1;
-        push @bulk_objects, $obj;
-    }
-
-    $container_class->{_objects} = \@bulk_objects;
-
-    return $container_class;
+    $class->table_name($table_name) if $table_name;
+    $class->primary_key($primary_key) if $primary_key;
+    $class->columns(\@columns) if @columns;
 }
 
 sub _mk_accessors {
@@ -203,10 +193,6 @@ sub _mk_accessors {
         next FIELD if $class->can($pkg_accessor_name);
         *{$pkg_accessor_name} = sub {
             if ( scalar @_ > 1 ) {
-                $class->_validate_field($f, $_[1])
-                    or croak "Validation error for `$f`: " . $class->_get_validation_error;
-
-
                 $_[0]->{$f} = $_[1];
 
                 return $_[0];
@@ -220,47 +206,12 @@ sub _mk_accessors {
     return 1;
 }
 
-sub _validate_field {
-    my ($class, $name, $val) = @_;
+sub connect {
+    my ($class, $dsn, $username, $password, $options) = @_;
 
-    return 1 unless $class->can('_get_schema_table');
-
-    my $fld = $class->_get_schema_table->get_field($name);
-
-    my $check_result = _check($val, {
-        data_type     => $fld->{data_type},
-        is_nullable   => $fld->{is_nullable},
-        size          => $fld->{size},
-        default_value => $fld->{default_value},
-    });
-
-    if ($check_result->{error}) {
-        $class->_mk_attribute_getter('_get_validation_error', $check_result->{error});
-
-        return;
-    }
+    $connector = ActiveRecord::Simple::Connect->new($dsn, $username, $password, $options);
 
     return 1;
-}
-
-sub _check {
-    my ($val, $fld) = @_;
-
-    if (exists $fld->{is_nullable}) {
-        _check_for_null(
-            $val,
-            $fld->{is_nullable},
-            (exists $fld->{default_value} && defined $fld->{default_value})
-        )
-        or return { error => "Can't be null" };
-    }
-
-    if (exists $fld->{data_type}) {
-        _check_for_data_type($val, $fld->{data_type}, $fld->{size})
-            or return { error => "Invalid value for type " . $fld->{data_type} };
-    }
-
-    return { result => 1 };
 }
 
 sub belongs_to {
@@ -285,13 +236,13 @@ sub belongs_to {
         fk => $foreign_key,
     };
 
-    if ($class->can('_get_schema_table') && $class->can('_get_primary_key')) {
-        load $rel_class;
-        $class->_get_schema_table->add_constraint(
+    if ($class->can('_get_table_schema') && $class->can('_get_primary_key')) {
+       ### load $rel_class;
+        $class->_get_table_schema->add_constraint(
             type => 'foreign_key',
             fields => $params, ### TODO: !!!this is wrong!!!
             reference_fields => $class->_get_primary_key,
-            reference_table => $rel_class->_get_table_name,
+            reference_table => $rel_class->_table_name,
             on_delete => 'cascade'
         );
     }
@@ -330,10 +281,18 @@ sub _guess {
 
     return 'id' if $what_key eq 'primary_key';
 
-    load $class;
+    eval { load $class };
 
-    my $table_name = $class->_get_table_name;
+    my $table_name = $class->_table_name;
+    $table_name =~ s/s$// if $what_key eq 'foreign_key';
+
     return ($what_key eq 'foreign_key') ? "$table_name\_id" : undef;
+}
+
+sub _delete_keys {
+    my ($self, $rx) = @_;
+
+    map { delete $self->{$_} if $_ =~ $rx } keys %$self;
 }
 
 sub has_one {
@@ -370,12 +329,12 @@ sub as_sql {
     eval { require SQL::Translator }
       || croak('Please install SQL::Translator to use this feature.');
 
-    $class->can('_get_schema_table')
+    $class->can('_get_table_schema')
         or return;
 
     my $t = SQL::Translator->new;
     my $schema = $t->schema;
-    $schema->add_table($class->_get_schema_table);
+    $schema->add_table($class->_get_table_schema);
 
     $t->producer($producer_name || 'PostgreSQL', %args);
 
@@ -399,7 +358,6 @@ sub _append_relation {
 
     if ($class->can('_get_relations')) {
         my $relations = $class->_get_relations();
-
         $relations->{$rel_name} = $rel_hashref;
         $class->relations($relations);
     }
@@ -429,16 +387,7 @@ sub columns {
         }
     }
     elsif (scalar @args > 1) {
-        if (@args % 2 == 0) {
-            # hash of hashes
-            my %fields = @args;
-            $class->fields(%fields);
-        }
-        else {
-            # or plain array?
-            push @$columns, @args;
-        }
-
+        push @$columns, @args;
     }
 
     $class->_mk_attribute_getter('_get_columns', $columns);
@@ -452,22 +401,22 @@ sub fields {
 
     my $sql_translator = SQL::Translator->new(no_comments => 1);
     my $schema = $sql_translator->schema;
-    my $table = $schema->add_table(name => $class->_get_table_name);
+    my $table = $schema->add_table(name => $class->_table_name);
 
     FIELD:
     for my $field (keys %fields) {
         $table->add_field(name => $field, %{ $fields{$field} });
     }
 
-    $class->_mk_attribute_getter('_get_schema_table', $table);
+    $class->_mk_attribute_getter('_get_table_schema', $table);
     $class->columns([keys %fields]);
 }
 
 sub index {
     my ($class, $index_name, $fields) = @_;
 
-    if ($class->can('_get_schema_table')) {
-        $class->_get_schema_table->add_index(
+    if ($class->can('_get_table_schema')) {
+        $class->_get_table_schema->add_index(
             name => $index_name,
             fields => $fields
         );
@@ -478,8 +427,8 @@ sub primary_key {
     my ($class, $primary_key) = @_;
 
     $class->_mk_attribute_getter('_get_primary_key', $primary_key);
-    $class->_get_schema_table->primary_key($primary_key)
-        if $class->can('_get_schema_table')
+    $class->_get_table_schema->primary_key($primary_key)
+        if $class->can('_get_table_schema')
 }
 
 sub secondary_key {
@@ -492,6 +441,19 @@ sub table_name {
     my ($class, $table_name) = @_;
 
     $class->_mk_attribute_getter('_get_table_name', $table_name);
+}
+
+sub _table_name {
+    my $class = ref $_[0] ? ref $_[0] : $_[0];
+
+    croak 'Invalid data class' if $class =~ /^ActiveRecord::Simple/;
+
+    my $table_name =
+        $class->can('_get_table_name') ?
+            $class->_get_table_name
+            : ActiveRecord::Simple::Utils::class_to_table_name($class);
+
+    return $table_name;
 }
 
 sub use_smart_saving {
@@ -521,99 +483,17 @@ sub _mk_attribute_getter {
 sub dbh {
     my ($self, $dbh) = @_;
 
-    $dbhandler = $dbh if defined $dbh;
-
-    return $dbhandler;
-}
-
-sub count {
-    my ($class, @param) = @_;
-
-    my $self = bless {}, $class;
-    my $table_name = $class->_get_table_name;
-    my ($count, $sql, @bind);
-    if (scalar @param == 0) {
-        $self->{SQL} = qq/SELECT COUNT(*) FROM "$table_name"/;
-    }
-    elsif (scalar @param == 1) {
-        my $params_hash = shift @param;
-        return unless ref $params_hash eq 'HASH';
-
-        my @condition_pairs;
-        for my $param_name (keys %$params_hash) {
-            if (ref $params_hash->{$param_name} eq 'ARRAY') {
-                my $instr = join q/, /, map { '?' } @{ $params_hash->{$param_name} };
-                push @condition_pairs, qq/"$table_name"."$param_name" IN ($instr)/;
-                push @bind, @{ $params_hash->{$param_name} };
-            }
-            else {
-                push @condition_pairs, qq/"$table_name"."$param_name" = ?/;
-                push @bind, $params_hash->{$param_name};
-            }
+    if ($dbh) {
+        if ($connector) {
+            $connector->dbh($dbh);
         }
-        my $wherestr = (scalar @condition_pairs > 0 ) ? ' WHERE ' . join(q/ AND /, @condition_pairs) : '';
-        $self->{SQL} = qq/SELECT COUNT(*) FROM "$table_name" $wherestr/;
+        else {
+            $connector = ActiveRecord::Simple::Connect->new();
+            $connector->dbh($dbh);
+        }
     }
-    elsif (scalar @param > 1) {
-        my $wherestr = shift @param;
-        @bind = @param;
 
-        $self->{SQL} = qq/SELECT COUNT(*) FROM "$table_name" WHERE $wherestr/;
-    }
-    $self->_quote_sql_stmt; $self->_trace_sql;
-    $count = $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
-
-    return $count;
-}
-
-sub exists {
-    my ($ref, @params) = @_;
-
-    if (ref $ref) {
-        ### object method
-        return $ref->_is_exists_in_database;
-    }
-    # else
-    return $ref->find(@params)->fetch;
-}
-
-sub first {
-    my ($class, $limit) = @_;
-
-    $class->can('_get_primary_key') or croak 'Can\'t use "first" without primary key';
-    my $primary_key = $class->_get_primary_key;
-    $limit //= 1;
-
-    return $class->find->order_by($primary_key)->limit($limit);
-}
-
-sub last {
-    my ($class, $limit) = @_;
-
-    $class->can('_get_primary_key') or croak 'Can\'t use "first" without primary key';
-    my $primary_key = $class->_get_primary_key;
-    $limit //= 1;
-
-    return $class->find->order_by($primary_key)->desc->limit($limit);
-}
-
-sub _quote_sql_stmt {
-    my ($self) = @_;
-
-    return unless $self->{SQL} && $self->dbh;
-
-    my $driver_name = $self->dbh->{Driver}{Name};
-    $driver_name //= 'Pg';
-    my $quotes_map = {
-        Pg => q/"/,
-        mysql => q/`/,
-        SQLite => q/`/,
-    };
-    my $quote = $quotes_map->{$driver_name};
-
-    $self->{SQL} =~ s/"/$quote/g;
-
-    return 1;
+    return $connector->dbh;
 }
 
 sub save {
@@ -631,11 +511,13 @@ sub save {
 
     my $save_param = {};
     my $fields = $self->_get_columns;
+
     my $pkey = ($self->can('_get_primary_key')) ? $self->_get_primary_key : undef;
 
     FIELD:
     for my $field (@$fields) {
         next FIELD if defined $pkey && $field eq $pkey && !$self->{$pkey};
+        next FIELD if ref $field && ref $field eq 'HASH';
         $save_param->{$field} = $self->{$field};
     }
 
@@ -672,7 +554,7 @@ sub _insert {
 
     return unless $self->dbh && $param;
 
-    my $table_name  = $self->_get_table_name;
+    my $table_name  = $self->_table_name;
     my @field_names  = grep { defined $param->{$_} } sort keys %$param;
     my $primary_key = ($self->can('_get_primary_key')) ? $self->_get_primary_key :
                       ($self->can('_get_secondary_key')) ? $self->_get_secondary_key : undef;
@@ -689,25 +571,22 @@ sub _insert {
 
     if ( $self->dbh->{Driver}{Name} eq 'Pg' ) {
         if ($primary_key) {
-            $sql_stm .= ' RETURNING ' . $primary_key if $primary_key;
-            $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; #say $self->{SQL} if $TRACE;
-            $self->_trace_sql;
-
-            $pkey_val = $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
+            $sql_stm .= ' RETURINIG ' . $primary_key if $primary_key;
+            $sql_stm = ActiveRecord::Simple::Utils::quote_sql_stmt($sql_stm, $self->dbh->{Driver}{Name});
+            $pkey_val = $self->dbh->selectrow_array($sql_stm, undef, @bind);
         }
         else {
-            $self->{SQL} = $sql_stm; $self->_quote_sql_stmt;# say $self->{SQL} if $TRACE;
-            $self->_trace_sql;
-            my $sth = $self->dbh->prepare($self->{SQL});
+            my $sth = $self->dbh->prepare(
+                ActiveRecord::Simple::Utils::quote_sql_stmt($sql_stm, $self->dbh->{Driver}{Name})
+            );
 
             $sth->execute(@bind);
         }
     }
     else {
-        $self->{SQL} = $sql_stm; $self->_quote_sql_stmt(); #say $self->{SQL} if $TRACE;
-        $self->_trace_sql;
-
-        my $sth = $self->dbh->prepare($self->{SQL});
+        my $sth = $self->dbh->prepare(
+            ActiveRecord::Simple::Utils::quote_sql_stmt($sql_stm, $self->dbh->{Driver}{Name})
+        );
         $sth->execute(@bind);
 
         if ( $primary_key && defined $self->{$primary_key} ) {
@@ -731,7 +610,7 @@ sub _update {
 
     return unless $self->dbh && $param;
 
-    my $table_name      = $self->_get_table_name;
+    my $table_name      = $self->_table_name;
     my @field_names     = sort keys %$param;
     my $primary_key     = ($self->can('_get_primary_key')) ? $self->_get_primary_key :
                           ($self->can('_get_secondary_key')) ? $self->_get_secondary_key : undef;
@@ -740,15 +619,16 @@ sub _update {
     my @bind = map { $param->{$_} } @field_names;
     push @bind, $self->{$primary_key};
 
-    my $sql_stm = qq{
-        UPDATE "$table_name" SET $setstring
-        WHERE
-            $primary_key = ?
-    };
-    $self->{SQL} = $sql_stm; $self->_quote_sql_stmt; #say $self->{SQL} if $TRACE;
-    $self->_trace_sql;
+    my $sql_stm = ActiveRecord::Simple::Utils::quote_sql_stmt(
+        qq{
+            UPDATE "$table_name" SET $setstring
+            WHERE
+                $primary_key = ?
+        },
+        $self->dbh->{Driver}{Name}
+    );
 
-    return $self->dbh->do($self->{SQL}, undef, @bind);
+    return $self->dbh->do($sql_stm, undef, @bind);
 }
 
 # param:
@@ -758,8 +638,9 @@ sub delete {
 
     return unless $self->dbh;
 
-    my $table_name = $self->_get_table_name;
+    my $table_name = $self->_table_name;
     my $pkey = $self->_get_primary_key;
+
     return unless $self->{$pkey};
 
     my $sql = qq{
@@ -768,9 +649,9 @@ sub delete {
     $sql .= ' CASCADE ' if $param && $param->{cascade};
 
     my $res = undef;
-    $self->{SQL} = $sql; $self->_quote_sql_stmt; #say $self->{SQL} if $TRACE;
-    $self->_trace_sql;
-    if ( $self->dbh->do($self->{SQL}, undef, $self->{$pkey}) ) {
+    $sql = ActiveRecord::Simple::Utils::quote_sql_stmt($sql, $self->dbh->{Driver}{Name});
+
+    if ( $self->dbh->do($sql, undef, $self->{$pkey}) ) {
         $self->{isin_database} = undef;
         delete $self->{$pkey};
 
@@ -780,407 +661,10 @@ sub delete {
     return $res;
 }
 
-sub find {
-    my ($class, @param) = @_;
-
-    my $self = $class->new();
-
-    my $table_name = ($self->can('_get_table_name'))  ? $self->_get_table_name  : undef;
-    my $pkey       = ($self->can('_get_primary_key')) ? $self->_get_primary_key : undef;
-
-    $self->{prep_select_fields} //= [];
-    $self->{prep_select_from}   //= [];
-    $self->{prep_select_where}  //= [];
-
-    my ($fields, $from, $where);
-
-    if (!ref $param[0] && scalar @param == 1) {
-        $fields = qq/"$table_name".*/;
-        $from   = qq/"$table_name"/;
-        $where  = qq/"$table_name"."$pkey" = ?/;
-
-        $self->{BIND} = \@param
-    }
-    elsif (!ref $param[0] && scalar @param == 0) {
-        $fields = qq/"$table_name".*/;
-        $from   = qq/"$table_name"/;
-
-        $self->{BIND} = undef;
-    }
-    elsif (ref $param[0] && ref $param[0] eq 'HASH') {
-        # find many by params
-        my ($where_str, @bind, @condition_pairs);
-        for my $param_name (keys %{ $param[0] }) {
-            if (ref $param[0]{$param_name}) {
-                my $instr = join q/, /, map { '?' } @{ $param[0]{$param_name} };
-                push @condition_pairs, qq/"$table_name"."$param_name" IN ($instr)/;
-                push @bind, @{ $param[0]{$param_name} };
-            }
-            else {
-                push @condition_pairs, qq/"$table_name"."$param_name" = ?/;
-                push @bind, $param[0]{$param_name};
-            }
-        }
-        $where_str = join q/ AND /, @condition_pairs;
-
-        $fields = qq/"$table_name".*/;
-        $from   = qq/"$table_name"/;
-        $where  = $where_str;
-
-        $self->{BIND} = \@bind;
-    }
-    elsif (ref $param[0] && ref $param[0] eq 'ARRAY') {
-        # find many by primary keys
-        my $whereinstr = join ', ', @{ $param[0] };
-
-        $fields = qq/"$table_name".*/;
-        $from   = qq/"$table_name"/;
-        $where  = qq/"$table_name"."$pkey" IN ($whereinstr)/;
-
-        $self->{BIND} = undef;
-    }
-    else {
-        # find many by condition
-        my $wherestr = shift @param;
-
-        $fields = qq/"$table_name".*/;
-        $from   = qq/"$table_name"/;
-        $where  = $wherestr;
-
-        $self->{BIND} = \@param;
-    }
-
-    push @{ $self->{prep_select_fields} }, $fields if $fields;
-    push @{ $self->{prep_select_from} }, $from if $from;
-    push @{ $self->{prep_select_where} }, $where if $where;
-
-    return $self;
-}
-
-sub only {
-    my ($self, @fields) = @_;
-
-    scalar @fields > 0 or croak 'Not defined fields for method "only"';
-    exists $self->{prep_select_fields}
-        or croak 'Not executed method "find" before "only"';
-
-    if ($self->can('_get_primary_key')) {
-        push @fields, $self->_get_primary_key;
-    }
-
-    my $table_name = $self->_get_table_name;
-
-    my @filtered_prep_select_fields =
-        grep {
-            $_ ne qq/"$table_name".*/
-        }
-        @{ $self->{prep_select_fields} };
-    push @filtered_prep_select_fields, map { qq/"$table_name"."$_"/ } @fields;
-    $self->{prep_select_fields} = \@filtered_prep_select_fields;
-
-    return $self;
-}
-
-sub to_sql {
-    my ($self) = @_;
-
-    $self->_finish_sql_stmt();
-    $self->_quote_sql_stmt();
-
-    return wantarray ? ($self->{SQL}, $self->{BIND}) : $self->{SQL};
-}
-
-sub fetch {
-    my ($self, $param) = @_;
-
-    my ($read_only, $limit);
-    if (ref $param eq 'HASH') {
-        $limit     = $param->{limit};
-        $read_only = $param->{read_only};
-    }
-    else {
-        $limit = $param;
-    }
-
-    if (not exists $self->{_objects}) {
-        $self->_finish_sql_stmt();
-        $self->_quote_sql_stmt();
-        $self->_trace_sql;
-        #say $self->{SQL} if $TRACE;
-        #say join q/, /, @{ $self->{BIND} } if $TRACE;
-
-        my @objects;
-        my $resultset =
-            $self->dbh->selectall_arrayref(
-                $self->{SQL},
-                { Slice => {} },
-                @{ $self->{BIND}}
-            );
-
-        return unless defined $resultset
-                      && ref $resultset eq 'ARRAY'
-                      && scalar @$resultset > 0;
-
-        my $class = ref $self;
-        for my $object_data (@$resultset) {
-            my $obj = bless $object_data, $class;
-
-            if ($self->{has_joined_table}) {
-                RELATION:
-                for my $rel_name (@{ $self->{with} }) {
-                    my $relation = $self->_get_relations->{$rel_name}
-                        or next RELATION;
-
-                    my %pairs =
-                        map { $_, $object_data->{$_} }
-                            grep { $_ =~ /^JOINED\_$rel_name\_/ }
-                                keys %$object_data;
-
-                    next RELATION unless %pairs;
-
-                    for my $key (keys %pairs) {
-                        my $val = delete $pairs{$key};
-                        $key =~ s/^JOINED\_$rel_name\_//;
-                        $pairs{$key} = $val;
-                    }
-                    $obj->{"relation_instance_$rel_name"} =
-                        $relation->{class}->new(\%pairs);
-                        #bless \%pairs, $relation->{class};
-
-                    $obj->_delete_keys(qr/^JOINED\_$rel_name/);
-                }
-
-                delete $self->{has_joined_table};
-            }
-
-            $obj->{read_only} = 1 if defined $read_only;
-            $obj->{snapshoot} = freeze($object_data) if $obj->_smart_saving_used;
-            $obj->{isin_database} = 1;
-
-            push @objects, $obj;
-        }
-
-        $self->{_objects} = \@objects;
-    }
-
-    return $self->_get_slice($limit);
-}
-
-sub _get_slice {
-    my ($self, $time) = @_;
-
-    return unless $self->{_objects}
-        && ref $self->{_objects} eq 'ARRAY'
-        && scalar @{ $self->{_objects} } > 0;
-
-    if (wantarray) {
-        $time ||= scalar @{ $self->{_objects} };
-        return splice @{ $self->{_objects} }, 0, $time;
-    }
-    else {
-        return shift @{ $self->{_objects} };
-    }
-}
-
-sub order_by {
-    my ($self, @param) = @_;
-
-    #return if not defined $self->{SQL}; ### TODO: die
-    return $self if exists $self->{prep_order_by};
-
-    $self->{prep_order_by} = \@param;
-
-    return $self;
-}
-
-# same as "with"
-sub left_join { shift->with(@_) }
-
-sub desc {
-    my ($self) = @_;
-
-    #return if not defined $self->{SQL};
-    return $self if exists $self->{prep_desc};
-
-    $self->{prep_desc} = 1;
-
-    return $self;
-}
-
-sub asc {
-    my ($self, @param) = @_;
-
-    #return if not defined $self->{SQL};
-    return $self if exists $self->{prep_asc};
-
-    $self->{prep_asc} = 1;
-
-    return $self;
-}
-
-sub limit {
-    my ($self, $limit) = @_;
-
-    #return if not defined $self->{SQL};
-    return $self if exists $self->{prep_limit};
-
-    $self->{prep_limit} = $limit; ### TODO: move $limit to $self->{BIND}
-
-    return $self;
-}
-
-sub offset {
-    my ($self, $offset) = @_;
-
-    #return if not defined $self->{SQL};
-    return $self if exists $self->{prep_offset};
-
-    $self->{prep_offset} = $offset; ### TODO: move $offset to $self->{BIND}
-
-    return $self;
-}
-
-sub with {
-    my ($self, @rels) = @_;
-
-    return $self if exists $self->{prep_left_joins};
-    return $self unless @rels;
-
-    $self->can('_get_relations')
-        or die "Class doesn't have any relations";
-
-    my $table_name = $self->_get_table_name;
-
-    $self->{prep_left_joins} = [];
-    $self->{with} = \@rels;
-    RELATION:
-    for my $rel_name (@rels) {
-        my $relation = $self->_get_relations->{$rel_name}
-            or next RELATION;
-
-        next RELATION unless grep { $_ eq $relation->{type} } qw/one only/;
-        my $rel_table_name = $relation->{class}->_get_table_name;
-
-        my $rel_columns = $relation->{class}->_get_columns;
-
-        #push @{ $self->{prep_select_fields} }, qq/"$rel_table_name".*/;
-        push @{ $self->{prep_select_fields} },
-            map { qq/"$rel_table_name"."$_" AS "JOINED_$rel_name\_$_"/  }
-                @{ $relation->{class}->_get_columns };
-
-        if ($relation->{type} eq 'one') {
-            my $join_sql = qq/LEFT JOIN "$rel_table_name" ON /;
-            $join_sql .= qq/"$rel_table_name"."$relation->{params}{pk}"/;
-            $join_sql .= qq/ = "$table_name"."$relation->{params}{fk}"/;
-
-            push @{ $self->{prep_left_joins} }, $join_sql;
-        }
-    }
-
-    return $self;
-}
-
-sub abstract {
-    my ($self, $opts) = @_;
-
-    return $self if ! ref $opts && ref $opts ne 'HASH';
-
-    while (my ($method, $param) = each %$opts) {
-        my @p = (ref $param) ? @$param : ($param);
-        $self->$method(@p);
-    }
-
-    return $self;
-}
-
-sub _finish_sql_stmt {
-    my ($self) = @_;
-
-    $self->{SQL} = "SELECT " . (join q/, /, @{ $self->{prep_select_fields} }) . "\n";
-    $self->{SQL} .= "FROM " . (join q/, /, @{ $self->{prep_select_from} }) . "\n";
-
-    if (defined $self->{prep_left_joins}) {
-        $self->{SQL} .= "$_\n" for @{ $self->{prep_left_joins} };
-        $self->{has_joined_table} = 1;
-    }
-
-    if (
-        defined $self->{prep_select_where}
-        && ref $self->{prep_select_where} eq 'ARRAY'
-        && scalar @{ $self->{prep_select_where} } > 0
-    ) {
-        $self->{SQL} .= "WHERE\n";
-        $self->{SQL} .= join " AND ", @{ $self->{prep_select_where} };
-    }
-
-    if (defined $self->{prep_order_by}) {
-        $self->{SQL} .= ' ORDER BY ';
-        $self->{SQL} .= join q/, /, map { q/"/.$_.q/"/ } @{ $self->{prep_order_by} };
-    }
-
-    if (defined $self->{prep_desc}) {
-        $self->{SQL} .= ' DESC';
-    }
-
-    if (defined $self->{prep_asc}) {
-        $self->{SQL} .= ' ACS';
-    }
-
-    if (defined $self->{prep_limit}) {
-        $self->{SQL} .= ' LIMIT ' . $self->{prep_limit};
-    }
-
-    if (defined $self->{prep_offset}) {
-        $self->{SQL} .= ' OFFSET ' . $self->{prep_offset};
-    }
-
-    $self->_delete_keys(qr/^prep\_/);
-}
-
-sub _delete_keys {
-    my ($self, $rx) = @_;
-
-    map { delete $self->{$_} if $_ =~ $rx } keys %$self;
-}
-
 sub is_defined {
     my ($self) = @_;
 
     return grep { defined $self->{$_} } @{ $self->_get_columns };
-}
-
-# param:
-#      name => .., id => .., <something_else> => ...
-sub _is_exists_in_database {
-    my ($self, $param) = @_;
-
-    return unless $self->dbh;
-
-    $param ||= $self->to_hash({ only_defined_fields => 1 });
-
-    my $table_name = $self->_get_table_name;
-    my @fields = sort keys %$param;
-    my $where_str = join q/ AND /, map { q/"/. $_ . q/"/ .' = ?' } @fields;
-    my @bind;
-    for my $f (@fields) {
-        push @bind, $self->$f;
-    }
-
-    my $sql = qq{
-        SELECT 1 FROM "$table_name"
-        WHERE
-            $where_str
-    };
-    $self->{SQL} = $sql; $self->_quote_sql_stmt; #say $self->{SQL} if $TRACE;
-    $self->_trace_sql;
-
-    return $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
-}
-
-sub get {
-    my ($class, $pkeyval) = @_;
-
-    return $class->find($pkeyval)->fetch();
 }
 
 # param:
@@ -1193,6 +677,7 @@ sub to_hash {
     my $attrs = {};
 
     for my $field (@$field_names) {
+        next if ref $field;
         if ( $param && $param->{only_defined_fields} ) {
             $attrs->{$field} = $self->{$field} if $self->$field;
         }
@@ -1228,107 +713,38 @@ sub decrement {
     return $self;
 }
 
-sub _check_for_null {
-    my ($val, $is_nullable, $has_default_value) = @_;
+#### Find ####
 
-    if ($is_nullable == 0 && (not defined $val or $val eq '')) {
-        return $has_default_value ? 1 : undef;
-    }
-    # else
-    return 1;
-}
+sub find   { ActiveRecord::Simple::Find->new(shift, @_) }
+sub get    { shift->find(@_)->fetch } ### TODO: move to Finder
+sub count  { ActiveRecord::Simple::Find->count(shift, @_) }
 
-sub _check_for_data_type {
-    my ($val, $data_type, $size) = @_;
+sub exists {
+    my $first_arg = shift;
 
-    return 1 unless $data_type;
-
-    my %TYPE_CHECKS = (
-        int      => \&_check_int,
-        integer  => \&_check_int,
-        tinyint  => \&_check_int,
-        smallint => \&_check_int,
-        bigint   => \&_check_int,
-
-        double => \&_check_numeric,
-       'double precision' => \&_check_numeric,
-
-        decimal => \&_check_numeric,
-        dec => \&_check_numeric,
-        numeric => \&_check_numeric,
-
-        real => \&_check_float,
-        float => \&_check_float,
-
-        bit => \&_check_bit,
-
-        date => \&_check_DUMMY, # DUMMY
-        datetime => \&_check_DUMMY, # DUMMY
-        timestamp => \&_check_DUMMY, # DUMMY
-        time => \&_check_DUMMY, # DUMMY
-
-        char => \&_check_char,
-        varchar => \&_check_varchar,
-
-        binary => \&_check_DUMMY, # DUMMY
-        varbinary => \&_check_DUMMY, # DUMMY
-        tinyblob => \&_check_DUMMY, # DUMMY
-        blob => \&_check_DUMMY, # DUMMY
-        text => \&_check_DUMMY,
-    );
-
-    return (exists $TYPE_CHECKS{$data_type}) ? $TYPE_CHECKS{$data_type}->($val, $size) : 1;
-}
-
-sub _check_DUMMY { 1 }
-sub _check_int { shift =~ /^\d+$/ }
-sub _check_varchar {
-    my ($val, $size) = @_;
-
-    return length $val <= $size->[0];
-}
-sub _check_char {
-    my ($val, $size) = @_;
-
-    return length $val == $size->[0];
-}
-sub _check_float { shift =~ /^\d+\.\d+$/ }
-
-sub _check_numeric {
-    my ($val, $size) = @_;
-
-    return 1 unless
-        defined $size &&
-        ref $size eq 'ARRAY' &&
-        scalar @$size == 2;
-
-    my ($first, $last) = $val =~ /^(\d+)\.(\d+)$/;
-
-    $first && length $first <= $size->[0] or return;
-    $last && length $last <= $size->[1] or return;
-
-    return 1;
-}
-
-sub _check_bit {
-    my ($val) = @_;
-
-    return ($val == 0 || $val == 1) ? 1 : undef;
-}
-
-sub _trace_sql {
-    my ($self) = @_;
-
-    return unless $TRACE;
-
-    say $self->{SQL};
-    if ($self->{BIND} && ref $self->{BIND} eq 'ARRAY') {
-        say join q/, /, @{ $self->{BIND} };
+    my ($class, @search_criteria);
+    if (ref $first_arg) {
+        # object method
+        $class = ref $first_arg;
+        push @search_criteria, $first_arg->to_hash({ only_defined_fields => 1 });
     }
     else {
-        say '-- no binded values --';
+        $class = $first_arg;
+        @search_criteria = @_;
     }
+
+    return (defined $class->find(@search_criteria)->fetch) ? 1 : 0;
 }
+
+sub first  { ActiveRecord::Simple::Find->first(@_) }
+sub last   { ActiveRecord::Simple::Find->last(@_) }
+sub select { ActiveRecord::Simple::Find->select(shift, @_) }
+
+sub _find_many_to_many { ActiveRecord::Simple::Find->_find_many_to_many(shift, @_) }
+
+
+### Private
+
 
 1;
 
@@ -1345,15 +761,38 @@ pattern. It's fast, very simple and very light.
 
 =head1 SYNOPSIS
 
-    package MyModel:Person;
+    # easy way:
 
+    package MyModel:Person;
+    use base 'ActiveRecord::Simple';
+
+    __PACKAGE__->load_info()
+
+    1;
+
+    # harcore:
+
+    package MyModel::Person;
     use base 'ActiveRecord::Simple';
 
     __PACKAGE__->table_name('persons');
-    __PACKAGE__->columns('id', 'name');
-    __PACKAGE__->primary_key('id');
-
-    1;
+    __PACKAGE__->fields(
+        id_person => {
+            data_type => 'int',
+            is_auto_increment => 1,
+            is_primary_key => 1
+        },
+        first_name => {
+            data_type => 'varchar',
+            size => 64,
+            is_nullable => 0
+        },
+        second_name => {
+            data_type => 'varchar',
+            size => 64,
+            is_nullable => 0,
+        });
+    __PACKAGE__->primary_key('id_person');
 
 That's it! Now you're ready to use your active-record class in the application:
 
@@ -1379,7 +818,7 @@ That's it! Now you're ready to use your active-record class in the application:
 
     # also you can do something like this:
     my $persons = MyModel::Person->find('name = ?', 'Foo');
-    while ( my $person = $persons->fetch() ) {
+    while ( my $person = $persons->next() ) {
         say $person->name;
     }
 
@@ -1640,6 +1079,16 @@ You can use the ordering of results, such as ORDER BY, ASC and DESC:
     my @persons = MyModel::Person->find('age > ?', 21)->order_by('name')->desc->fetch();
     my @persons = MyModel::Person->find('age > ?', 21)->order_by('name', 'age')->fetch();
 
+=head2 select
+
+Yet another way to select data from the database:
+
+    my $criteria = { name => 'Bill' };
+    my $select_options = { order_by => 'id', only => ['name', 'age', 'id'] };
+
+    my @bills = Person->select($criteria, $select_options);
+
+
 =head2 count
 
 Returns count of records that match the rule:
@@ -1709,9 +1158,24 @@ Or even rigth in base class:
 This decision is up to you. Anyway, this is a singleton value, and keeps only
 once at the session.
 
-=head1 Object Methods
+=head2 connect
 
-Object methods usefull to manipulating single rows as a separate objects.
+Creates connection to the database and shares with child classes. Simple to use:
+
+    package MyModel;
+
+    use parent 'ActiveRecord::Simple';
+    __PACKAGE__->connect(...);
+
+... and then:
+
+    package MyModel::Product;
+
+    use parent 'MyModel';
+
+... and then:
+
+    my @products = MyModel::Product->find->fetch; ## you don't need to set dbh() anymore!
 
 =head2 with
 
@@ -1944,7 +1408,7 @@ L<https://github.com/shootnix/activerecord-simple/wiki>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2013 shootnix.
+Copyright 2013-2016 shootnix.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
