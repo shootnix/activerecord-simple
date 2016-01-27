@@ -93,7 +93,12 @@ sub _check_for_data_type {
 }
 
 sub _check_DUMMY { 1 }
-sub _check_int { shift =~ /^\d+$/ }
+sub _check_int {
+    my ($int) = @_;
+    no warnings 'numeric';
+    return 0 unless ($int eq int($int));
+    return 1;
+}
 sub _check_varchar {
     my ($val, $size) = @_;
 
