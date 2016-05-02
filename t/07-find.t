@@ -7,8 +7,11 @@ use 5.010;
 use FindBin '$Bin';
 use lib "$Bin/../lib";
 use Data::Dumper;
+use Test::More;
 
 use DBI;
+
+eval { require DBD::SQLite } or plan skip_all => 'Need DBD::SQLite for testing';
 
 
 package Customer;
@@ -55,9 +58,6 @@ my $_DATA_SQL = q{
 
 $dbh->do($_INIT_SQL);
 $dbh->do($_DATA_SQL);
-
-
-use Test::More;
 
 Customer->dbh($dbh);
 my $finder = Customer->find({ first_name => 'Bob' });

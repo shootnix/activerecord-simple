@@ -64,6 +64,7 @@ package main;
 
 use Test::More;
 
+eval { require DBD::SQLite } or plan skip_all => 'Need DBD::SQLite for testing';
 
 my $dbh = DBI->connect("dbi:SQLite:dbname=:memory:","","")
 	or die DBI->errstr;

@@ -4,9 +4,12 @@ use strict;
 use warnings;
 use 5.010;
 
+use Test::More;
+
 use FindBin '$Bin';
 use lib "$Bin/../lib";
 
+eval { require DBD::SQLite } or plan skip_all => 'Need DBD::SQLite for testing';
 
 BEGIN {
 
@@ -163,9 +166,6 @@ __PACKAGE__->belongs_to(achievement => 'Achievement');
 
 
 package main;
-
-use Test::More;
-
 
 ok my $Bill = Customer->get(3), 'got Bill';
 ok my @bills_orders = $Bill->orders->fetch, 'got Bill\'s orders';

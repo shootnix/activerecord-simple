@@ -13,6 +13,9 @@ use ActiveRecord::Simple::Migration;
 use ActiveRecord::Simple;
 
 
+eval { require DBD::SQLite } or plan skip_all => 'Need DBD::SQLite for testing';
+
+
 ActiveRecord::Simple->connect("dbi:SQLite:dbname=:memory:","",""); ### TODO: skip plan if error
 my $dbh = ActiveRecord::Simple->dbh;
 $dbh->do("CREATE TABLE `mytest` (field1 VARCHAR(100) NOT NULL)");

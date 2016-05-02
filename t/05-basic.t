@@ -59,7 +59,6 @@ sub selectall_arrayref { [{ foo => 1  }, { bar => 2 }] }
 package main;
 
 use Test::More;
-use Data::Dumper;
 
 ok my $c = t::class->new({
     foo => 1,

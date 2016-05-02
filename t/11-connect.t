@@ -28,6 +28,7 @@ package main;
 
 use Test::More;
 
+eval { require DBD::SQLite } or plan skip_all => 'Need DBD::SQLite for testing';
 
 ok(Customer->connect("dbi:SQLite:dbname=:memory:","",""), 'connect');
 my $hello = Customer->dbh->selectrow_array('SELECT "hello"');

@@ -6,6 +6,9 @@ use 5.010;
 
 use FindBin '$Bin';
 use lib "$Bin/../lib";
+use Test::More;
+
+eval { require DBD::SQLite } or plan skip_all => 'Need DBD::SQLite for testing';
 
 
 BEGIN {
@@ -160,9 +163,6 @@ __PACKAGE__->belongs_to(achievement => 'Achievement');
 
 
 package main;
-
-use Test::More;
-use Data::Dumper;
 
 
 ok my $Bill = Customer->find({ first_name => 'Bill' })->fetch, 'get Bill';
