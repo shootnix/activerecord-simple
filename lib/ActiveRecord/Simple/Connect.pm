@@ -69,7 +69,7 @@ sub dbh {
 		$self->{dbh} = $dbh;
 	}
 
-	return $self->{dbh};
+	return ref $self->{dbh} eq 'CODE' ? $self->{dbh}->() : $self->{dbh};
 }
 
 1;
