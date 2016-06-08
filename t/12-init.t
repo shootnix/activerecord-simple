@@ -16,7 +16,7 @@ BEGIN {
 
 	use parent 'ActiveRecord::Simple';
 
-	eval { require DBD::SQLite } or plan skip_all => 'Need DBD::SQLite for testing';
+	eval { require DBD::SQLite } or exit 0;
 
 	__PACKAGE__->connect("dbi:SQLite:dbname=:memory:","","");
 
