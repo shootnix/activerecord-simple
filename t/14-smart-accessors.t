@@ -8,14 +8,14 @@ use FindBin '$Bin';
 use lib "$Bin/../lib";
 use Test::More;
 
-eval { require DBD::SQLite } or plan skip_all => 'Need DBD::SQLite for testing';
-
 
 BEGIN {
 
 	package Schema;
 
 	use parent 'ActiveRecord::Simple';
+
+	eval { require DBD::SQLite } or plan skip_all => 'Need DBD::SQLite for testing';
 
 	__PACKAGE__->connect("dbi:SQLite:dbname=:memory:","","");
 

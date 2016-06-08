@@ -53,8 +53,14 @@ sub new {
                 push @bind, @{ $param[0]{$param_name} };
             }
             else {
-                push @condition_pairs, qq/"$table_name"."$param_name" = ?/;
-                push @bind, $param[0]{$param_name};
+                if ($param[0]{$param_name}) {
+                    push @condition_pairs, qq/"$table_name"."$param_name" = ?/;
+                    push @bind, $param[0]{$param_name};
+                }
+                else {
+                    # is NULL
+                    push @condition_pairs, qq/$table_name"."$param_name" IS NULL/;
+                }
             }
         }
         $where_str = join q/ AND /, @condition_pairs;
