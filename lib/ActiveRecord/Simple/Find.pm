@@ -53,13 +53,13 @@ sub new {
                 push @bind, @{ $param[0]{$param_name} };
             }
             else {
-                if ($param[0]{$param_name}) {
+                if (defined $param[0]{$param_name}) {
                     push @condition_pairs, qq/"$table_name"."$param_name" = ?/;
                     push @bind, $param[0]{$param_name};
                 }
                 else {
                     # is NULL
-                    push @condition_pairs, qq/$table_name"."$param_name" IS NULL/;
+                    push @condition_pairs, qq/"$table_name"."$param_name" IS NULL/;
                 }
             }
         }
