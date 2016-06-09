@@ -536,7 +536,7 @@ sub update {
     FIELD:
     for my $field (@$fields) {
         next FIELD if ! exists $params->{$field};
-        next FIELD if !$params->{$field};
+        next FIELD if ! $params->{$field};
 
         $self->$field($params->{$field});
     }
@@ -555,9 +555,19 @@ sub _insert {
                       ($self->can('_get_secondary_key')) ? $self->_get_secondary_key : undef;
 
     my $field_names_str = join q/, /, map { q/"/ . $_ . q/"/ } @field_names;
-    my $values          = join q/, /, map { '?' } @field_names;
-    my @bind            = map { $param->{$_} } @field_names;
+    #my $values = q//;
 
+    my (@bind, @values_list);
+    for (@field_names) {
+        if (ref $param->{$_} eq 'SCALAR') {
+            push @values_list, ${ $param->{$_} };
+        }
+        else {
+            push @values_list, '?';
+            push @bind, $param->{$_};
+        }
+    }
+    my $values = join q/, /, @values_list;
     my $pkey_val;
     my $sql_stm = qq{
         INSERT INTO "$table_name" ($field_names_str)
@@ -610,8 +620,17 @@ sub _update {
     my $primary_key     = ($self->can('_get_primary_key')) ? $self->_get_primary_key :
                           ($self->can('_get_secondary_key')) ? $self->_get_secondary_key : undef;
 
-    my $setstring = join ', ', map { "$_ = ?" } @field_names;
-    my @bind = map { $param->{$_} } @field_names;
+    my (@set_list, @bind);
+    for (@field_names) {
+        if (ref $param->{$_} eq 'SCALAR') {
+            push @set_list, $_ . ' = ' . ${ $param->{$_} };
+        }
+        else {
+            push @set_list, "$_ = ?";
+            push @bind, $param->{$_};
+        }
+    }
+    my $setstring = join q/, /, @set_list;
     push @bind, $self->{$primary_key};
 
     my $sql_stm = ActiveRecord::Simple::Utils::quote_sql_stmt(
