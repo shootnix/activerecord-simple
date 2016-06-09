@@ -555,7 +555,6 @@ sub _insert {
                       ($self->can('_get_secondary_key')) ? $self->_get_secondary_key : undef;
 
     my $field_names_str = join q/, /, map { q/"/ . $_ . q/"/ } @field_names;
-    #my $values = q//;
 
     my (@bind, @values_list);
     for (@field_names) {
