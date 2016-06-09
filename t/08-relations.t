@@ -175,6 +175,7 @@ $dbh->do($_DATA_SQL_CA);
 
 
 Customer->dbh($dbh);
+
 ok my $Bill = Customer->get(3), 'got Bill';
 ok my @bills_orders = $Bill->orders->fetch, 'got Bill\'s orders';
 
@@ -191,7 +192,7 @@ is @achievements, 3;
 isa_ok $achievements[0], 'Achievement';
 
 ok my $a = Achievement->get(1);
-ok my @customers = $a->customers->fetch;
+ok my @customers = $a->customers->order_by('id')->fetch;
 is @customers, 3;
 
 pass 'PASS many to many';

@@ -460,8 +460,48 @@ sub to_sql {
 
 ### Private
 
-
 sub _find_many_to_many {
+    my ($self_class, $class, $param) = @_;
+
+    return unless $self_class->dbh && $class && $param;
+
+    my $mc_fkey;
+    my $class_opts = {};
+    my $root_class_opts = {};
+
+    eval { load $param->{m_class} };
+
+    for my $opts ( values %{ $param->{m_class}->_get_relations } ) {
+        if ($opts->{class} eq $param->{root_class}) {
+            $root_class_opts = $opts;
+        }
+        elsif ($opts->{class} eq $class) {
+            $class_opts = $opts;
+        }
+    }
+
+    my $self = bless {
+        prep_select_fields => [],
+        prep_select_from   => [],
+        prep_select_where  => [],
+        class => $class,
+    }, $self_class;
+
+    my $connected_table_name = $class->_get_table_name;
+    push @{ $self->{prep_select_from} }, $param->{m_class}->_get_table_name;
+    push @{ $self->{prep_select_fields} }, '*';
+
+    push @{ $self->{prep_left_joins} },
+        'JOIN ' . $connected_table_name . ' ON ' . $connected_table_name . '.' . $class->_get_primary_key . ' = '
+            . $param->{m_class}->_get_table_name . '.' . $class_opts->{params}{fk};
+
+    push @{ $self->{prep_select_where} },
+        $root_class_opts->{params}{fk} . ' = ' . $param->{self}->{ $param->{root_class}->_get_primary_key };
+
+    return $self;
+}
+
+sub _find_many_to_many_OLD {
     my ($self_class, $class, $param) = @_;
 
     return unless $self_class->dbh && $class && $param;
@@ -501,6 +541,8 @@ sub _find_many_to_many {
 
     my $self = bless {}, $self_class;
     $self->{SQL} = $sql_stm; $self->_quote_sql_stmt;
+
+    say 'SQL: ' . $self->{SQL};
 
     my $sth = $self->dbh->prepare($self->{SQL}) or croak $self->dbh->errstr;
     $sth->execute();
