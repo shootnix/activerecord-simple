@@ -4,7 +4,7 @@ use 5.010;
 use strict;
 use warnings;
 
-our $VERSION = '0.82';
+our $VERSION = '0.84';
 
 use utf8;
 use Encode;
@@ -78,7 +78,7 @@ sub new {
                         ( %{ $rel->{class} } )[1]
                         : $rel->{class};
 
-                   ### load $rel_class;
+                    load $rel_class;
 
                     ### TODO: check for relation existing
                     while (my ($rel_key, $rel_opts) = each %{ $rel_class->_get_relations }) {
@@ -783,7 +783,7 @@ pattern. It's fast, very simple and very light.
 
     1;
 
-    # harcore:
+    # hardcore:
 
     package MyModel::Person;
     use base 'ActiveRecord::Simple';
@@ -804,6 +804,10 @@ pattern. It's fast, very simple and very light.
             data_type => 'varchar',
             size => 64,
             is_nullable => 0,
+        },
+        registered => {
+            data_type => 'timestamp',
+            is_nullable => 0,
         });
     __PACKAGE__->primary_key('id_person');
 
@@ -812,7 +816,8 @@ That's it! Now you're ready to use your active-record class in the application:
     use MyModel::Person;
 
     # to create a new record:
-    my $person = MyModel::Person->new({ name => 'Foo' })->save();
+    my $person = MyModel::Person->new({ name => 'Foo', registered => \'NOW()' })->save();
+    # (use a scalarref to pass non-quoted data to the database, as is).
 
     # to update the record:
     $person->name('Bar')->save();

@@ -13,6 +13,7 @@ WriteMakefile1(
         'Module::Load' => 0,
         'DBI' => 0,
         'Storable' => 0,
+        'DBD::SQLite' => 0,
     },
     MIN_PERL_VERSION => '5.010',
     META_MERGE => {

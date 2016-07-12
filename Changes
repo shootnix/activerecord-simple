@@ -122,3 +122,8 @@ Revision history for Perl module ActiveRecord::Simple
         + "Smart accessors"
         + Added cookbook
         * Improved tests
+
+0.84    2016-07-13
+        + Added scalarref as an argument of accessor to set not-quoted data (e.g. to send database-specific functions)
+        + Now multiobject accessor is a "ARS::Find" object too, you can use such method as "order_by", "desc" etc.
+        * Small bugfixes
