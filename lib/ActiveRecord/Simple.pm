@@ -78,7 +78,7 @@ sub new {
                         ( %{ $rel->{class} } )[1]
                         : $rel->{class};
 
-                    load $rel_class;
+                    #load $rel_class;
 
                     ### TODO: check for relation existing
                     while (my ($rel_key, $rel_opts) = each %{ $rel_class->_get_relations }) {
