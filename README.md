@@ -148,7 +148,7 @@ perldoc command.
 
     perldoc ActiveRecord::Simple
 
-Feel free to join as at google groups:
+Feel free to join us at google groups:
 https://groups.google.com/forum/#!forum/activerecord-simple
 
 Also the github page:
@@ -174,3 +174,5 @@ CREDITS
 @lifeofguenter
 @neilbowers
 @dsteinbrunner
+@reindeer
+@grinya007
