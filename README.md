@@ -157,7 +157,7 @@ http://shootnix.github.io/activerecord-simple/
 LICENSE AND COPYRIGHT
 =====================
 
-Copyright (C) 2013-2014 shootnix
+Copyright (C) 2013-2016 shootnix
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
