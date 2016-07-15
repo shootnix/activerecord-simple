@@ -67,6 +67,7 @@ Flexible search
     Person->find(1); # by ID
     Person->find([1, 2, 3]); # by several ID's
     Person->find({ name => 'Foo' }); # by parameters
+    Person->find({ city => City->find({name => 'Paris'})->fetch }); # parameters as an objects
     Person->find('name = ? OR lastname = ?', 'Foo', 'Bar'); # by condition
 
     Person->last;
@@ -122,6 +123,10 @@ And, of course, all of this together:
     say $new_customer->payment_info->last_payment;
 
 Also one-to-one, one-to-many, many-to-one and many-to-many relations, smart_saving and even more.
+
+And, of course, you don't need use "table_name", "primary_key" etc. Just use this:
+
+    __PACKAGE__->load_info(); ### All info will be loaded from database automatically.
 
 Check it out!
 
