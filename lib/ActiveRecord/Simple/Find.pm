@@ -47,10 +47,23 @@ sub new {
         # find many by params
         my ($where_str, @bind, @condition_pairs);
         for my $param_name (keys %{ $param[0] }) {
-            if (ref $param[0]{$param_name}) {
+            if (ref $param[0]{$param_name} eq 'ARRAY') {
                 my $instr = join q/, /, map { '?' } @{ $param[0]{$param_name} };
                 push @condition_pairs, qq/"$table_name"."$param_name" IN ($instr)/;
                 push @bind, @{ $param[0]{$param_name} };
+            }
+            elsif (ref $param[0]{$param_name}) {
+                next if !$class->can('_get_relations');
+                my $relation = $class->_get_relations->{$param_name} or next;
+
+                next if $relation->{type} ne 'one';
+                my $fk = $relation->{params}{fk};
+                my $pk = $relation->{params}{pk};
+
+                my $object = $param[0]{$param_name};
+
+                push @condition_pairs, qq/"$table_name"."$fk" = ?/;
+                push @bind, $object->$pk;
             }
             else {
                 if (defined $param[0]{$param_name}) {
@@ -118,6 +131,19 @@ sub count {
                 my $instr = join q/, /, map { '?' } @{ $params_hash->{$param_name} };
                 push @condition_pairs, qq/"$table_name"."$param_name" IN ($instr)/;
                 push @bind, @{ $params_hash->{$param_name} };
+            }
+            elsif (ref $params_hash->{$param_name}) {
+                next if !$class->can('_get_relations');
+                my $relation = $class->_get_relations->{$param_name} or next;
+
+                next if $relation->{type} ne 'one';
+                my $fk = $relation->{params}{fk};
+                my $pk = $relation->{params}{pk};
+
+                my $object = $params_hash->{$param_name};
+
+                push @condition_pairs, qq/"$table_name"."$fk" = ?/;
+                push @bind, $object->$pk;
             }
             else {
                 push @condition_pairs, qq/"$table_name"."$param_name" = ?/;

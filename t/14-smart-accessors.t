@@ -179,4 +179,9 @@ $new_order2->save;
 ok my $no2 = Order->find({ title => 'New Order vol. 2' })->fetch;
 is $no2->customer_id, $Bill->id, 'saving with relational accessors works fine';
 
+ok my @orders = Order->find({ customer => $Bill })->fetch;
+is scalar @orders, 3, 'accessors in find';
+
+is(Order->count({ customer => $Bill }), scalar @orders, 'accessors in count');
+
 done_testing();
