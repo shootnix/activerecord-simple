@@ -417,8 +417,20 @@ sub fetch {
         my $obj = $class->new($object_data);
         $self->_finish_object_representation($obj, $object_data, $read_only);
 
+        #say '>>>';
         return $obj;
+        #$_[0] = $obj;
+        #return $_[0];
     }
+}
+
+sub upload {
+    my ($self, $param) = @_;
+
+    my $o = $self->fetch($param);
+    $_[0] = $o;
+
+    return $_[0];
 }
 
 sub next {

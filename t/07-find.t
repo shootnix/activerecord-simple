@@ -60,6 +60,7 @@ $dbh->do($_INIT_SQL);
 $dbh->do($_DATA_SQL);
 
 Customer->dbh($dbh);
+
 my $finder = Customer->find({ first_name => 'Bob' });
 isa_ok $finder, 'ActiveRecord::Simple::Find';
 
@@ -156,6 +157,9 @@ is scalar @list, 2;
 is $list[0]->id, 4;
 
 undef @list;
+
+my $Bill = Customer->find({ first_name => 'Bill' });
+ok $Bill->upload;
 
 ok @list = Customer->select(undef, {
 	order_by => 'id',
