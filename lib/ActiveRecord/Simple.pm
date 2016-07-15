@@ -4,7 +4,7 @@ use 5.010;
 use strict;
 use warnings;
 
-our $VERSION = '0.84';
+our $VERSION = '0.90';
 
 use utf8;
 use Encode;
@@ -889,6 +889,18 @@ Creates a new object, one row of the data.
 It's a constructor of your class and it doesn't save a data in the database,
 just creates a new record in memory.
 
+You can pass as a parameter related object, ActiveRecord::Simple will do the rest:
+
+    my $Adam = Customer->find({name => 'Adam'})->fetch;
+
+    my $order = Order->new(sum => 100, customer => $Adam);
+    ### This is the same:
+    my $order = Order->new(sum => 100, customer_id => $Adam->id);
+    ### but here you have to know primary and foreign keys.
+
+    ### much easier using objects:
+    my $order = Order->new(sum => 100, customer => $Adam); # ARS will find all keys automatically
+
 =head2 columns
 
     __PACKAGE__->columns([qw/id_person first_name second_name]);
@@ -1117,6 +1129,33 @@ You can use the ordering of results, such as ORDER BY, ASC and DESC:
     my @persons = MyModel::Person->find('age > ?', 21)->order_by('name')->desc->fetch();
     my @persons = MyModel::Person->find('age > ?', 21)->order_by('name', 'age')->fetch();
 
+You can pass objects as a parameters. In this case parameter name is the name of relation.
+For example:
+
+    package Person;
+
+    # some declarations here
+
+    __PACKAGE__->has_many(orders => Order);
+
+    # ...
+
+    package Order;
+
+    # some declarations here
+
+    __PACKAGE__->belongs_to(person => Person);
+
+Now, get person:
+
+    my $Bill = Person->find({ name => 'Bill' })->fetch;
+
+    ### .. and get all his orders:
+    my @bills_orders = Order->find({ customer => $Bill })->fetch;
+
+    ### the same, but not so cool:
+    my @bills_orders = Order->find({ customer_id => $Bill->id })->fetch;
+
 =head2 select
 
 Yet another way to select data from the database:
@@ -1134,6 +1173,7 @@ Returns count of records that match the rule:
     say MyModel::Person->count;
     say MyModel::Person->count({ zip => '12345' });
     say MyModel::Person->count('age > ?', 55);
+    say MyModel::Person->count({city => City->find({ name => 'NY' })->fetch });
 
 =head2 exists
 
