@@ -167,7 +167,12 @@ package main;
 
 ok my $Bill = Customer->find({ first_name => 'Bill' })->fetch, 'get Bill';
 ok $Bill->orders(Order->new({ title => 'Test smart accessor', amount => '100' }))->save;
-ok my $order = Order->find({ title => 'Test smart accessor' })->fetch, 'yep!';
+ok my $order = Order->find({ title => 'Test smart accessor' })->fetch, 'one->many, yep!';
+
+my $new_order = Order->new({ title => 'Hello!', amount => '7.77', customer_id => 1 })->save;
+ok $new_order->customer($Bill)->save;
+
+is $new_order->customer_id, $Bill->id, 'many->one, good!';
 
 
 done_testing();
