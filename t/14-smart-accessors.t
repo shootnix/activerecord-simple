@@ -169,10 +169,14 @@ ok my $Bill = Customer->find({ first_name => 'Bill' })->fetch, 'get Bill';
 ok $Bill->orders(Order->new({ title => 'Test smart accessor', amount => '100' }))->save;
 ok my $order = Order->find({ title => 'Test smart accessor' })->fetch, 'one->many, yep!';
 
-my $new_order = Order->new({ title => 'Hello!', amount => '7.77', customer_id => 1 })->save;
+my $new_order = Order->new({ title => 'New Order vol. 1', amount => '7.77', customer_id => 1 })->save;
 ok $new_order->customer($Bill)->save;
 
 is $new_order->customer_id, $Bill->id, 'many->one, good!';
 
+my $new_order2 = Order->new({ title => 'New Order vol. 2', amount => '7.78', customer => $Bill });
+$new_order2->save;
+ok my $no2 = Order->find({ title => 'New Order vol. 2' })->fetch;
+is $no2->customer_id, $Bill->id, 'saving with relational accessors works fine';
 
 done_testing();

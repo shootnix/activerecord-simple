@@ -516,6 +516,22 @@ sub save {
         $save_param->{$field} = $self->{$field};
     }
 
+    ### Get additional fields from related objects:
+    for my $field (keys %$self) {
+        next
+            if ! ref $self->{$field}
+            && ! $self->can('_get_relations')
+            && ! grep { $_ eq $field } keys %{ $self->_get_relations };
+
+        my $relation = $self->_get_relations->{$field} or next;
+        next unless $relation->{type} && $relation->{type} eq 'one';
+
+        my $fk = $relation->{params}{fk};
+        my $pk = $relation->{params}{pk};
+
+        $save_param->{$fk} = $self->{$field}->$pk;
+    }
+
     my $result;
     if ($self->{isin_database}) {
         $result = $self->_update($save_param);
