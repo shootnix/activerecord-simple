@@ -518,10 +518,9 @@ sub save {
 
     ### Get additional fields from related objects:
     for my $field (keys %$self) {
-        next
-            if ! ref $self->{$field}
-            && ! $self->can('_get_relations')
-            && ! grep { $_ eq $field } keys %{ $self->_get_relations };
+        next unless ref $self->{$field};
+        next unless $self->can('_get_relations');
+        next unless grep { $_ eq $field } keys %{ $self->_get_relations };
 
         my $relation = $self->_get_relations->{$field} or next;
         next unless $relation->{type} && $relation->{type} eq 'one';
