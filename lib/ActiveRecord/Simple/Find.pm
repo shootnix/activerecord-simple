@@ -337,15 +337,7 @@ sub _finish_sql_stmt {
 
     $self->{SQL} .= ' LIMIT ' .  ($self->{prep_limit}  // $MAXIMUM_LIMIT);
     $self->{SQL} .= ' OFFSET '.  ($self->{prep_offset} // 0);
-
-    #$self->_delete_keys(qr/^prep\_/);
 }
-
-#sub get {
-#    my ($class, $pkeyval) = @_;
-#
-#    return $class->find($pkeyval)->fetch();
-#}
 
 sub _finish_object_representation {
     my ($self, $obj, $object_data, $read_only) = @_;
@@ -417,10 +409,7 @@ sub fetch {
         my $obj = $class->new($object_data);
         $self->_finish_object_representation($obj, $object_data, $read_only);
 
-        #say '>>>';
         return $obj;
-        #$_[0] = $obj;
-        #return $_[0];
     }
 }
 
@@ -535,67 +524,6 @@ sub _find_many_to_many {
 
     push @{ $self->{prep_select_where} },
         $root_class_opts->{params}{fk} . ' = ' . $param->{self}->{ $param->{root_class}->_get_primary_key };
-
-    return $self;
-}
-
-sub _find_many_to_many_OLD {
-    my ($self_class, $class, $param) = @_;
-
-    return unless $self_class->dbh && $class && $param;
-
-    my $mc_fkey;
-    my $class_opts = {};
-    my $root_class_opts = {};
-
-    eval { load $param->{m_class} };
-
-    for my $opts ( values %{ $param->{m_class}->_get_relations } ) {
-        if ($opts->{class} eq $param->{root_class}) {
-            $root_class_opts = $opts;
-        }
-        elsif ($opts->{class} eq $class) {
-            $class_opts = $opts;
-        }
-    }
-
-    my $connected_table_name = $class->_get_table_name;
-    my $sql_stm;
-    $sql_stm .=
-        'SELECT ' .
-        "$connected_table_name\.*" .
-        ' FROM ' .
-        $param->{m_class}->_get_table_name .
-        ' JOIN ' .
-        $connected_table_name .
-        ' ON ' .
-        $connected_table_name . '.' . $class->_get_primary_key .
-        ' = ' .
-        $param->{m_class}->_get_table_name . '.' . $class_opts->{params}{fk} .
-        ' WHERE ' .
-        $root_class_opts->{params}{fk} .
-        ' = ' .
-        $param->{self}->{ $param->{root_class}->_get_primary_key };
-
-    my $self = bless {}, $self_class;
-    $self->{SQL} = $sql_stm; $self->_quote_sql_stmt;
-
-    say 'SQL: ' . $self->{SQL};
-
-    my $sth = $self->dbh->prepare($self->{SQL}) or croak $self->dbh->errstr;
-    $sth->execute();
-
-    delete $self->{SQL};
-
-    my @bulk_objects;
-    while (my $params = $sth->fetchrow_hashref) {
-        my $obj = $class->new($params);
-        $obj->{isin_database} = 1;
-        push @bulk_objects, $obj;
-    }
-
-    $self->{_objects} = \@bulk_objects;
-    $self->{class} = $class;\
 
     return $self;
 }
