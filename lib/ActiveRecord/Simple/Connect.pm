@@ -68,6 +68,9 @@ sub dbh {
 	if ($dbh) {
 		$self->{dbh} = $dbh;
 	}
+	if (!$self->{dbh}->ping) {
+		$self->{dbh} = $self->{dbh}->clone or die "Database Connection Failed";
+	}
 
 	return ref $self->{dbh} eq 'CODE' ? $self->{dbh}->() : $self->{dbh};
 }
