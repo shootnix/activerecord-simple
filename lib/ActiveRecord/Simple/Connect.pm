@@ -20,14 +20,26 @@ sub new {
 			$self->{password} = $password if $password;
 			$self->{connection_parameters} = $params if $params;
 
-			my $dbh = DBI->connect($dsn, $username, $password, $params) or die DBI->errstr;
-			$self->{dbh} = $dbh;
+			#
+			#$self->{dbh} = $dbh;
+			$self->db_connect;
 		}
 
 		bless $self, $class;
 	}
 
 	return $self;
+}
+
+sub db_connect {
+	my ($self) = @_;
+
+	$self->{dbh} = DBI->connect(
+		$self->{dsn},
+		$self->{username},
+		$self->{password},
+		$self->{params},
+	) or die DBI->errstr;
 }
 
 sub username {
@@ -68,8 +80,8 @@ sub dbh {
 	if ($dbh) {
 		$self->{dbh} = $dbh;
 	}
-	if (!$self->{dbh}->ping) {
-		$self->{dbh} = $self->{dbh}->clone or die "Database Connection Failed";
+	else {
+		$self->db_connect unless $self->{dbh} && $self->{dbh}->ping;
 	}
 
 	return ref $self->{dbh} eq 'CODE' ? $self->{dbh}->() : $self->{dbh};

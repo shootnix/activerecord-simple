@@ -11,6 +11,7 @@ use Encode;
 use Carp;
 use Storable qw/freeze/;
 use Module::Load;
+use vars qw/$AUTOLOAD/;
 
 use ActiveRecord::Simple::Find;
 use ActiveRecord::Simple::Utils;
@@ -771,7 +772,59 @@ sub select { ActiveRecord::Simple::Find->select(shift, @_) }
 sub _find_many_to_many { ActiveRecord::Simple::Find->_find_many_to_many(shift, @_) }
 
 
+sub AUTOLOAD {
+    my ($self, $param) = @_;
+
+    use Data::Dumper;
+    say '@_: ' . Dumper @_;
+    say $AUTOLOAD;
+    say Dumper $_[0]->_get_relations;
+
+    my $sub = $AUTOLOAD; $sub =~ s/.*:://g;
+    my $error = "Unknown method: $sub";
+
+    die $error unless $self->can('_get_relations');
+    my @many2manies;
+    my $relations = $self->_get_relations;
+    my $subclass = undef;
+    for my $relation (values %$relations) {
+        next unless $relation->{type} eq 'many' && ref $relation->{class} eq 'HASH';
+        say Dumper $relation;
+
+        my ($class) = keys %{ $relation->{class} };
+        say 'class: ' . $class;
+        next if !$class->can('_get_relations');
+
+        my $relations = $class->_get_relations;
+        for my $rel_name (keys %$relations) {
+            #say 'rel_name: ' . $rel_name if $rel_name eq $sub;
+            next unless $rel_name eq $sub;
+
+            $subclass = $class;
+        }
+    }
+    die $error unless $subclass;
+    die "Undefined object for method $sub: must be not undef" unless $param;
+    #die $error if scalar @many2manies == 0;
+    say 'subclass: '. $subclass;
+
+    say 'relations: ' . Dumper $subclass->_get_relations;
+
+    #my $method_new = $subclass . '::' . 'new';
+    #
+    #
+    #no strict 'refs';
+    #*{$method_new} = sub {
+    #    say "Hello!";
+    #};
+
+    return $subclass;
+    #say 'many2manies: ' . Dumper \@many2manies;
+}
+
+
 ### Private
+
 
 
 1;

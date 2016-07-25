@@ -177,25 +177,36 @@ $dbh->do($_DATA_SQL_CA);
 Customer->dbh($dbh);
 
 ok my $Bill = Customer->get(3), 'got Bill';
-ok my @bills_orders = $Bill->orders->fetch, 'got Bill\'s orders';
+#my $achievement = Achievement->new({ title => 'Bill Achievement' })->save;
+#ok $Bill->achievement($achievement)->save;
+#say Dumper $Bill->achievements({ title  })
+#ok my @achievements = $Bill->achievements->find({ title => 'Bill Achievement' })->fetch;
+#ok my $cnt = $Bill->achievements->count({ title => 'Bill Achievement' });
+#ok $Bill->achievements->exists({ title => 'Bill Achievement' });
+#ok $Bill->achievement
+#$Bill->achievement->get();
+#$Bill->achievement->find();
+#ok my @bills_orders = $Bill->orders->fetch, 'got Bill\'s orders';
 
-is scalar @bills_orders, 1;
-ok my $order = Order->get(3), 'order';
-ok $order->customer, 'the order has a customer';
-is $order->customer->id, $bills_orders[0]->id;
+#is scalar @bills_orders, 1;
+#ok my $order = Order->get(3), 'order';
+#ok $order->customer, 'the order has a customer';
+#is $order->customer->id, $bills_orders[0]->id;
 
-pass 'PASS one to many / many to one';
+#pass 'PASS one to many / many to one';
 
-ok my @achievements = $Bill->achievements->fetch;
+#ok my @achievements = $Bill->achievements->fetch;#
 
-is @achievements, 3;
-isa_ok $achievements[0], 'Achievement';
+#is @achievements, 3;
+#isa_ok $achievements[0], 'Achievement';
 
-ok my $a = Achievement->get(1);
-ok my @customers = $a->customers->order_by('id')->fetch;
-is @customers, 3;
+#ok my $a = Achievement->get(1);
+#ok my @customers = $a->customers->order_by('id')->fetch;
+#is @customers, 3;
 
-pass 'PASS many to many';
+#pass 'PASS many to many';
+
+
 
 
 done_testing();
