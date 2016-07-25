@@ -132,3 +132,6 @@ Revision history for Perl module ActiveRecord::Simple
         + Added "smart accessors" to methods "new", "find", "count".
         * Small fixes
         * Improved documentation
+
+0.91    xxxx-xx-xx
+        * Fix connection bug
