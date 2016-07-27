@@ -63,7 +63,6 @@ Customer->dbh($dbh);
 
 my $finder = Customer->find({ first_name => 'Bob' });
 isa_ok $finder, 'ActiveRecord::Simple::Find';
-
 #while (my $bob = Customer->find({ first_name => 'Bob' })->next) {
 #	say Dumper $bob;
 #}
@@ -158,7 +157,7 @@ is $list[0]->id, 4;
 
 undef @list;
 
-my $Bill = Customer->find({ first_name => 'Bill' });
+$Bill = Customer->find({ first_name => 'Bill' });
 ok $Bill->upload;
 
 ok @list = Customer->select(undef, {

@@ -19,14 +19,11 @@ sub new {
 			$self->{username} = $username if $username;
 			$self->{password} = $password if $password;
 			$self->{connection_parameters} = $params if $params;
-
-			#
-			#$self->{dbh} = $dbh;
-			$self->db_connect;
 		}
 
 		bless $self, $class;
 	}
+	#$self->db_connect;
 
 	return $self;
 }
@@ -40,6 +37,8 @@ sub db_connect {
 		$self->{password},
 		$self->{params},
 	) or die DBI->errstr;
+
+	return $self;
 }
 
 sub username {

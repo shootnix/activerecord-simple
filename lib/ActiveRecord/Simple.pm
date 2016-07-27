@@ -135,7 +135,7 @@ sub new {
         use strict 'refs';
     }
 
-    $class->use_smart_saving(0);
+    $class->autosave(0);
 
     return bless $param || {}, $class;
 }
@@ -211,6 +211,7 @@ sub connect {
     my ($class, $dsn, $username, $password, $options) = @_;
 
     $connector = ActiveRecord::Simple::Connect->new($dsn, $username, $password, $options);
+    $connector->db_connect;
 
     return 1;
 }
@@ -467,7 +468,7 @@ sub autosave {
 
 sub use_smart_saving {
     say '[DEPRECATED] This method is deprecated and will be removed in the future. Please, use "authosave" method insted.';
-    shift->authosave(@_);
+    $_[0]->autosave;
 }
 
 sub relations {
@@ -1129,7 +1130,7 @@ You can specify one object via another one using "has_one" method. It works like
     my $single = Song->find({ type => 'single' })->fetch();
     my @photos = $single->photos->fetch();  # fetch all photos with pub_date = single.release_date
 
-=head2 use_smart_saving
+=head2 autosave
 
 This method provides two features:
 
@@ -1139,7 +1140,7 @@ This method provides two features:
    2. Automatic save on object destroy (You don't need use "save()" method
       anymore).
 
-    __PACKAGE__->use_smart_saving;
+    __PACKAGE__->autosave;
 
 =head2 find
 
