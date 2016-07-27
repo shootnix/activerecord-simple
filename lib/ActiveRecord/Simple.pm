@@ -140,7 +140,7 @@ sub new {
     return bless $param || {}, $class;
 }
 
-sub load_info {
+sub load_schema {
     my ($class) = @_;
 
     my @class_name_parts = split q/::/, $class;
@@ -174,6 +174,11 @@ sub load_info {
     $class->table_name($table_name) if $table_name;
     $class->primary_key($primary_key) if $primary_key;
     $class->columns(\@columns) if @columns;
+}
+
+sub load_info {
+    say '[DEPRECATED] This method is deprecated and will be remowed in the feature. Use method "load_schema" instead.';
+    $_[0]->load_schema;
 }
 
 sub _mk_accessors {

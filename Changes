@@ -134,4 +134,7 @@ Revision history for Perl module ActiveRecord::Simple
         * Improved documentation
 
 0.91    xxxx-xx-xx
+        + New behavior of method "fetch"
         * Fix connection bug
+        * Renamed method "load_info" to "load_schema"
+
