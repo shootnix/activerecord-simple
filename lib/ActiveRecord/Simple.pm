@@ -457,12 +457,17 @@ sub _table_name {
     return $table_name;
 }
 
-sub use_smart_saving {
+sub autosave {
     my ($class, $is_on) = @_;
 
     $is_on = 1 if not defined $is_on;
 
     $class->_mk_attribute_getter('_smart_saving_used', $is_on);
+}
+
+sub use_smart_saving {
+    say '[DEPRECATED] This method is deprecated and will be removed in the future. Please, use "authosave" method insted.';
+    shift->authosave(@_);
 }
 
 sub relations {
