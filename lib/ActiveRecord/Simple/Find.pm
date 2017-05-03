@@ -623,6 +623,8 @@ sub _quote_sql_stmt {
     return 1;
 }
 
+sub DESTROY { }
+
 sub AUTOLOAD {
     my $call = $AUTOLOAD;
     my $self = shift;
