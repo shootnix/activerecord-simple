@@ -368,7 +368,6 @@ sub _finish_object_representation {
             $obj->_delete_keys(qr/^JOINED\_$rel_name/);
         }
 
-        delete $self->{has_joined_table};
     }
 
     $obj->{read_only} = 1 if defined $read_only;
@@ -409,6 +408,7 @@ sub fetch {
 
             last if $limit && $i == $limit;
         }
+        delete $self->{has_joined_table};
 
         return @objects;
     }
@@ -416,6 +416,7 @@ sub fetch {
         my $object_data = $sth->fetchrow_hashref() or return;
         my $obj = $class->new($object_data);
         $self->_finish_object_representation($obj, $object_data, $read_only);
+        delete $self->{has_joined_table};
 
         return $obj;
     }
