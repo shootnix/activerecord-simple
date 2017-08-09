@@ -4,7 +4,7 @@ use 5.010;
 use strict;
 use warnings;
 
-our $VERSION = '0.90';
+our $VERSION = '0.91';
 
 use utf8;
 use Encode;
@@ -140,7 +140,7 @@ sub new {
     return bless $param || {}, $class;
 }
 
-sub load_schema {
+sub autoload {
     my ($class) = @_;
 
     my @class_name_parts = split q/::/, $class;
@@ -178,7 +178,7 @@ sub load_schema {
 
 sub load_info {
     say '[DEPRECATED] This method is deprecated and will be remowed in the feature. Use method "load_schema" instead.';
-    $_[0]->load_schema;
+    $_[0]->autoload;
 }
 
 sub _mk_accessors {
@@ -858,7 +858,7 @@ pattern. It's fast, very simple and very light.
     package MyModel:Person;
     use base 'ActiveRecord::Simple';
 
-    __PACKAGE__->load_info()
+    __PACKAGE__->autoload()
 
     1;
 
@@ -1054,7 +1054,7 @@ Create an index and add it to the schema. Works only when method "fields" is usi
 Set name of the table. This method is required to use in the child (your model)
 classes.
 
-=head2 load_info
+=head2 autoload
 
 Load table info using DBI methods: table_name, primary_key, foreign_key, columns
 

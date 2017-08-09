@@ -35,7 +35,7 @@ sub db_connect {
 		$self->{dsn},
 		$self->{username},
 		$self->{password},
-		$self->{params},
+		$self->{connection_parameters},
 	) or die DBI->errstr;
 
 	return $self;
@@ -76,14 +76,11 @@ sub connection_parameters {
 sub dbh {
 	my ($self, $dbh) = @_;
 
-	if ($dbh) {
-		$self->{dbh} = $dbh;
-	}
-	else {
-		if (!$self->{dbh} && !$self->{dbh}->ping) {
-			$self->db_connect;
-		}
-	}
+	sub dbh {
+	my ($self, $dbh) = @_;
+
+	$self->{dbh} = $dbh if $dbh;
+	$self->db_connect unless $self->{dbh} && $self->{dbh}->ping;
 
 	return ref $self->{dbh} eq 'CODE' ? $self->{dbh}->() : $self->{dbh};
 }
