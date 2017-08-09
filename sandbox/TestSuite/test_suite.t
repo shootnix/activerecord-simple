@@ -239,12 +239,17 @@ Artist->dbh($dbh);
     pass '~ ordering ~';
     my $artists_find = Artist->find('id != ?', 100)->order_by('name')->desc(1);
 
-    #my $artist = $artists_find->fetch(1);
 
-    is $artists_find->{prep_desc}, 1, 'desc';
+    is $artists_find->{prep_asc_desc}, 1, 'desc';
     ok ref $artists_find->{prep_order_by};
     is ref $artists_find->{prep_order_by}, 'ARRAY';
-    is $artists_find->{prep_order_by}[0], 'name';
+    is $artists_find->{prep_order_by}[0], '"name" DESC';
+
+    ok $artists_find->fetch, 'fetch 1';
+
+    $artists_find = Artist->find('id != ?', 100)->order_by('name', 'label_id')->desc(1)->order_by('id')->asc;
+
+    ok $artists_find->fetch, 'fetch 2';
 }
 
 {
