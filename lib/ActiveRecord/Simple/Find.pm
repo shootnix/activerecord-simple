@@ -213,31 +213,37 @@ sub order_by {
     my ($self, @param) = @_;
 
     #return if not defined $self->{SQL}; ### TODO: die
-    return $self if exists $self->{prep_order_by};
-
-    $self->{prep_order_by} = \@param;
+    $self->{prep_order_by} ||= [];
+    push @{$self->{prep_order_by}}, map qq/"$_"/, @param;
+    delete $self->{prep_asc_desc};
 
     return $self;
 }
 
 sub desc {
-    my ($self) = @_;
-
-    #return if not defined $self->{SQL};
-    return $self if exists $self->{prep_desc};
-
-    $self->{prep_desc} = 1;
-
-    return $self;
+    return shift->order_by_direction('DESC');
 }
 
 sub asc {
-    my ($self, @param) = @_;
+    return shift->order_by_direction('ASC');
+}
 
-    #return if not defined $self->{SQL};
-    return $self if exists $self->{prep_asc};
+sub order_by_direction {
+    my ($self, $direction) = @_;
 
-    $self->{prep_asc} = 1;
+
+    # There are no fields for order yet
+    return unless @{ $self->{prep_order_by} };
+
+    # asc/desc is called before: ->asc->desc
+    return if defined $self->{prep_asc_desc};
+
+    # $direction should be ASC/DESC
+    return unless $direction =~ /^(ASC|DESC)$/i;
+
+    # Add $direction to the latest field
+    @{$self->{prep_order_by}}[-1] .= " $direction";
+    $self->{prep_asc_desc} = 1;
 
     return $self;
 }
@@ -327,13 +333,10 @@ sub _finish_sql_stmt {
         $self->{SQL} .= join " AND ", @{ $self->{prep_select_where} };
     }
 
-    if (defined $self->{prep_order_by}) {
+    if (@{ $self->{prep_order_by}||[] }) {
         $self->{SQL} .= ' ORDER BY ';
-        $self->{SQL} .= join q/, /, map { q/"/.$_.q/"/ } @{ $self->{prep_order_by} };
+        $self->{SQL} .= join q/, /, @{ $self->{prep_order_by} };
     }
-
-    $self->{SQL} .= ' DESC ' if defined $self->{prep_desc};
-    $self->{SQL} .= ' ASC '  if defined $self->{prep_asc};
 
     $self->{SQL} .= ' LIMIT ' .  ($self->{prep_limit}  // $MAXIMUM_LIMIT);
     $self->{SQL} .= ' OFFSET '.  ($self->{prep_offset} // 0);
