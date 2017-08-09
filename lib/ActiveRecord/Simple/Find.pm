@@ -231,9 +231,8 @@ sub asc {
 sub order_by_direction {
     my ($self, $direction) = @_;
 
-
     # There are no fields for order yet
-    return unless @{ $self->{prep_order_by} };
+    return unless ref $self->{prep_order_by} eq 'ARRAY' and scalar @{ $self->{prep_order_by} } > 0;
 
     # asc/desc is called before: ->asc->desc
     return if defined $self->{prep_asc_desc};
@@ -276,8 +275,15 @@ sub abstract {
     return $self if ! ref $opts && ref $opts ne 'HASH';
 
     while (my ($method, $param) = each %$opts) {
-        my @p = (ref $param) ? @$param : ($param);
-        $self->$method(@p);
+        if ($method eq 'order_by') {
+            $self->order_by(@{ $param->{columns} });
+            my $order_direction = (defined $param->{direction}) ? $param->{direction} : undef;
+            $self->$order_direction if $order_direction;
+        }
+        else {
+            my @p = (ref $param) ? @$param : ($param);
+            $self->$method(@p);
+        }
     }
 
     return $self;
@@ -571,8 +577,6 @@ sub _find_many_to_many_OLD {
 
     my $self = bless {}, $self_class;
     $self->{SQL} = $sql_stm; $self->_quote_sql_stmt;
-
-    say 'SQL: ' . $self->{SQL};
 
     my $sth = $self->dbh->prepare($self->{SQL}) or croak $self->dbh->errstr;
     $sth->execute();

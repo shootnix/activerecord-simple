@@ -146,8 +146,7 @@ ok @list = Customer->find->order_by('id')->offset(2)->fetch, 'offset';
 is $list[0]->id, 3;
 
 ok @list = Customer->find->abstract({
-	order_by => 'id',
-	desc => 1,
+	order_by => { columns => ['id'], direction => 'desc' },
 	offset => 1,
 	limit => 2
 })->fetch, 'abstract';
@@ -158,8 +157,7 @@ is $list[0]->id, 4;
 undef @list;
 
 ok @list = Customer->select(undef, {
-	order_by => 'id',
-	desc     => 1,
+	order_by => { columns => ['id'], direction => 'desc' },
 	offset   => 1,
 	limit    => 2
 }), 'select';
@@ -173,7 +171,7 @@ ok !$Bill->first_name;
 
 undef @list;
 
-ok @list = Customer->select('id > ?', 2, { order_by => 'id', desc => 1 });
+ok @list = Customer->select('id > ?', 2, { order_by => { columns => ['id'], direction => 'desc' }});
 is scalar @list, 3;
 is $list[2]->id, 3;
 
@@ -188,7 +186,7 @@ is @list, 5;
 
 undef @list;
 
-ok @list = Customer->select([2, 1, 3], { order_by => 'id' });
+ok @list = Customer->select([2, 1, 3], { order_by => { columns => ['id'], direction => 'desc' }});
 is @list, 3;
 
 undef @list;
