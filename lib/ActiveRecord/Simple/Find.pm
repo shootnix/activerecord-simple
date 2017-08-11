@@ -143,7 +143,7 @@ sub parse_hash {
                 $object->_finish_sql_stmt;
 
                 push @$condition_pairs, qq/"$table_name"."$fk" IN (SELECT "$tmp_table"."$pk" from ($object->{SQL}) as $tmp_table)/;
-                push @$bind, @{ $object->{BIND} };
+                push @$bind, @{ $object->{BIND} } if ref $object->{BIND} eq 'ARRAY';
             }
             else {
                 my $object = $param_hash->{$param_name};
