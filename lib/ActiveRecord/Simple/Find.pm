@@ -19,7 +19,7 @@ sub new {
     my ($self_class, $class, @param) = @_;
 
     #my $self = $class->new();
-    my $self = { class => $class };
+    my $self = bless { class => $class } => $self_class;
 
     my $table_name = ($self->{class}->can('_get_table_name'))  ? $self->{class}->_get_table_name  : undef;
     my $pkey       = ($self->{class}->can('_get_primary_key')) ? $self->{class}->_get_primary_key : undef;
@@ -45,44 +45,15 @@ sub new {
     }
     elsif (ref $param[0] && ref $param[0] eq 'HASH') {
         # find many by params
-        my ($where_str, @bind, @condition_pairs);
-        for my $param_name (keys %{ $param[0] }) {
-            if (ref $param[0]{$param_name} eq 'ARRAY') {
-                my $instr = join q/, /, map { '?' } @{ $param[0]{$param_name} };
-                push @condition_pairs, qq/"$table_name"."$param_name" IN ($instr)/;
-                push @bind, @{ $param[0]{$param_name} };
-            }
-            elsif (ref $param[0]{$param_name}) {
-                next if !$class->can('_get_relations');
-                my $relation = $class->_get_relations->{$param_name} or next;
+        my ($bind, $condition_pairs) = $self->parse_hash($param[0]);
 
-                next if $relation->{type} ne 'one';
-                my $fk = $relation->{params}{fk};
-                my $pk = $relation->{params}{pk};
-
-                my $object = $param[0]{$param_name};
-
-                push @condition_pairs, qq/"$table_name"."$fk" = ?/;
-                push @bind, $object->$pk;
-            }
-            else {
-                if (defined $param[0]{$param_name}) {
-                    push @condition_pairs, qq/"$table_name"."$param_name" = ?/;
-                    push @bind, $param[0]{$param_name};
-                }
-                else {
-                    # is NULL
-                    push @condition_pairs, qq/"$table_name"."$param_name" IS NULL/;
-                }
-            }
-        }
-        $where_str = join q/ AND /, @condition_pairs;
+        my $where_str = join q/ AND /, @$condition_pairs;
 
         $fields = qq/"$table_name".*/;
         $from   = qq/"$table_name"/;
         $where  = $where_str;
 
-        $self->{BIND} = \@bind;
+        $self->{BIND} = $bind;
     }
     elsif (ref $param[0] && ref $param[0] eq 'ARRAY') {
         # find many by primary keys
@@ -109,13 +80,13 @@ sub new {
     push @{ $self->{prep_select_from} }, $from if $from;
     push @{ $self->{prep_select_where} }, $where if $where;
 
-    return bless $self, $self_class;
+    return $self;
 }
 
 sub count {
     my ($self_class, $class, @param) = @_;
 
-    my $self = bless {}, $self_class;
+    my $self = bless {class => $class}, $self_class;
     my $table_name = $class->_get_table_name;
     my ($count, $sql, @bind);
     if (scalar @param == 0) {
@@ -125,32 +96,10 @@ sub count {
         my $params_hash = shift @param;
         return unless ref $params_hash eq 'HASH';
 
-        my @condition_pairs;
-        for my $param_name (keys %$params_hash) {
-            if (ref $params_hash->{$param_name} eq 'ARRAY') {
-                my $instr = join q/, /, map { '?' } @{ $params_hash->{$param_name} };
-                push @condition_pairs, qq/"$table_name"."$param_name" IN ($instr)/;
-                push @bind, @{ $params_hash->{$param_name} };
-            }
-            elsif (ref $params_hash->{$param_name}) {
-                next if !$class->can('_get_relations');
-                my $relation = $class->_get_relations->{$param_name} or next;
+        my ($bind, $condition_pairs) = $self->parse_hash($params_hash);
 
-                next if $relation->{type} ne 'one';
-                my $fk = $relation->{params}{fk};
-                my $pk = $relation->{params}{pk};
-
-                my $object = $params_hash->{$param_name};
-
-                push @condition_pairs, qq/"$table_name"."$fk" = ?/;
-                push @bind, $object->$pk;
-            }
-            else {
-                push @condition_pairs, qq/"$table_name"."$param_name" = ?/;
-                push @bind, $params_hash->{$param_name};
-            }
-        }
-        my $wherestr = (scalar @condition_pairs > 0 ) ? ' WHERE ' . join(q/ AND /, @condition_pairs) : '';
+        @bind = @$bind;
+        my $wherestr = (scalar @$condition_pairs > 0 ) ? ' WHERE ' . join(q/ AND /, @$condition_pairs) : '';
         $self->{SQL} = qq/SELECT COUNT(*) FROM "$table_name" $wherestr/;
     }
     elsif (scalar @param > 1) {
@@ -163,6 +112,64 @@ sub count {
     $count = $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
 
     return $count;
+}
+
+sub parse_hash {
+    my ($self, $param_hash) = @_;
+    my $class = $self->{class};
+    my $table_name = ($self->{class}->can('_get_table_name'))  ? $self->{class}->_get_table_name  : undef;
+    my ($bind, $condition_pairs) = ([],[]);
+    for my $param_name (keys %{ $param_hash }) {
+        if (ref $param_hash->{$param_name} eq 'ARRAY' and !ref $param_hash->{$param_name}[0]) {
+            my $instr = join q/, /, map { '?' } @{ $param_hash->{$param_name} };
+            push @$condition_pairs, qq/"$table_name"."$param_name" IN ($instr)/;
+            push @$bind, @{ $param_hash->{$param_name} };
+        }
+        elsif (ref $param_hash->{$param_name}) {
+            next if !$class->can('_get_relations');
+            my $relation = $class->_get_relations->{$param_name} or next;
+
+            next if $relation->{type} ne 'one';
+            my $fk = $relation->{params}{fk};
+            my $pk = $relation->{params}{pk};
+
+            if (ref $param_hash->{$param_name} eq __PACKAGE__) {
+                my $object = $param_hash->{$param_name};
+
+                my $tmp_table = qq/tmp_table_/ . sprintf("%x", $object);
+                my $request_table = $object->{class}->_get_table_name;
+
+                $object->{prep_select_fields} = [qq/"$request_table"."$pk"/];
+                $object->_finish_sql_stmt;
+
+                push @$condition_pairs, qq/"$table_name"."$fk" IN (SELECT "$tmp_table"."$pk" from ($object->{SQL}) as $tmp_table)/;
+                push @$bind, @{ $object->{BIND} } if ref $object->{BIND} eq 'ARRAY';
+            }
+            else {
+                my $object = $param_hash->{$param_name};
+
+                if (ref $object eq 'ARRAY') {
+                    push @$bind, map $_->$pk, @$object;
+                    push @$condition_pairs, qq/"$table_name"."$fk" IN (@{[ join ', ', map "?", @$object ]})/;
+                }
+                else {
+                    push @$condition_pairs, qq/"$table_name"."$fk" = ?/;
+                    push @$bind, $object->$pk;
+                }
+            }
+        }
+        else {
+            if (defined $param_hash->{$param_name}) {
+                push @$condition_pairs, qq/"$table_name"."$param_name" = ?/;
+                push @$bind, $param_hash->{$param_name};
+            }
+            else {
+                # is NULL
+                push @$condition_pairs, qq/"$table_name"."$param_name" IS NULL/;
+            }
+        }
+    }
+    return ($bind, $condition_pairs);
 }
 
 sub first {
@@ -348,6 +355,7 @@ sub _finish_sql_stmt {
     $self->{SQL} .= ' OFFSET '.  ($self->{prep_offset} // 0);
 
     #$self->_delete_keys(qr/^prep\_/);
+    return $self;
 }
 
 #sub get {
@@ -628,7 +636,7 @@ sub _quote_sql_stmt {
 
     $self->{SQL} =~ s/"/$quote/g;
 
-    return 1;
+    return $self;
 }
 
 sub DESTROY { }
