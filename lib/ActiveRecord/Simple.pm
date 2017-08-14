@@ -388,6 +388,12 @@ sub columns {
     $class->_mk_attribute_getter('_get_columns', $columns);
 }
 
+sub mixins {
+    my ($class, %mixins) = @_;
+
+    $class->_mk_attribute_getter('_get_mixins', \%mixins);
+}
+
 sub fields {
     my ($class, %fields) = @_;
 

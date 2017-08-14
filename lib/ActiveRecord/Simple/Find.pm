@@ -5,6 +5,8 @@ use strict;
 use warnings;
 use vars qw/$AUTOLOAD/;
 
+use Data::Dumper;
+
 use Carp;
 use Storable qw/freeze/;
 use Module::Load;
@@ -197,10 +199,19 @@ sub only {
     }
 
     my $table_name = $self->{class}->_get_table_name;
+    my $mixins = $self->{class}->can('_get_mixins') ? $self->{class}->_get_mixins : undef;
 
     my @filtered_prep_select_fields =
         grep { $_ ne qq/"$table_name".*/ } @{ $self->{prep_select_fields} };
-    push @filtered_prep_select_fields, map { qq/"$table_name"."$_"/ } @fields;
+    for my $fld (@fields) {
+        if ($mixins && grep { $_ eq $fld } keys %$mixins) {
+            push @filtered_prep_select_fields, $mixins->{$fld}->();
+        }
+        else {
+            push @filtered_prep_select_fields, qq/"$table_name"."$fld"/;
+        }
+    }
+
     $self->{prep_select_fields} = \@filtered_prep_select_fields;
 
     return $self;

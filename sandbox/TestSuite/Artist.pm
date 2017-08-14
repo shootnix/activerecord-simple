@@ -37,6 +37,11 @@ __PACKAGE__->generic(cvs => 'Cvs', { name => 'artist_name' });
 
 __PACKAGE__->use_smart_saving;
 
-#__PACKAGE__->ttt('hello');
+__PACKAGE__->mixins(
+    mysum => sub {
+
+        return 'SUM(id) AS mysum';
+    }
+);
 
 1;
