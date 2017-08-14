@@ -5,8 +5,6 @@ use strict;
 use warnings;
 use vars qw/$AUTOLOAD/;
 
-use Data::Dumper;
-
 use Carp;
 use Storable qw/freeze/;
 use Module::Load;
