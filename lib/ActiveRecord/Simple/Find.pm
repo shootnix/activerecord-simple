@@ -263,6 +263,14 @@ sub order_by_direction {
     return $self;
 }
 
+sub group_by {
+    my ($self, @param) = @_;
+
+    $self->{prep_group_by} ||= [];
+    push @{$self->{prep_group_by}}, map qq/"$_"/, @param;
+    return $self;
+}
+
 sub limit {
     my ($self, $limit) = @_;
 
@@ -338,6 +346,10 @@ sub _finish_sql_stmt {
     ref $self->{prep_select_fields} or croak 'Invalid prepare SQL statement';
     ref $self->{prep_select_from}   or croak 'Invalid prepare SQL statement';
 
+    my $table_name = $self->{class}->_get_table_name;
+    my @add = grep { $_ !~~ $self->{prep_select_fields} } map qq/"$table_name".$_/, @{ $self->{prep_group_by}||[] };
+    push @{ $self->{prep_select_fields} }, @add;
+
     $self->{SQL} = "SELECT " . (join q/, /, @{ $self->{prep_select_fields} }) . "\n";
     $self->{SQL} .= "FROM " . (join q/, /, @{ $self->{prep_select_from} }) . "\n";
 
@@ -353,6 +365,11 @@ sub _finish_sql_stmt {
     ) {
         $self->{SQL} .= "WHERE\n";
         $self->{SQL} .= join " AND ", @{ $self->{prep_select_where} };
+    }
+
+    if (@{ $self->{prep_group_by}||[] }) {
+        $self->{SQL} .= ' GROUP BY ';
+        $self->{SQL} .= join q/, /, @{ $self->{prep_group_by} };
     }
 
     if (@{ $self->{prep_order_by}||[] }) {
