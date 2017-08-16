@@ -358,11 +358,7 @@ sub _finish_sql_stmt {
         $self->{has_joined_table} = 1;
     }
 
-    if (
-        defined $self->{prep_select_where}
-        && ref $self->{prep_select_where} eq 'ARRAY'
-        && scalar @{ $self->{prep_select_where} } > 0
-    ) {
+    if (@{ $self->{prep_select_where}||[] }) {
         $self->{SQL} .= "WHERE\n";
         $self->{SQL} .= join " AND ", @{ $self->{prep_select_where} };
     }
