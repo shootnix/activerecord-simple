@@ -874,16 +874,16 @@ That's it! Now you're ready to use your active-record class in the application:
     my $person = MyModel::Person->get(1);
 
     # to get the record with specified fields:
-    my $person = MyModel::Person->find(1)->only('name', 'age')->fetch;
+    my $person = MyModel::Person->find(1)->only('first_name', 'second_name')->fetch;
 
     # to find records by parameters:
-    my @persons = MyModel::Person->find({ name => 'Foo' })->fetch();
+    my @persons = MyModel::Person->find({ first_name => 'Foo' })->fetch();
 
     # to find records by sql-condition:
-    my @persons = MyModel::Person->find('name = ?', 'Foo')->fetch();
+    my @persons = MyModel::Person->find('first_name = ?', 'Foo')->fetch();
 
     # also you can do something like this:
-    my $persons = MyModel::Person->find('name = ?', 'Foo');
+    my $persons = MyModel::Person->find('first_name = ?', 'Foo');
     while ( my $person = $persons->next() ) {
         say $person->name;
     }

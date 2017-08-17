@@ -87,7 +87,7 @@ sub count {
     my ($self_class, $class, @param) = @_;
 
 
-    return $self_class->new_count() if ref $self_class;
+    return $self_class->_new_count() if ref $self_class;
 
     say 'Attention! You are using DEPRECATED syntax of the method "count" which will be deleted in the future. Sorry about that.';
     say 'Please, check the new syntax of count';
@@ -120,7 +120,7 @@ sub count {
     return $count;
 }
 
-sub new_count {
+sub _new_count {
     my ($self) = @_;
 
     $self->{prep_select_fields} = ['COUNT(*) AS count'];
