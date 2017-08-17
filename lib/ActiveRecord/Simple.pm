@@ -23,9 +23,14 @@ sub new {
     my $class = shift;
     my $param = (scalar @_ > 1) ? {@_} : $_[0];
 
-    $class->_mk_accessors($class->_get_columns())
-        if $class->can('_get_columns');
+    my $accessors_fields = $class->can('_get_columns') ? $class->_get_columns : [];
 
+    if ($class->can('_get_mixins')) {
+        my @keys = keys %{ $class->_get_mixins };
+        $class->_mk_ro_accessors(\@keys);
+        #push @$accessors_fields, @keys;
+    }
+    $class->_mk_accessors($accessors_fields);
 
     if ($class->can('_get_relations')) {
         my $relations = $class->_get_relations();
@@ -207,6 +212,26 @@ sub _mk_accessors {
     return 1;
 }
 
+sub _mk_ro_accessors {
+    my ($class, $fields) = @_;
+
+    return unless $fields;
+    my $super = caller;
+
+    no strict 'refs';
+    FIELD:
+    for my $f (@$fields) {
+        my $pkg_accessor_name = $class . '::' . $f;
+        next FIELD if $class->can($pkg_accessor_name);
+        *{$pkg_accessor_name} = sub {
+            croak "You can't change '$f': object is read-only"
+                if scalar @_ > 1;
+
+            return $_[0]->{$f}
+        };
+    }
+}
+
 sub connect {
     my ($class, $dsn, $username, $password, $options) = @_;
 
@@ -373,6 +398,8 @@ sub _append_relation {
 sub columns {
     my ($class, @args) = @_;
 
+    #return if $class->can('_get_columns');
+
     my $columns = [];
     if (scalar @args == 1) {
         my $arg = shift @args;
@@ -393,6 +420,12 @@ sub columns {
     }
 
     $class->_mk_attribute_getter('_get_columns', $columns);
+}
+
+sub mixins {
+    my ($class, %mixins) = @_;
+
+    $class->_mk_attribute_getter('_get_mixins', \%mixins);
 }
 
 sub fields {
@@ -905,16 +938,16 @@ That's it! Now you're ready to use your active-record class in the application:
     my $person = MyModel::Person->get(1);
 
     # to get the record with specified fields:
-    my $person = MyModel::Person->find(1)->only('name', 'age')->fetch;
+    my $person = MyModel::Person->find(1)->only('first_name', 'second_name')->fetch;
 
     # to find records by parameters:
-    my @persons = MyModel::Person->find({ name => 'Foo' })->fetch();
+    my @persons = MyModel::Person->find({ first_name => 'Foo' })->fetch();
 
     # to find records by sql-condition:
-    my @persons = MyModel::Person->find('name = ?', 'Foo')->fetch();
+    my @persons = MyModel::Person->find('first_name = ?', 'Foo')->fetch();
 
     # also you can do something like this:
-    my $persons = MyModel::Person->find('name = ?', 'Foo');
+    my $persons = MyModel::Person->find('first_name = ?', 'Foo');
     while ( my $person = $persons->next() ) {
         say $person->name;
     }

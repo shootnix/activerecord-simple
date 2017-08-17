@@ -76,9 +76,6 @@ sub connection_parameters {
 sub dbh {
 	my ($self, $dbh) = @_;
 
-	sub dbh {
-	my ($self, $dbh) = @_;
-
 	$self->{dbh} = $dbh if $dbh;
 	$self->db_connect unless $self->{dbh} && $self->{dbh}->ping;
 

@@ -456,7 +456,7 @@ Artist->dbh($dbh);
 
     my $find = Artist->find;
     $find->abstract({
-        order_by => 'name',
+        order_by => { column => 'name' },
         limit => 10,
         offset => 1,
         desc => 1
