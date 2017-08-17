@@ -40,7 +40,7 @@ __PACKAGE__->use_smart_saving;
 __PACKAGE__->mixins(
     mysum => sub {
 
-        return 'SUM(id) AS mysum';
+        return 'SUM(id)';
     }
 );
 

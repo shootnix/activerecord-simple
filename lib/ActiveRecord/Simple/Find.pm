@@ -210,7 +210,9 @@ sub only {
         grep { $_ ne qq/"$table_name".*/ } @{ $self->{prep_select_fields} };
     for my $fld (@fields) {
         if ($mixins && grep { $_ eq $fld } keys %$mixins) {
-            push @filtered_prep_select_fields, $mixins->{$fld}->();
+            my $mixin = $mixins->{$fld}->();
+            $mixin .= qq/ AS $fld/ unless $mixin =~ /as\s+\w+$/i;
+            push @filtered_prep_select_fields, $mixin;
         }
         else {
             push @filtered_prep_select_fields, qq/"$table_name"."$fld"/;

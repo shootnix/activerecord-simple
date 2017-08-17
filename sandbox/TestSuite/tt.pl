@@ -18,14 +18,13 @@ use Data::Dumper;
 
 
 Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
+Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
+Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
+
+Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Magnum")');
+Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Magnum")');
 
 
-my $b = Artist->find({ name => 'Metallica' })->only('name', 'mysum')->fetch;
-my $c = Artist->find({ name => 'Metallica' })->fetch;
-
-say 'Changing B:';
-$b->name('Pearl Jam');
-say 'b.name  = ' . $b->name;
-say 'c.name  = ' . $c->name;
-say 'b.mysum = ' . $b->mysum;
-$b->save;
+my $Metallica = Artist->find({ name => 'Metallica' })->only('name', 'mysum')->fetch;
+say $Metallica->name;
+say $Metallica->mysum;
