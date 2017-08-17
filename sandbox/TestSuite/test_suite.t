@@ -314,9 +314,9 @@ Artist->dbh($dbh);
 
 {
     pass '~ count ~';
-    is(CD->count(), 4);
-    is(CD->count({ title => 'Boy' }), 1);
-    is(CD->count('id > ?', 1), 3);
+    is(CD->find->count(), 4);
+    is(CD->find({ title => 'Boy' })->count, 1);
+    is(CD->find('id > ?', 1)->count, 3);
 }
 
 {
