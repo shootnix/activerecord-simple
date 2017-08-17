@@ -24,12 +24,10 @@ sub new {
 
     my $accessors_fields = $class->can('_get_columns') ? $class->_get_columns : [];
 
-    use Data::Dumper;
-    say 'Simple.new._get_columns = ' . Dumper $class->_get_columns;
-
     if ($class->can('_get_mixins')) {
         my @keys = keys %{ $class->_get_mixins };
-        push @$accessors_fields, @keys;
+        $class->_mk_ro_accessors(\@keys);
+        #push @$accessors_fields, @keys;
     }
     $class->_mk_accessors($accessors_fields);
 
@@ -208,6 +206,26 @@ sub _mk_accessors {
     return 1;
 }
 
+sub _mk_ro_accessors {
+    my ($class, $fields) = @_;
+
+    return unless $fields;
+    my $super = caller;
+
+    no strict 'refs';
+    FIELD:
+    for my $f (@$fields) {
+        my $pkg_accessor_name = $class . '::' . $f;
+        next FIELD if $class->can($pkg_accessor_name);
+        *{$pkg_accessor_name} = sub {
+            croak "You can't change '$f': object is read-only"
+                if scalar @_ > 1;
+
+            return $_[0]->{$f}
+        };
+    }
+}
+
 sub connect {
     my ($class, $dsn, $username, $password, $options) = @_;
 
@@ -373,6 +391,8 @@ sub _append_relation {
 sub columns {
     my ($class, @args) = @_;
 
+    #return if $class->can('_get_columns');
+
     my $columns = [];
     if (scalar @args == 1) {
         my $arg = shift @args;
@@ -519,9 +539,6 @@ sub save {
 
     my $save_param = {};
     my $fields = $self->_get_columns;
-
-    use Data::Dumper;
-    say 'Simple.save.fields = ' . Dumper $fields;
 
     my $pkey = ($self->can('_get_primary_key')) ? $self->_get_primary_key : undef;
 

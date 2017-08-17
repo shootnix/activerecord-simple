@@ -16,13 +16,16 @@ use Data::Dumper;
 	Artist->dbh($dbh);
 
 
-my $a = Artist->new(name => 'Metallica')->save;
-say Dumper $a->_get_mixins;
+
+Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
 
 
 my $b = Artist->find({ name => 'Metallica' })->only('name', 'mysum')->fetch;
-say $b->mysum;
-$b->name('Pearl Jam')->save;
+my $c = Artist->find({ name => 'Metallica' })->fetch;
 
-
-say Dumper $b;
+say 'Changing B:';
+$b->name('Pearl Jam');
+say 'b.name  = ' . $b->name;
+say 'c.name  = ' . $c->name;
+say 'b.mysum = ' . $b->mysum;
+$b->save;
