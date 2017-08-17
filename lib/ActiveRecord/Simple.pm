@@ -235,8 +235,14 @@ sub _mk_ro_accessors {
 sub connect {
     my ($class, $dsn, $username, $password, $options) = @_;
 
-    $connector = ActiveRecord::Simple::Connect->new($dsn, $username, $password, $options);
-    $connector->db_connect;
+    eval { require DBIx::Connector };
+    if ($@) {
+        $connector = ActiveRecord::Simple::Connect->new($dsn, $username, $password, $options);
+        $connector->db_connect;
+    }
+    else {
+        $connector = DBIx::Connector->new($dsn, $username, $password, $options);
+    }
 
     return 1;
 }
@@ -500,7 +506,7 @@ sub autosave {
 }
 
 sub use_smart_saving {
-    say '[DEPRECATED] This method is deprecated and will be removed in the future. Please, use "authosave" method insted.';
+    say '[DEPRECATED] Method "use_smart_saving" is deprecated and will be removed in the future. Please, use "authosave" method insted.';
     $_[0]->autosave;
 }
 
