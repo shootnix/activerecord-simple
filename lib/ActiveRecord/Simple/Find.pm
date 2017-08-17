@@ -86,6 +86,12 @@ sub new {
 sub count {
     my ($self_class, $class, @param) = @_;
 
+
+    return $self_class->new_count() if ref $self_class;
+
+    say 'Attention! You are using DEPRECATED syntax of the method "count" which will be deleted in the future. Sorry about that.';
+    say 'Please, check the new syntax of count';
+
     my $self = bless {class => $class}, $self_class;
     my $table_name = $class->_get_table_name;
     my ($count, $sql, @bind);
@@ -112,6 +118,14 @@ sub count {
     $count = $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
 
     return $count;
+}
+
+sub new_count {
+    my ($self) = @_;
+
+    $self->{prep_select_fields} = ['COUNT(*) AS count'];
+
+    return $self->fetch->{count};
 }
 
 sub parse_hash {

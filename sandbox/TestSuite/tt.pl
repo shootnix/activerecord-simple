@@ -25,6 +25,8 @@ Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Magnum")');
 Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Magnum")');
 
 
-my $Metallica = Artist->find({ name => 'Metallica' })->only('name', 'mysum')->fetch;
-say $Metallica->name;
-say $Metallica->mysum;
+my $count = Artist->find->group_by('name')->count;
+say 'count = ' . $count;
+#my $Metallica = Artist->find({ name => 'Metallica' })->only('name', 'mysum')->fetch;
+#say $Metallica->name;
+#say $Metallica->mysum;
