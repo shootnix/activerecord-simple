@@ -21,6 +21,8 @@ say Dumper $a->_get_mixins;
 
 
 my $b = Artist->find({ name => 'Metallica' })->only('name', 'mysum')->fetch;
+say $b->mysum;
+$b->name('Pearl Jam')->save;
 
 
 say Dumper $b;

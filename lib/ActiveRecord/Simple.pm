@@ -22,9 +22,16 @@ sub new {
     my $class = shift;
     my $param = (scalar @_ > 1) ? {@_} : $_[0];
 
-    $class->_mk_accessors($class->_get_columns())
-        if $class->can('_get_columns');
+    my $accessors_fields = $class->can('_get_columns') ? $class->_get_columns : [];
 
+    use Data::Dumper;
+    say 'Simple.new._get_columns = ' . Dumper $class->_get_columns;
+
+    if ($class->can('_get_mixins')) {
+        my @keys = keys %{ $class->_get_mixins };
+        push @$accessors_fields, @keys;
+    }
+    $class->_mk_accessors($accessors_fields);
 
     if ($class->can('_get_relations')) {
         my $relations = $class->_get_relations();
@@ -512,6 +519,9 @@ sub save {
 
     my $save_param = {};
     my $fields = $self->_get_columns;
+
+    use Data::Dumper;
+    say 'Simple.save.fields = ' . Dumper $fields;
 
     my $pkey = ($self->can('_get_primary_key')) ? $self->_get_primary_key : undef;
 
