@@ -209,8 +209,10 @@ $count = Customer->find({ first_name => 'Bob' })->count;
 is $count, 2, 'count, got 2 Bob\'s';
 undef $count;
 
-$count = Customer->find({ first_name => 'Bob' })->group_by('first_name')->count;
-is $count, 2, 'count, got 2 when group by first_name';
-undef $count;
+my @count = Customer->find->group_by('first_name')->count;
+is_deeply \@count, [{first_name => '', count => 1}, {first_name => 'Bill', count => 1}, {first_name => 'Bob', count => 2}, {first_name => 'John', count => 1}];
+
+@count = Customer->find({ first_name => 'Bob' })->group_by('second_name')->count;
+is_deeply \@count, [{second_name => 'Dylan', count => 1}, {second_name => 'Marley', count => 1}], 'count when find by first_name, group by second_name';
 
 done_testing();
