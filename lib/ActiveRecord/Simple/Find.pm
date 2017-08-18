@@ -84,50 +84,24 @@ sub new {
 }
 
 sub count {
-    my ($self_class, $class, @param) = @_;
-
-
-    return $self_class->_new_count() if ref $self_class;
-
-    carp '[DEPRECATED] Syntax of method "count" is deprecated and will be deleted in the future. Sorry about that.';
-    carp 'Please, check the new syntax of count';
-
-    my $self = bless {class => $class}, $self_class;
-    my $table_name = $class->_get_table_name;
-    my ($count, $sql, @bind);
-    if (scalar @param == 0) {
-        $self->{SQL} = qq/SELECT COUNT(*) FROM "$table_name"/;
+    my $inv = shift;
+    my $self = ref $inv ? $inv : $inv->new(@_);
+    $self->{prep_select_fields} = [ 'COUNT(*)' ];
+    if (@{ $self->{prep_group_by} || [] }) {
+        my $table_name = $self->{class}->_get_table_name;
+        push @{ $self->{prep_select_fields} }, map qq/"$table_name".$_/, @{ $self->{prep_group_by} };
+        my @group_by = @{ $self->{prep_group_by} };
+        s/"//g foreach @group_by;
+        my @results;
+        foreach my $item ($self->fetch) {
+            push my @line, (count => $item->{'COUNT(*)'}), map {$_ => $item->$_} @group_by;
+            push @results, { @line };
+        }
+        return @results;
     }
-    elsif (scalar @param == 1) {
-        my $params_hash = shift @param;
-        return unless ref $params_hash eq 'HASH';
-
-        my ($bind, $condition_pairs) = $self->parse_hash($params_hash);
-
-        @bind = @$bind;
-        my $wherestr = (scalar @$condition_pairs > 0 ) ? ' WHERE ' . join(q/ AND /, @$condition_pairs) : '';
-        $self->{SQL} = qq/SELECT COUNT(*) FROM "$table_name" $wherestr/;
+    else {
+        return $self->fetch->{'COUNT(*)'};
     }
-    elsif (scalar @param > 1) {
-        my $wherestr = shift @param;
-        @bind = @param;
-
-        $self->{SQL} = qq/SELECT COUNT(*) FROM "$table_name" WHERE $wherestr/;
-    }
-    $self->_quote_sql_stmt;
-    $count = $self->dbh->selectrow_array($self->{SQL}, undef, @bind);
-
-    return $count;
-}
-
-sub _new_count {
-    my ($self) = @_;
-
-    $self->{prep_select_fields} = ['COUNT(*) AS count'];
-
-    ### FIXME: no need fetch because of OOP, use just fetchrow_arrayref ...
-
-    return $self->fetch->{count};
 }
 
 sub parse_hash {
