@@ -1071,6 +1071,21 @@ You don't need to call "columns" method explicitly, if you use "fields".
 See L<SQL::Translator> for more information about schema and L<SQL::Translator::Field>
 for information about available data types.
 
+=head2 mixins
+
+Use this method when you need to add optional fields, computed fields etc. Method takes hash, key is a name of field,
+value is a subroutine that returns SQL:
+
+    __PACKAGE__->mixins(
+        sum_of_items => sub {
+
+            return 'SUM(`item`)';
+        }
+    );
+
+    # specify mixin as a field in the query:
+    my @items = Model->find->fields('id', 'name', 'sum_of_items')->fetch;
+
 =head2 primary_key
 
     __PACKAGE__->primary_key('id_person');
@@ -1102,6 +1117,10 @@ classes.
 =head2 autoload
 
 Load table info using DBI methods: table_name, primary_key, foreign_key, columns
+
+=head2 load_info
+
+Same as "autoload". DEPRECATED.
 
 =head2 belongs_to
 
@@ -1186,6 +1205,10 @@ This method provides two features:
       anymore).
 
     __PACKAGE__->autosave;
+
+=head2 use_smart_saving
+
+Same as "autosave". DEPRECATED.
 
 =head2 find
 
