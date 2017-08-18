@@ -18,7 +18,7 @@ use ActiveRecord::Simple::Find;
 use ActiveRecord::Simple::Utils;
 use ActiveRecord::Simple::Connect;
 
-my $connector;
+our $connector;
 
 
 sub new {
