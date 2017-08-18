@@ -184,8 +184,6 @@ sub autoload {
     my $primary_key_data = $primary_key_sth->fetchrow_hashref;
     my $primary_key = ($primary_key_data) ? $primary_key_data->{COLUMN_NAME} : undef;
 
-    #say 'primary_key: ' . Dumper $primary_key;
-
     # 3. Foreign keys
     # ...
 
@@ -519,7 +517,7 @@ sub autosave {
 }
 
 sub use_smart_saving {
-    say '[DEPRECATED] Method "use_smart_saving" is deprecated and will be removed in the future. Please, use "authosave" method insted.';
+    carp '[DEPRECATED] Method "use_smart_saving" is deprecated and will be removed in the future. Please, use "authosave" method insted.';
     $_[0]->autosave;
 }
 
@@ -978,7 +976,7 @@ That's it! Now you're ready to use your active-record class in the application:
 =head1 METHODS
 
 ActiveRecord::Simple provides a variety of techniques to make your work with
-data little easier. It contains only a basic set of operations, such as
+data little easier. It contains set of operations, such as
 search, create, update and delete data.
 
 If you realy need more complicated solution, just try to expand on it with your
@@ -1105,34 +1103,6 @@ classes.
 
 Load table info using DBI methods: table_name, primary_key, foreign_key, columns
 
-=head2 relations [!OLD!, may be deprecated in the future]
-
-    __PACKAGE__->relations({
-        cars => {
-            class => 'MyModel::Car',
-            key   => 'id_person',
-            type  => 'many'
-        },
-    });
-
-It's not a required method and you don't have to use it if you don't want to use
-any relationships in your tables and objects. However, if you need to,
-just keep this simple schema in youre mind:
-
-    __PACKAGE__->relations({
-        [relation key] => {
-            class => [class name],
-            key   => [column that refferers to the table],
-            type  => [many or one]
-        },
-    })
-
-    [relation key] - this is a key that will be provide the access to instance
-    of the another class (which is specified in the option "class" below),
-    associated with this relationship. Allowed to use as many keys as you need:
-
-    $package_instance->[relation key]->[any method from the related class];
-
 =head2 belongs_to
 
     __PACKAGE__->belongs_to(home => 'Home');
@@ -1168,6 +1138,34 @@ You can specify one object via another one using "has_one" method. It works like
 
     say $person->wife->name; # SELECT name FROM Wife WHERE person_id = $self._primary_key
 
+=head2 relations
+
+    __PACKAGE__->relations({
+        cars => {
+            class => 'MyModel::Car',
+            key   => 'id_person',
+            type  => 'many'
+        },
+    });
+
+It's not a required method and you don't have to use it if you don't want to use
+any relationships in your tables and objects. However, if you need to,
+just keep this simple schema in youre mind:
+
+    __PACKAGE__->relations({
+        [relation key] => {
+            class => [class name],
+            key   => [column that refferers to the table],
+            type  => [many or one]
+        },
+    })
+
+    [relation key] - this is a key that will be provide the access to instance
+    of the another class (which is specified in the option "class" below),
+    associated with this relationship. Allowed to use as many keys as you need:
+
+    $package_instance->[relation key]->[any method from the related class];
+
 =head2 generic
 
     __PACKAGE__->generic(photos => { release_date => 'pub_date' });
@@ -1195,7 +1193,7 @@ There are several ways to find someone in your database using ActiveRecord::Simp
 
     # by "nothing"
     # just leave attributes blank to recieve all rows from the database:
-    my @all_persons = MyModel::Person->find()->fetch;
+    my @all_persons = MyModel::Person->find->fetch;
 
     # by primary key:
     my $person = MyModel::Person->find(1)->fetch;
@@ -1236,8 +1234,10 @@ If you want to use a real sql where-condition:
 
 You can use the ordering of results, such as ORDER BY, ASC and DESC:
 
-    my @persons = MyModel::Person->find('age > ?', 21)->order_by('name')->desc->fetch();
-    my @persons = MyModel::Person->find('age > ?', 21)->order_by('name', 'age')->fetch();
+    my @persons = MyModel::Person->find('age > ?', 21)->order_by('name')->desc->fetch;
+    my @persons = MyModel::Person->find('age > ?', 21)->order_by('name', 'age')->fetch;
+    my @persons = MyModel::Person->find->order_by('age')->desc->order_by('id')->asc->fetch;
+
 
 You can pass objects as a parameters. In this case parameter name is the name of relation.
 For example:
@@ -1266,6 +1266,24 @@ Now, get person:
     ### the same, but not so cool:
     my @bills_orders = Order->find({ customer_id => $Bill->id })->fetch;
 
+=head2 fetch
+
+When you use the "find" method to get a few rows from the table, you get the
+meta-object with a several objects inside. To use all of them or only a part,
+use the "fetch" method:
+
+    my @persons = MyModel::Person->find('id_person != ?', 1)->fetch();
+
+You can also specify how many objects you want to use at a time:
+
+    my @persons = MyModel::Person->find('id_person != ?', 1)->fetch(2);
+    # fetching only 2 objects.
+
+Another syntax of command "fetch" allows you to make read-only objects:
+
+    my @persons = MyModel::Person->find->fetch({ read_only => 1, limit => 2 });
+    # all two object are read-only
+
 =head2 select
 
 Yet another way to select data from the database:
@@ -1275,36 +1293,48 @@ Yet another way to select data from the database:
 
     my @bills = Person->select($criteria, $select_options);
 
+=head2 upload
+
+Loads fetched object into the variable:
+
+    my $finder = Person->find({ name => 'Bill' }); # now $finder isa ARS::Find
+    # you can continue using this variable as an ARS::Find object:
+    $finder->order_by('age');
+    $finder->with('orders');
+    # now, insted of creating yet another variable like this:
+    my $persons = $finder->fetch;
+    # .. you just upload the result into $finder:
+    $finder->upload; # now $finder isa Person
 
 =head2 count
 
 Returns count of records that match the rule:
 
-    say MyModel::Person->count;
-    say MyModel::Person->count({ zip => '12345' });
-    say MyModel::Person->count('age > ?', 55);
-    say MyModel::Person->count({city => City->find({ name => 'NY' })->fetch });
+    say MyModel::Person->find->count;
+    say MyModel::Person->find({ zip => '12345' })->count;
+    say MyModel::Person->find('age > ?', 55)->count;
+    say MyModel::Person->find({city => City->find({ name => 'NY' })->fetch })->count;
 
 =head2 exists
 
 Returns 1 if record is exists in database:
 
-    say "Exists" if MyModel::Person->exists({ zip => '12345' });
-    say "Exists" if MyModel::Person->exists('age > ?', 55);
+    say "Exists" if MyModel::Person->find({ zip => '12345' })->count;
+    say "Exists" if MyModel::Person->find('age > ?', 55)->count;
 
 =head2 first
 
 Returns the first record (records) ordered by the primary key:
 
-    my $first_person = MyModel::Person->first->fetch;
-    my @ten_persons  = MyModel::Person->first(10)->fetch;
+    my $first_person = MyModel::Person->find->first;
+    my @ten_persons  = MyModel::Person->find->first(10);
 
 =head2 last
 
 Returns the last record (records) ordered by the primary key:
 
-    my $last_person = MyModel::Person->last->fetch;
-    my @ten_persons = MyModel::Person->last(10)->fetch;
+    my $last_person = MyModel::Person->find->last;
+    my @ten_persons = MyModel::Person->find->last(10);
 
 =head2 increment
 
@@ -1431,6 +1461,12 @@ This method uses as many fields as you want:
     my @fields = ('name', 'age', 'zip');
     my @persons = MyModel::Person->find({ city => 'NY' })->order_by(@fields)->fetch();
 
+Use chain "order_by" if you would like to order your data in different ways:
+
+    my @asc_ordered_fields = ('name', 'age');
+    my @desc_ordered_fields = ('zip', 'gender');
+    my @persons = Model->find->order_by(@asc_ordered_fields)->asc->order_by(@desc_ordered_fields)->desc->fetch;
+
 =head2 asc
 
 Use this attribute to order your results ascending:
@@ -1454,6 +1490,17 @@ Use this attribute to limit results of your requests:
 Offset of results:
 
     MyModel::Person->find()->offset(10)->fetch; # all next after 10 rows
+
+=head2 group_by
+
+Group by specified fields:
+
+    Model->find->group_by('name')->fetch;
+
+=head1 Object Methods
+
+Object methods are intended for management of each
+row of your table separately as an object.
 
 =head2 save
 
@@ -1532,30 +1579,6 @@ Checks weather an object is defined:
     my $person = MyModel::Person->find(1);
     return unless $person->is_defined;
 
-=head2 fetch
-
-When you use the "find" method to get a few rows from the table, you get the
-meta-object with a several objects inside. To use all of them or only a part,
-use the "fetch" method:
-
-    my @persons = MyModel::Person->find('id_person != ?', 1)->fetch();
-
-You can also specify how many objects you want to use at a time:
-
-    my @persons = MyModel::Person->find('id_person != ?', 1)->fetch(2);
-    # fetching only 2 objects.
-
-Another syntax of command "fetch" allows you to make read-only objects:
-
-    my @persons = MyModel::Person->find->fetch({ read_only => 1, limit => 2 });
-    # all two object are read-only
-
-=head1 TRACING QUERIES
-
-   use ACTIVE_RECORD_SIMPLE_TRACE=1 or ARS_TRACE=1 environment variable:
-
-   $ ACTIVE_RECORD_SIMPLE_TRACE=1 perl myscript.pl
-
 =head1 SEE ALSO
 
     L<DBIx::ActiveRecord>, L<SQL::Translator>
@@ -1596,13 +1619,12 @@ L<https://github.com/shootnix/activerecord-simple/wiki>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2013-2016 shootnix.
+Copyright 2013-2017 shootnix.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
 by the Free Software Foundation; or the Artistic License.
 
 See http://dev.perl.org/licenses/ for more information.
-
 
 =cut
