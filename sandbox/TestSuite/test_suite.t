@@ -321,23 +321,23 @@ Artist->dbh($dbh);
 
 {
     pass '~ first && last ~';
-    ok my $artist = Artist->first->fetch;
+    ok my $artist = Artist->find->first;
     is $artist->name, 'Metallica';
-    ok $artist = Artist->last->fetch;
+    ok $artist = Artist->find->last;
     is $artist->name, 'U2';
     ok defined $artist->label_id;
 
-    ok $artist = Artist->first->only('name')->fetch;
+    ok $artist = Artist->find->only('name')->first;
     ok defined $artist->name;
     ok !defined $artist->label_id;
 
-    ok my @artists = Artist->first(2)->fetch;
+    ok my @artists = Artist->find->first(2);
     is scalar @artists, 2;
 
     is $artists[0]->name, 'Metallica';
     is $artists[1]->name, 'U2';
 
-    ok @artists = Artist->last(2)->fetch;
+    ok @artists = Artist->find->last(2);
     is scalar @artists, 2;
 
     is $artists[0]->name, 'U2';
@@ -440,7 +440,7 @@ Artist->dbh($dbh);
 {
     pass '~ update ~';
 
-    my $cv = Cvs->first->fetch;
+    my $cv = Cvs->find->first;
 
     ok $cv->update({ n_golds => 10, n_platinums => 10, n_grammies => 10 });
     ok $cv->save;

@@ -117,12 +117,8 @@ is $customized2->id, 1;
 ok !$customized2->first_name;
 
 my $c = Customer->find->only('first_name')->first;
-#is scalar @{ $c->{prep_select_fields} }, 2;
-#is_deeply $c->{prep_select_fields}, ['"customers"."first_name"', '"customers"."id"'];
 
 $c = Customer->find->only('id')->first;
-#is scalar @{ $c->{prep_select_fields} }, 1;
-#is_deeply $c->{prep_select_fields}, ['"customers"."id"'];
 
 ok $first = Customer->find->only('id')->first, 'first->only';
 is $first->id, 1;
