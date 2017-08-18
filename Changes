@@ -133,8 +133,16 @@ Revision history for Perl module ActiveRecord::Simple
         * Small fixes
         * Improved documentation
 
-0.91    xxxx-xx-xx
+0.91    2017-08-19
         + New behavior of method "fetch"
-        * Fix connection bug
-        * Renamed method "load_info" to "load_schema"
+        + Use DBIx::Connector if it's in the system
+        + Added "group_by" method (thanks to @reindeer)
+        * Imrpoved many-to-many objects manipulations
+        * "asc", "desc" in every columns (thanks to @reindeer)
+        * New API for "count" method (thanks to @reindeer)
+        * New API for "last", "first" methods
+        * Fixed connection bug
+        * Renamed method "load_info" to "autoload"
+        * Renamed "use_smart_saving" to "autosave"
+        * Fixed typos
 
