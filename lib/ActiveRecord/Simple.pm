@@ -12,12 +12,14 @@ use Carp;
 use Storable qw/freeze/;
 use Module::Load;
 use vars qw/$AUTOLOAD/;
+use Scalar::Util qw/blessed/;
 
 use ActiveRecord::Simple::Find;
 use ActiveRecord::Simple::Utils;
 use ActiveRecord::Simple::Connect;
 
 my $connector;
+
 
 sub new {
     my $class = shift;
@@ -28,7 +30,6 @@ sub new {
     if ($class->can('_get_mixins')) {
         my @keys = keys %{ $class->_get_mixins };
         $class->_mk_ro_accessors(\@keys);
-        #push @$accessors_fields, @keys;
     }
     $class->_mk_accessors($accessors_fields);
 
@@ -46,29 +47,43 @@ sub new {
             *{$pkg_method_name} = sub {
                 my ($self, @objects) = @_;
 
+
                 my $rel = $class->_get_relations->{$relname};
                 my $fkey = $rel->{foreign_key} || $rel->{key};
+                my $relation = $relations->{$relname};
                 if (@objects) {
-                    OBJECT:
-                    for my $object (@objects) {
-                        next OBJECT unless ref $object;
-                        my $relation = $relations->{$relname};
+                    use Data::Dumper;
+                    if ($relation->{type} eq 'many') {
+                        #say 'Simple.new.objects = ' . Dumper \@objects;
+                        if ($objects[0] && blessed $objects[0]) {
+                            for my $object (@objects) {
+                                my $fk = $relation->{params}{fk};
+                                my $pk = $self->_get_primary_key;
+                                $object->$fk($self->$pk);
 
-                        next OBJECT unless grep { $relation->{type} eq $_ } qw/one many/;
+                                $object->save;
+                            }
+                        }
+                        else {
+                            my $rel_class = (%{ $rel->{class} })[1];
+                            return $rel_class->_find_many_to_many({
+                                root_class      => $class,
+                                m_class         => (%{ $rel->{class} })[0],
+                                self            => $self,
+                                where_statement => \@objects,
+                            });
+                        }
+                    }
+                    elsif ($relation->{type} eq 'one') {
+                        OBJECT:
+                        for my $object (@objects) {
+                            next OBJECT unless ref $object && grep { $relation->{type} eq $_ } qw/one many/;
 
-                        if ($relation->{type} eq 'one') {
                             $self->{"relation_instance_$relname"} = $object;
                             my $pk = $relation->{params}{pk} or next OBJECT;
                             my $fk = $relation->{params}{fk} or next OBJECT;
 
                             $self->$fk($object->$pk);
-                        }
-                        elsif ($relation->{type} eq 'many') {
-                            my $fk = $relation->{params}{fk};
-                            my $pk = $self->_get_primary_key;
-                            $object->$fk($self->$pk);
-
-                            $object->save;
                         }
                     }
 
@@ -182,7 +197,7 @@ sub autoload {
 }
 
 sub load_info {
-    say '[DEPRECATED] This method is deprecated and will be remowed in the feature. Use method "load_schema" instead.';
+    carp '[DEPRECATED] This method is deprecated and will be remowed in the feature. Use method "autoload" instead.';
     $_[0]->autoload;
 }
 
@@ -803,16 +818,25 @@ sub exists {
 
     my ($class, @search_criteria);
     if (ref $first_arg) {
+        # FOXME: Ugly solution, need some beautifulness =)
         # object method
         $class = ref $first_arg;
-        push @search_criteria, $first_arg->to_hash({ only_defined_fields => 1 });
+
+        if ($class eq 'ActiveRecord::Simple::Find') {
+            return $first_arg->exists;
+        }
+        else {
+            return ActiveRecord::Simple::Find->new($class, $first_arg->to_hash({ only_defined_fields => 1 }))->exists;
+        }
     }
     else {
+        carp '[DEPRECATED] This way of using method "exists" is deprecated. Please, see documentation to know how does it work now.';
         $class = $first_arg;
         @search_criteria = @_;
+        return (defined $class->find(@search_criteria)->fetch) ? 1 : 0;
     }
 
-    return (defined $class->find(@search_criteria)->fetch) ? 1 : 0;
+
 }
 
 sub first  { ActiveRecord::Simple::Find->first(@_) }
@@ -822,6 +846,7 @@ sub select { ActiveRecord::Simple::Find->select(shift, @_) }
 sub _find_many_to_many { ActiveRecord::Simple::Find->_find_many_to_many(shift, @_) }
 
 
+### FIXME: this implementation is actually too slow, need much faster solution
 sub AUTOLOAD {
     my ($self, $param) = @_;
 
@@ -833,13 +858,13 @@ sub AUTOLOAD {
     die $error unless $self->can('_get_relations');
     my @many2manies;
     my $relations = $self->_get_relations;
+
     my $subclass = undef;
     my %class_options;
     for my $relation (values %$relations) {
         next unless $relation->{type} eq 'many' && ref $relation->{class} eq 'HASH';
         ($subclass) = keys %{ $relation->{class} };
         next if !$subclass->can('_get_relations');
-
         my $relations2 = $subclass->_get_relations;
 
         for my $rel_name (keys %$relations2) {

@@ -31,7 +31,7 @@ __PACKAGE__->primary_key('foo');
 
 #__PACKAGE__->belongs_to(class => 't::class');
 
-__PACKAGE__->use_smart_saving;
+__PACKAGE__->autosave;
 
 1;
 
@@ -139,8 +139,6 @@ is $r->{prep_asc_desc}, 1, 'desc, ok';
 
 ok $r = t::class->last(10), 'last 10';
 is $r->{prep_limit}, 10, 'limit is 10, last ok';
-
-ok( t::class->exists({ foo => 'bar' }), 'exists' );
 
 is(t::ClaSs3->_table_name, 'class3s');
 is(t::class->_table_name, 't');

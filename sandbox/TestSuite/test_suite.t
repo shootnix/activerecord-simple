@@ -273,24 +273,24 @@ Artist->dbh($dbh);
     is scalar @cd, 2;
 }
 
-#{
-#    pass '~ new rel system ~';
-#    my $artist = Artist->find({ name => 'U2' })->fetch;
-#    is $artist->name, 'U2';
-#
-#    ok $artist->label;
-#    is $artist->label->name, 'EMI';
-#    ok $artist->label(Label->new({name => 'FooBarBaz'})->save)->save;
-#    is $artist->label->name, 'FooBarBaz';
-#
-#    my $artist_again = Artist->find({ name => 'U2' })->fetch;
-#    is $artist_again->label->name, 'FooBarBaz';
-#
-#    my $metallica = Artist->find({ name => 'Metallica' })->fetch;
-#    is $metallica->label->name, 'EMI';
-#
-#    ok !$artist->label(Label->new({ name => 'NewFooBarBaz' }));
-#}
+{
+    pass '~ new rel system ~';
+    my $artist = Artist->find({ name => 'U2' })->fetch;
+    is $artist->name, 'U2';
+
+    ok $artist->label;
+    is $artist->label->name, 'EMI', 'chain works well';
+    ok $artist->label(Label->new({name => 'FooBarBaz'})->save)->save;
+    is $artist->label->name, 'FooBarBaz';
+
+    my $artist_again = Artist->find({ name => 'U2' })->fetch;
+    is $artist_again->label->name, 'FooBarBaz';
+
+    my $metallica = Artist->find({ name => 'Metallica' })->fetch;
+    is $metallica->label->name, 'EMI';
+
+    #ok !$artist->label(Label->new({ name => 'NewFooBarBaz' }));
+}
 
 {
     pass '~ testing "only" ~';
@@ -346,13 +346,13 @@ Artist->dbh($dbh);
 
 {
     pass '~ exists ~';
-    ok( Artist->exists('name = ?', 'U2') );
-    ok( Artist->exists({ name => 'U2' }) );
-    ok( Artist->exists(2) );
+    ok( Artist->find('name = ?', 'U2')->exists );
+    ok( Artist->find({ name => 'U2' })->exists );
+    ok( Artist->find(2)->exists );
 
-    ok( !Artist->exists('name = ?', 'Blink-182') );
-    ok( !Artist->exists({ name => 'Blink-182' }));
-    ok( !Artist->exists(100) );
+    ok( !Artist->find('name = ?', 'Blink-182')->exists );
+    ok( !Artist->find({ name => 'Blink-182' })->exists );
+    ok( !Artist->find(100)->exists );
 
     my $artist = Artist->new({ name => 'U2' });
 
@@ -463,5 +463,8 @@ Artist->dbh($dbh);
     });
     my @artists = $find->fetch;
 }
+
+
+
 
 done_testing;

@@ -89,8 +89,8 @@ sub count {
 
     return $self_class->_new_count() if ref $self_class;
 
-    say 'Attention! You are using DEPRECATED syntax of the method "count" which will be deleted in the future. Sorry about that.';
-    say 'Please, check the new syntax of count';
+    carp '[DEPRECATED] Syntax of method "count" is deprecated and will be deleted in the future. Sorry about that.';
+    carp 'Please, check the new syntax of count';
 
     my $self = bless {class => $class}, $self_class;
     my $table_name = $class->_get_table_name;
@@ -124,6 +124,8 @@ sub _new_count {
     my ($self) = @_;
 
     $self->{prep_select_fields} = ['COUNT(*) AS count'];
+
+    ### FIXME: no need fetch because of OOP, use just fetchrow_arrayref ...
 
     return $self->fetch->{count};
 }
@@ -541,6 +543,19 @@ sub to_sql {
     return wantarray ? ($self->{SQL}, $self->{BIND}) : $self->{SQL};
 }
 
+sub exists {
+    my ($self) = @_;
+
+    $self->{prep_select_fields} = ['1'];
+    $self->_finish_sql_stmt;
+    $self->_quote_sql_stmt;
+
+    my $sth = $self->dbh->prepare($self->{SQL});
+    $sth->execute(@{ $self->{BIND} });
+
+    return $sth->fetchrow_arrayref();
+}
+
 
 ### Private
 
@@ -564,16 +579,10 @@ sub _find_many_to_many {
         }
     }
 
-    my $self = bless {
-        prep_select_fields => [],
-        prep_select_from   => [],
-        prep_select_where  => [],
-        class => $class,
-    }, $self_class;
+    my $self = $self_class->new($class, @{ $param->{where_statement} });
 
     my $connected_table_name = $class->_get_table_name;
-    push @{ $self->{prep_select_from} }, $param->{m_class}->_get_table_name;
-    push @{ $self->{prep_select_fields} }, '*';
+    $self->{prep_select_from} = [ $param->{m_class}->_get_table_name ];
 
     push @{ $self->{prep_left_joins} },
         'JOIN ' . $connected_table_name . ' ON ' . $connected_table_name . '.' . $class->_get_primary_key . ' = '

@@ -67,9 +67,9 @@ isa_ok $finder, 'ActiveRecord::Simple::Find';
 #	say Dumper $bob;
 #}
 my $f = Customer->find({ first_name => 'Bob' });
-while (my $bob = $f->next) {
-	say Dumper $bob;
-}
+#while (my $bob = $f->next) {
+#	say Dumper $bob;
+#}
 
 ok my $Bob = Customer->find({ first_name => 'Bob' })->fetch, 'find Bob';
 
@@ -94,14 +94,13 @@ is $customers[2]->first_name, 'Bill';
 eval { Customer->get(1)->fetch };
 ok $@, 'fetch after get causes die';
 
-ok my $cnt = Customer->count, 'count';
+ok my $cnt = Customer->find->count, 'count';
 is $cnt, 5;
 
-ok my $exists = Customer->exists({ first_name => 'Bob' }), 'exists';
-is $exists, 1;
+ok my $exists = Customer->find({ first_name => 'Bob' })->exists, 'exists';
 
-ok(!Customer->exists({ first_name => 'Not Found' }));
-is(Customer->exists({ first_name => 'Not Found' }), 0);
+ok(!Customer->find({ first_name => 'Not Found' })->exists);
+is(Customer->find({ first_name => 'Not Found' })->exists, undef);
 
 ok my $first = Customer->first->fetch, 'first';
 is_deeply $first, $Bob;
@@ -193,5 +192,25 @@ ok @list = Customer->select([2, 1, 3], { order_by => { columns => ['id'], direct
 is @list, 3;
 
 undef @list;
+
+@list = Customer->find->order_by('first_name')->desc->order_by('id')->asc->fetch;
+is $list[0]->first_name, 'John', 'order_by does work';
+
+undef @list;
+
+@list = Customer->find->group_by('first_name', 'age')->fetch;
+is scalar @list, 4, 'group_by, got 4 objects';
+
+my $count = Customer->find->count;
+is $count, 5, 'simple count, got 5';
+undef $count;
+
+$count = Customer->find({ first_name => 'Bob' })->count;
+is $count, 2, 'count, got 2 Bob\'s';
+undef $count;
+
+$count = Customer->find({ first_name => 'Bob' })->group_by('first_name')->count;
+is $count, 2, 'count, got 2 when group by first_name';
+undef $count;
 
 done_testing();
