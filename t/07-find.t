@@ -94,8 +94,15 @@ is $customers[2]->first_name, 'Bill';
 eval { Customer->get(1)->fetch };
 ok $@, 'fetch after get causes die';
 
-ok my $cnt = Customer->count, 'count';
-is $cnt, 5;
+ok my $static_count = Customer->count, 'static count';
+is $static_count, 5;
+
+ok my $object_count = Customer->find({ first_name => 'Bob' })->count, 'object count';
+is $object_count, 2;
+
+ok my @group_count = Customer->find->group_by('first_name')->order_by('first_name')->count, 'group count';
+is_deeply \@group_count, [{first_name => '', count => 1}, {first_name => 'Bill', count => 1}, {first_name => 'Bob', count => 2}, {first_name => 'John', count => 1}];
+say Dumper \@group_count;
 
 ok my $exists = Customer->exists({ first_name => 'Bob' }), 'exists';
 is $exists, 1;
