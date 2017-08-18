@@ -189,23 +189,24 @@ sub parse_hash {
 }
 
 sub first {
-    my ($self_class, $class, $limit) = @_;
+    my ($self, $limit) = @_;
 
-    $class->can('_get_primary_key') or croak 'Can\'t use "first" without primary key';
-    my $primary_key = $class->_get_primary_key;
     $limit //= 1;
 
-    return $self_class->new($class)->order_by($primary_key)->limit($limit);
+    $self->{class}->can('_get_primary_key') or croak 'Can\'t use "first" without primary key';
+    my $primary_key = $self->{class}->_get_primary_key;
+
+    return $self->order_by($primary_key)->limit($limit)->fetch;
 }
 
 sub last {
-    my ($self_class, $class, $limit) = @_;
+    my ($self, $limit) = @_;
 
-    $class->can('_get_primary_key') or croak 'Can\'t use "first" without primary key';
-    my $primary_key = $class->_get_primary_key;
+    $self->{class}->can('_get_primary_key') or croak 'Can\'t use "first" without primary key';
+    my $primary_key = $self->{class}->_get_primary_key;
     $limit //= 1;
 
-    return $self_class->new($class)->order_by($primary_key)->desc->limit($limit);
+    return $self->order_by($primary_key)->desc->limit($limit)->fetch;
 }
 
 sub only {

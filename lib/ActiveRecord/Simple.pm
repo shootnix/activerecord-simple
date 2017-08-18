@@ -52,9 +52,7 @@ sub new {
                 my $fkey = $rel->{foreign_key} || $rel->{key};
                 my $relation = $relations->{$relname};
                 if (@objects) {
-                    use Data::Dumper;
                     if ($relation->{type} eq 'many') {
-                        #say 'Simple.new.objects = ' . Dumper \@objects;
                         if ($objects[0] && blessed $objects[0]) {
                             for my $object (@objects) {
                                 my $fk = $relation->{params}{fk};
@@ -839,8 +837,8 @@ sub exists {
 
 }
 
-sub first  { ActiveRecord::Simple::Find->first(@_) }
-sub last   { ActiveRecord::Simple::Find->last(@_) }
+sub first  { croak '[DEPRECATED] Using method "first" as a class-method is deprecated. Sorry about that. Please, use "first" in this way: "Model->find->first".'; }
+sub last   { croak '[DEPRECATED] Using method "last" as a class-method is deprecated. Sorry about that. Please, use "last" in this way: "Model->find->last".'; }
 sub select { ActiveRecord::Simple::Find->select(shift, @_) }
 
 sub _find_many_to_many { ActiveRecord::Simple::Find->_find_many_to_many(shift, @_) }
