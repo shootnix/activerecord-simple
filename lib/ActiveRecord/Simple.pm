@@ -841,6 +841,7 @@ sub select { ActiveRecord::Simple::Find->select(shift, @_) }
 
 sub _find_many_to_many { ActiveRecord::Simple::Find->_find_many_to_many(shift, @_) }
 
+sub DESTROY {}
 
 ### FIXME: this implementation is actually too slow, need much faster solution
 sub AUTOLOAD {
