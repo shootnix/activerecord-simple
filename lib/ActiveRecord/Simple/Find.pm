@@ -97,7 +97,7 @@ sub count {
             push my @line, (count => $item->{'COUNT(*)'}), map { $_ => $item->$_ } @group_by;
             push @results, { @line };
         }
-        return \@results;
+        return @results;
     } else {
         return $self->fetch->{'COUNT(*)'};
     }
