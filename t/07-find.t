@@ -102,10 +102,10 @@ ok my $exists = Customer->find({ first_name => 'Bob' })->exists, 'exists';
 ok(!Customer->find({ first_name => 'Not Found' })->exists);
 is(Customer->find({ first_name => 'Not Found' })->exists, undef);
 
-ok my $first = Customer->first->fetch, 'first';
+ok my $first = Customer->find->first, 'first';
 is_deeply $first, $Bob;
 
-ok my $last = Customer->last->fetch, 'last';
+ok my $last = Customer->find->last, 'last';
 is $last->id, 5;
 
 ok my $customized = Customer->find({ first_name => 'Bob' })->only('id')->fetch, 'only';
@@ -116,19 +116,19 @@ ok my $customized2 = Customer->find({ first_name => 'Bob' })->fields('id')->fetc
 is $customized2->id, 1;
 ok !$customized2->first_name;
 
-my $c = Customer->first->only('first_name');
-is scalar @{ $c->{prep_select_fields} }, 2;
-is_deeply $c->{prep_select_fields}, ['"customers"."first_name"', '"customers"."id"'];
+my $c = Customer->find->only('first_name')->first;
+#is scalar @{ $c->{prep_select_fields} }, 2;
+#is_deeply $c->{prep_select_fields}, ['"customers"."first_name"', '"customers"."id"'];
 
-$c = Customer->first->only('id');
-is scalar @{ $c->{prep_select_fields} }, 1;
-is_deeply $c->{prep_select_fields}, ['"customers"."id"'];
+$c = Customer->find->only('id')->first;
+#is scalar @{ $c->{prep_select_fields} }, 1;
+#is_deeply $c->{prep_select_fields}, ['"customers"."id"'];
 
-ok $first = Customer->first->only('id')->fetch, 'first->only';
+ok $first = Customer->find->only('id')->first, 'first->only';
 is $first->id, 1;
 ok !$first->first_name;
 
-ok $last = Customer->last->fetch, 'last';
+ok $last = Customer->find->last, 'last';
 is $last->id, 5;
 
 ok my @list = Customer->find->order_by('id')->desc->fetch, 'order_by, desc';
