@@ -185,7 +185,7 @@ sub autoload {
     my $primary_key = ($primary_key_data) ? $primary_key_data->{COLUMN_NAME} : undef;
 
     # 3. Foreign keys
-    # ...
+    # TODO
 
     $class->table_name($table_name) if $table_name;
     $class->primary_key($primary_key) if $primary_key;
@@ -1487,9 +1487,8 @@ This method uses as many fields as you want:
 
 Use chain "order_by" if you would like to order your data in different ways:
 
-    my @asc_ordered_fields = ('name', 'age');
-    my @desc_ordered_fields = ('zip', 'gender');
-    my @persons = Model->find->order_by(@asc_ordered_fields)->asc->order_by(@desc_ordered_fields)->desc->fetch;
+    my @persons = Model->find->order_by('name', 'age')->asc->order_by('zip')->desc->fetch;
+    # This is equal to ... ORDER BY name, age ASC, zip DESC;
 
 =head2 asc
 
