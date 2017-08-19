@@ -459,12 +459,15 @@ sub upload {
 sub next {
     my ($self) = @_;
 
-    if (!$self->{_objects}) {
-        my @objects = $self->fetch();
-        $self->{_objects} = \@objects;
+    $self->{prep_limit} = 1;
+    if (defined $self->{prep_offset}) {
+        $self->{prep_offset} += 1;
+    }
+    else {
+        $self->{prep_offset} = 0;
     }
 
-    return (scalar @{ $self->{_objects} } > 0 ) ? $self->_get_slice($self->{_objects}) : undef;
+    return $self->fetch;
 }
 
 sub with {

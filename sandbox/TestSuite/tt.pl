@@ -23,6 +23,16 @@ Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Magnum")');
 Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Magnum")');
 
 
-my @last = Artist->find({ name => 'Magnum' })->last(2);
+#my @last = Artist->find({ name => 'Metallica' })->fetch;
+my $f = Artist->find;
 
-say Dumper \@last;
+#say $f->next->id;
+#$f->next;
+
+while (my $n = $f->next) {
+	say $n->id;
+}
+#my $n = $f->next;
+
+#say 'n = ' . Dumper $n;
+#say Dumper \@last;

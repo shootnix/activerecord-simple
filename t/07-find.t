@@ -61,11 +61,13 @@ $dbh->do($_DATA_SQL);
 
 Customer->dbh($dbh);
 
-my $finder = Customer->find({ first_name => 'Bob' });
+my $finder = Customer->find({ first_name => 'Bob' })->order_by('id');
 isa_ok $finder, 'ActiveRecord::Simple::Find';
-#while (my $bob = Customer->find({ first_name => 'Bob' })->next) {
-#	say Dumper $bob;
-#}
+my @bobs = (1, 4); my $i = 0;
+while (my $bob = $finder->next) {
+	ok $bob->id == $bobs[$i], 'next, bob.id == ' . $bobs[$i];
+	$i++;
+}
 my $f = Customer->find({ first_name => 'Bob' });
 #while (my $bob = $f->next) {
 #	say Dumper $bob;
