@@ -79,7 +79,7 @@ sub dbh {
 	$self->{dbh} = $dbh if $dbh;
 	$self->db_connect unless $self->{dbh} && $self->{dbh}->ping;
 
-	return ref $self->{dbh} eq 'CODE' ? $self->{dbh}->() : $self->{dbh};
+	return ref $self->{dbh};
 }
 
 1;
