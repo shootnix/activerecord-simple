@@ -21,3 +21,8 @@ Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
 
 Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Magnum")');
 Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Magnum")');
+
+
+my $a = Artist->find(1)->only('id', 'mysum')->fetch;
+
+say Dumper $a;

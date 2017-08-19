@@ -153,12 +153,13 @@ sub new {
         use strict 'refs';
     }
 
-    $class->autosave(0);
+    $class->auto_save(0);
 
     return bless $param || {}, $class;
 }
 
-sub autoload {
+
+sub auto_load {
     my ($class) = @_;
 
     my @class_name_parts = split q/::/, $class;
@@ -193,8 +194,8 @@ sub autoload {
 }
 
 sub load_info {
-    carp '[DEPRECATED] This method is deprecated and will be remowed in the feature. Use method "autoload" instead.';
-    $_[0]->autoload;
+    carp '[DEPRECATED] This method is deprecated and will be remowed in the feature. Use method "auto_load" instead.';
+    $_[0]->auto_load;
 }
 
 sub _mk_accessors {
@@ -508,7 +509,7 @@ sub _table_name {
     return $table_name;
 }
 
-sub autosave {
+sub auto_save {
     my ($class, $is_on) = @_;
 
     $is_on = 1 if not defined $is_on;
@@ -517,8 +518,8 @@ sub autosave {
 }
 
 sub use_smart_saving {
-    carp '[DEPRECATED] Method "use_smart_saving" is deprecated and will be removed in the future. Please, use "authosave" method insted.';
-    $_[0]->autosave;
+    carp '[DEPRECATED] Method "use_smart_saving" is deprecated and will be removed in the future. Please, use "auto_save" method insted.';
+    $_[0]->auto_save;
 }
 
 sub relations {
@@ -764,7 +765,7 @@ sub to_hash {
     my ($self, $param) = @_;
 
     my $field_names = $self->_get_columns;
-    push @$field_names, keys %{ $self->_get_mixins };
+    push @$field_names, keys %{ $self->_get_mixins } if $self->can('_get_mixins');
     my $attrs = {};
 
     for my $field (@$field_names) {
@@ -851,9 +852,9 @@ sub AUTOLOAD {
     my $sub = $AUTOLOAD; $sub =~ s/.*:://g;
     my $error = "Unknown method: $sub";
 
-    die "Undefined object for method $sub: must be not undef" unless $param;
+    croak "Undefined object for method $sub: must be not undef" unless $param;
 
-    die $error unless $self->can('_get_relations');
+    croak $error unless $self->can('_get_relations');
     my @many2manies;
     my $relations = $self->_get_relations;
 
@@ -880,7 +881,6 @@ sub AUTOLOAD {
     return $subclass->new(\%class_options);
 }
 
-
 ### Private
 
 
@@ -905,7 +905,7 @@ pattern. It's fast, very simple and very light.
     package MyModel:Person;
     use base 'ActiveRecord::Simple';
 
-    __PACKAGE__->autoload()
+    __PACKAGE__->auto_load()
 
     1;
 
@@ -1116,13 +1116,13 @@ Create an index and add it to the schema. Works only when method "fields" is usi
 Set name of the table. This method is required to use in the child (your model)
 classes.
 
-=head2 autoload
+=head2 auto_load
 
 Load table info using DBI methods: table_name, primary_key, foreign_key, columns
 
 =head2 load_info
 
-Same as "autoload". DEPRECATED.
+Same as "auto_load". DEPRECATED.
 
 =head2 belongs_to
 
@@ -1196,7 +1196,7 @@ just keep this simple schema in youre mind:
     my $single = Song->find({ type => 'single' })->fetch();
     my @photos = $single->photos->fetch();  # fetch all photos with pub_date = single.release_date
 
-=head2 autosave
+=head2 auto_save
 
 This method provides two features:
 
@@ -1206,11 +1206,11 @@ This method provides two features:
    2. Automatic save on object destroy (You don't need use "save()" method
       anymore).
 
-    __PACKAGE__->autosave;
+    __PACKAGE__->auto_save;
 
 =head2 use_smart_saving
 
-Same as "autosave". DEPRECATED.
+Same as "auto_save". DEPRECATED.
 
 =head2 find
 

@@ -31,7 +31,7 @@ __PACKAGE__->primary_key('foo');
 
 #__PACKAGE__->belongs_to(class => 't::class');
 
-__PACKAGE__->autosave;
+__PACKAGE__->auto_save;
 
 1;
 

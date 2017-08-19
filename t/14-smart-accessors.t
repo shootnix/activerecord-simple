@@ -132,7 +132,7 @@ package Customer;
 #use parent 'Schema';
 our @ISA = qw/Schema/;
 
-__PACKAGE__->autoload();
+__PACKAGE__->auto_load();
 __PACKAGE__->has_many('orders' => 'Order');
 __PACKAGE__->has_many('achievements' => { 'CustomersAchievement' => 'Achievement' });
 
@@ -141,7 +141,7 @@ package Order;
 
 our @ISA = qw/Schema/;
 
-__PACKAGE__->autoload();
+__PACKAGE__->auto_load();
 __PACKAGE__->belongs_to(customer => 'Customer');
 
 
@@ -149,7 +149,7 @@ package Achievement;
 
 our @ISA = qw/Schema/;
 
-__PACKAGE__->autoload();
+__PACKAGE__->auto_load();
 __PACKAGE__->has_many(customers => { 'CustomersAchievement' => 'Customer' });
 
 
@@ -157,7 +157,7 @@ package CustomersAchievement;
 
 our @ISA = qw/Schema/;
 
-__PACKAGE__->autoload();
+__PACKAGE__->auto_load();
 __PACKAGE__->belongs_to(customer => 'Customer');
 __PACKAGE__->belongs_to(achievement => 'Achievement');
 
