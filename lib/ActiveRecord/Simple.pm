@@ -764,6 +764,7 @@ sub to_hash {
     my ($self, $param) = @_;
 
     my $field_names = $self->_get_columns;
+    push @$field_names, keys %{ $self->_get_mixins };
     my $attrs = {};
 
     for my $field (@$field_names) {

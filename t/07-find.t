@@ -25,6 +25,12 @@ __PACKAGE__->columns(qw/id first_name second_name age email/);
 
 __PACKAGE__->has_one(info => 'CustomersInfo');
 
+__PACKAGE__->mixins(
+	mixin => sub {
+		'SUM("id")'
+	},
+);
+
 
 package main;
 
@@ -212,5 +218,19 @@ is_deeply \@count, [{first_name => '', count => 1}, {first_name => 'Bill', count
 
 @count = Customer->find({ first_name => 'Bob' })->group_by('second_name')->count;
 is_deeply \@count, [{second_name => 'Dylan', count => 1}, {second_name => 'Marley', count => 1}], 'count when find by first_name, group by second_name';
+
+$Bill = Customer->find(3)->fetch;
+is_deeply $Bill->to_hash, {
+	first_name => 'Bill',
+	second_name => 'Clinton',
+	age => 50,
+	email => 'mynameisbill@gmail.com',
+	id => 3,
+	mixin => undef,
+}, 'got undefined mixin in the hash';
+
+$Bill = Customer->find(3)->only('id', 'mixin')->fetch;
+is_deeply $Bill->to_hash({ only_defined_fields => 1 }), { id => 3, mixin => 3 }, 'got defined mixin';
+
 
 done_testing();
