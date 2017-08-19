@@ -460,14 +460,12 @@ sub next {
     my ($self) = @_;
 
     $self->{prep_limit} = 1;
-    if (defined $self->{prep_offset}) {
-        $self->{prep_offset} += 1;
-    }
-    else {
-        $self->{prep_offset} = 0;
-    }
+    $self->{prep_offset} = 0 unless defined $self->{prep_offset};
+    my $result = $self->fetch;
 
-    return $self->fetch;
+    $self->{prep_offset} += 1;
+
+    return $result;
 }
 
 sub with {
