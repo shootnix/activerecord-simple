@@ -771,7 +771,7 @@ sub to_hash {
     for my $field (@$field_names) {
         next if ref $field;
         if ( $param && $param->{only_defined_fields} ) {
-            $attrs->{$field} = $self->{$field} if $self->$field;
+            $attrs->{$field} = $self->{$field} if defined $self->$field;
         }
         else {
             $attrs->{$field} = $self->{$field};
