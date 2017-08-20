@@ -457,15 +457,17 @@ sub upload {
 }
 
 sub next {
-    my ($self) = @_;
+    my ($self, $n) = @_;
 
-    $self->{prep_limit} = 1;
+    $n ||= 1;
+
+    $self->{prep_limit} = $n;
     $self->{prep_offset} = 0 unless defined $self->{prep_offset};
-    my $result = $self->fetch;
+    my @result = $self->fetch;
 
-    $self->{prep_offset} += 1;
+    $self->{prep_offset} += $n;
 
-    return $result;
+    return wantarray ? @result : $result[0];
 }
 
 sub with {

@@ -16,7 +16,16 @@ use Data::Dumper;
 Artist->connect("dbi:SQLite:test_suite.db", "", "");
 
 
-Artist->dbh->do('INSERT INTO artist (`name`, `label_id`) VALUES ("Metallica", 1)');
+Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
+Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
+Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
+Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
+Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
+Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
+Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
+Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
+Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
+Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
 Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
 Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
 
@@ -24,14 +33,8 @@ Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Magnum")');
 Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Magnum")');
 
 
-my $a = Artist->find(1)->only('id', 'mysum')->fetch;
-
-say Dumper $a;
-
-my $rating = Rating->new({ range => 'asss', artist_id => 'AAA' });
-$rating->save;
-
-#say $rating->artist_id;
-
-#my $r = Rating->find({ artist_id => 'AAA' })->fetch;
-#say Dumper $r;
+my $find = Artist->find;
+while (my @a = $find->next(3)) {
+	say $_->id for @a;
+	say '-' x 20;
+}
