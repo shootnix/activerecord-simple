@@ -150,3 +150,9 @@ Revision history for Perl module ActiveRecord::Simple
         * Improve "next" method in favor less memory usage
         * Fixes
 
+0.93    2017-08-21
+        + Method "next" not takes a number of given objects. Default is 1
+        * Fixed auto_load error
+        * Fixed error messages
+        * Different fixes
+
