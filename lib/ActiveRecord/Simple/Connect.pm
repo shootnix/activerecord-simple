@@ -31,11 +31,21 @@ sub new {
 sub db_connect {
 	my ($self) = @_;
 
+	use Data::Dumper;
+	say '-------';
+
 	$self->{dbh} = DBI->connect(
 		$self->{dsn},
 		$self->{username},
 		$self->{password},
-		$self->{connection_parameters},
+		#$self->{connection_parameters},
+		{
+			HandleError => sub {
+				my ($a, $b, $c) = @_;
+
+				say 'Simple.Connect.db_connect.HandleError.a = ' . Dumper $a;
+			},
+		}
 	) or die DBI->errstr;
 
 	return $self;

@@ -248,6 +248,15 @@ sub connect {
     my ($class, $dsn, $username, $password, $options) = @_;
 
     eval { require DBIx::Connector };
+
+    $options->{HandleError} = sub {
+        my ($error_message, $DBI_st) = @_;
+
+        $error_message or return;
+        croak $error_message;
+
+    } if ! exists $options->{HandleError};
+
     if ($@) {
         $connector = ActiveRecord::Simple::Connect->new($dsn, $username, $password, $options);
         $connector->db_connect;
@@ -882,8 +891,6 @@ sub AUTOLOAD {
 }
 
 ### Private
-
-
 
 1;
 

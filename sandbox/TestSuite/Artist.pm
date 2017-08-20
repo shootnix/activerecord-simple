@@ -35,7 +35,7 @@ __PACKAGE__->has_one(rating => 'Rating');
 __PACKAGE__->has_many(albums => { ArtistCD => 'CD' });
 __PACKAGE__->generic(cvs => 'Cvs', { name => 'artist_name' });
 
-__PACKAGE__->autosave;
+__PACKAGE__->auto_save;
 
 __PACKAGE__->mixins(
     mysum => sub {
