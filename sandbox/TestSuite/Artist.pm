@@ -8,9 +8,9 @@ use lib '../../lib';
 use parent 'ActiveRecord::Simple';
 
 
-__PACKAGE__->auto_load;
+#__PACKAGE__->auto_load;
 
-=c
+
 __PACKAGE__->table_name('artist');
 __PACKAGE__->columns(
     id => {
@@ -47,6 +47,6 @@ __PACKAGE__->mixins(
         return 'SUM(id)';
     }
 );
-=cut
+
 
 1;

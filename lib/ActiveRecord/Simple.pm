@@ -247,8 +247,6 @@ sub _mk_ro_accessors {
 sub connect {
     my ($class, $dsn, $username, $password, $options) = @_;
 
-    say '======';
-
     eval { require DBIx::Connector };
 
     $options->{HandleError} = sub {
@@ -264,7 +262,6 @@ sub connect {
         $connector->db_connect;
     }
     else {
-        say 'connecting...';
         $connector = DBIx::Connector->new($dsn, $username, $password, $options);
     }
 
@@ -864,6 +861,7 @@ sub AUTOLOAD {
     my $sub = $AUTOLOAD; $sub =~ s/.*:://g;
     my $error = "Unknown method: $sub";
 
+    croak "Error while executing '$sub' method, '$self' is not a valid (blessed) object." unless blessed $self;
     croak "Undefined object for method $sub: must be not undef" unless $param;
 
     croak $error unless $self->can('_get_relations');
