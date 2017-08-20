@@ -58,7 +58,8 @@ my $_DATA_SQL = q{
 		(2,'John','Doe',77,'john@doe.com'),
 		(3,'Bill','Clinton',50,'mynameisbill@gmail.com'),
 		(4,'Bob','Marley',NULL,'bob.marley@forever.com'),
-		(5,'','',NULL,'foo.bar@bazz.com');
+		(5,'','',NULL,'foo.bar@bazz.com'),
+		(6, 'Lady', 'Gaga', 666, 'gaga-o-la-la@bad.romance');
 
 };
 
@@ -74,10 +75,15 @@ while (my $bob = $finder->next) {
 	ok $bob->id == $bobs[$i], 'next, bob.id == ' . $bobs[$i];
 	$i++;
 }
+
+$finder = Customer->find;
+while (my @customers_pair = $finder->next(2)) {
+	is scalar @customers_pair, 2, 'next(n) works good';
+}
+
 my $f = Customer->find({ first_name => 'Bob' });
-#while (my $bob = $f->next) {
-#	say Dumper $bob;
-#}
+
+
 
 ok my $Bob = Customer->find({ first_name => 'Bob' })->fetch, 'find Bob';
 
@@ -103,7 +109,7 @@ eval { Customer->get(1)->fetch };
 ok $@, 'fetch after get causes die';
 
 ok my $cnt = Customer->find->count, 'count';
-is $cnt, 5;
+is $cnt, 6;
 
 ok my $exists = Customer->find({ first_name => 'Bob' })->exists, 'exists';
 
@@ -114,7 +120,7 @@ ok my $first = Customer->find->first, 'first';
 is_deeply $first, $Bob;
 
 ok my $last = Customer->find->last, 'last';
-is $last->id, 5;
+is $last->id, 6;
 
 ok my $customized = Customer->find({ first_name => 'Bob' })->only('id')->fetch, 'only';
 is $customized->id, 1;
@@ -133,10 +139,10 @@ is $first->id, 1;
 ok !$first->first_name;
 
 ok $last = Customer->find->last, 'last';
-is $last->id, 5;
+is $last->id, 6;
 
 ok my @list = Customer->find->order_by('id')->desc->fetch, 'order_by, desc';
-is $list[4]->id, 1;
+is $list[4]->id, 2;
 
 undef @list;
 ok @list = Customer->find->order_by('id')->asc->fetch, 'order_by, asc';
@@ -155,7 +161,7 @@ ok @list = Customer->find->abstract({
 })->fetch, 'abstract';
 
 is scalar @list, 2;
-is $list[0]->id, 4;
+is $list[0]->id, 5;
 
 undef @list;
 
@@ -169,7 +175,7 @@ ok @list = Customer->select(undef, {
 }), 'select';
 
 is scalar @list, 2;
-is $list[0]->id, 4;
+is $list[0]->id, 5;
 
 ok $Bill = Customer->select({ first_name => 'Bill' }, { only => ['id'] });
 ok $Bill->id;
@@ -178,8 +184,8 @@ ok !$Bill->first_name;
 undef @list;
 
 ok @list = Customer->select('id > ?', 2, { order_by => { columns => ['id'], direction => 'desc' }});
-is scalar @list, 3;
-is $list[2]->id, 3;
+is scalar @list, 4;
+is $list[2]->id, 4;
 
 undef @list;
 undef $Bill;
@@ -188,7 +194,7 @@ ok $Bill = Customer->select({ first_name => 'Bill' });
 is $Bill->first_name, 'Bill';
 
 ok @list = Customer->select;
-is @list, 5;
+is @list, 6;
 
 undef @list;
 
@@ -198,15 +204,15 @@ is @list, 3;
 undef @list;
 
 @list = Customer->find->order_by('first_name')->desc->order_by('id')->asc->fetch;
-is $list[0]->first_name, 'John', 'order_by does work';
+is $list[0]->first_name, 'Lady', 'order_by does work';
 
 undef @list;
 
 @list = Customer->find->group_by('first_name', 'age')->fetch;
-is scalar @list, 4, 'group_by, got 4 objects';
+is scalar @list, 5, 'group_by, got 4 objects';
 
 my $count = Customer->find->count;
-is $count, 5, 'simple count, got 5';
+is $count, 6, 'simple count, got 5';
 undef $count;
 
 $count = Customer->find({ first_name => 'Bob' })->count;
@@ -214,7 +220,7 @@ is $count, 2, 'count, got 2 Bob\'s';
 undef $count;
 
 my @count = Customer->find->group_by('first_name')->count;
-is_deeply \@count, [{first_name => '', count => 1}, {first_name => 'Bill', count => 1}, {first_name => 'Bob', count => 2}, {first_name => 'John', count => 1}];
+is_deeply \@count, [{first_name => '', count => 1}, {first_name => 'Bill', count => 1}, {first_name => 'Bob', count => 2}, {first_name => 'John', count => 1}, {first_name => 'Lady', count => 1}];
 
 @count = Customer->find({ first_name => 'Bob' })->group_by('second_name')->count;
 is_deeply \@count, [{second_name => 'Dylan', count => 1}, {second_name => 'Marley', count => 1}], 'count when find by first_name, group by second_name';
