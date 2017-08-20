@@ -181,7 +181,7 @@ sub auto_load {
     push @columns, $_->{COLUMN_NAME} for @$cols;
 
     # 2. Primary key
-    my $primary_key_sth = $class->dbh->primary_key_info('', '%', $table_name);
+    my $primary_key_sth = $class->dbh->primary_key_info(undef, undef, $table_name);
     my $primary_key_data = $primary_key_sth->fetchrow_hashref;
     my $primary_key = ($primary_key_data) ? $primary_key_data->{COLUMN_NAME} : undef;
 
@@ -247,6 +247,8 @@ sub _mk_ro_accessors {
 sub connect {
     my ($class, $dsn, $username, $password, $options) = @_;
 
+    say '======';
+
     eval { require DBIx::Connector };
 
     $options->{HandleError} = sub {
@@ -262,6 +264,7 @@ sub connect {
         $connector->db_connect;
     }
     else {
+        say 'connecting...';
         $connector = DBIx::Connector->new($dsn, $username, $password, $options);
     }
 

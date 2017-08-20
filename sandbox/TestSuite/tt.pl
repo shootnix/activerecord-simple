@@ -1,8 +1,7 @@
 #!/usr/bin/env perl
 
 use 5.014;
-require Artist;
-require Rating;
+
 
 use Data::Dumper;
 
@@ -12,10 +11,23 @@ use Data::Dumper;
 
 	system 'sqlite3 test_suite.db < test_suite.sqlite.sql';
 
+use FindBin qw/$Bin/;
+use lib "$Bin/../../lib";
+use ActiveRecord::Simple;
 
-Artist->connect("dbi:SQLite:test_suite.db", "", "");
+#ActiveRecord::Simple->connect('dbi:mysql:ars', 'shootnix', '12345');
+ActiveRecord::Simple->connect("dbi:SQLite:test_suite.db", "", "");
 
+require Artist;
 
+say Artist->_get_table_name;
+say Artist->_get_primary_key;
+#require Rating;
+
+#Artist->connect("dbi:SQLite:test_suite.db", "", "");
+#Artist->connect('dbi:mysql:ars', 'shootnix', '12345');
+
+=c
 Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
 Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
 Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
