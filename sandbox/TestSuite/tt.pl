@@ -16,8 +16,10 @@ use lib "$Bin/../../lib";
 use ActiveRecord::Simple;
 
 #ActiveRecord::Simple->connect('dbi:mysql:ars', 'shootnix', '12345');
-ActiveRecord::Simple->connect("dbi:SQLite:test_suite.db", "", "");
+ActiveRecord::Simple->connect("dbi:SQLite:test_suite.db", "", "", { HandleError => sub {} });
 require Artist;
+require Manager;
+require Label;
 
 #require Artist;
 
@@ -27,24 +29,29 @@ require Artist;
 
 #Artist->connect("dbi:SQLite:test_suite.db", "", "");
 #Artist->connect('dbi:mysql:ars', 'shootnix', '12345');
+my $manager = Manager->new({ name => 'John Doe' })->save;
+my $label   = Label->new({ name => 'EMI' })->save;
 
 
-Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
-Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
-Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
-Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
-Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
-Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
-Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
-Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
-Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
-Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
-Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
-Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
+#Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Metallica")');
 
-Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Magnum")');
-Artist->dbh->do('INSERT INTO artist (`name`) VALUES ("Magnum")');
+my $artist = Artist->new({ name => 'Metallica' })->manager($manager)->label($label)->save;
 
+use App::Benchmark;
 
-my $a = Artist->get(1);
-say $a->label->id;
+benchmark_diag(20_000, {
+	a => sub {
+		my $a = Artist->find({ name => 'Metallica' })->with('manager', 'label')->fetch;
+	},
+	b => sub {
+		my $a = Artist->find({ name => 'Metallica' })->fetch;
+		my @labels = Label->find({ id => $a->label_id })->fetch;
+		my @managers = Manager->find({ id => $a->manager_id })->fetch;
+	}
+});
+#my $a = Artist->find({ name => 'Metallica' })->left_join('label', 'manager')->fetch;
+
+#say Dumper $a;
+
+#my $a = Artist->get(1);
+#say $a->label->id;

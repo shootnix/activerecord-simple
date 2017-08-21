@@ -9,7 +9,8 @@ drop table if exists rating;
 create table artist (
     id         integer primary key autoincrement not null,
     name       varchar(255),
-    label_id   integer references id (label) on delete cascade
+    label_id   integer references id (label) on delete cascade,
+    manager_id integer references id (managers) on delete cascade
 );
 
 create table cd (
@@ -50,4 +51,9 @@ create table cvs (
     n_grammies   integer default 0 not null,
     n_platinums  integer default 0 not null,
     n_golds      integer default 0 not null
+);
+
+create table managers (
+    id integer primary key autoincrement not null,
+    name varchar(255)
 );

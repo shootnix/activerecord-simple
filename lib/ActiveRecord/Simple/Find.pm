@@ -388,7 +388,6 @@ sub _finish_object_representation {
                 $pairs{$key} = $val;
             }
             $obj->{"relation_instance_$rel_name"} = $relation->{class}->new(\%pairs);
-                        #bless \%pairs, $relation->{class};
 
             $obj->_delete_keys(qr/^JOINED\_$rel_name/);
         }
@@ -421,6 +420,7 @@ sub fetch {
 
     my $class = $self->{class};
     my $sth = $self->dbh->prepare($self->{SQL}) or croak $self->dbh->errstr;
+
     $sth->execute(@{ $self->{BIND} }) or croak $self->dbh->errstr;
     if (wantarray) {
         my @objects;
@@ -483,6 +483,7 @@ sub with {
 
     $self->{prep_left_joins} = [];
     $self->{with} = \@rels;
+
     RELATION:
     for my $rel_name (@rels) {
         my $relation = $self->{class}->_get_relations->{$rel_name}
@@ -490,13 +491,13 @@ sub with {
 
         next RELATION unless grep { $_ eq $relation->{type} } qw/one only/;
         my $rel_table_name = $relation->{class}->_get_table_name;
-
         my $rel_columns = $relation->{class}->_get_columns;
 
-        #push @{ $self->{prep_select_fields} }, qq/"$rel_table_name".*/;
-        push @{ $self->{prep_select_fields} },
-            map { qq/"$rel_table_name"."$_" AS "JOINED_$rel_name\_$_"/  }
-                @{ $relation->{class}->_get_columns };
+        REL_COLUMN:
+        for (@$rel_columns) {
+            next REL_COLUMN if ref $_;
+            push @{ $self->{prep_select_fields} }, qq/"$rel_table_name"."$_" AS "JOINED_$rel_name\_$_"/;
+        }
 
         if ($relation->{type} eq 'one') {
             my $join_sql = qq/LEFT JOIN "$rel_table_name" ON /;
