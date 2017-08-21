@@ -29,12 +29,19 @@ __PACKAGE__->columns(
         data_type => 'int',
         size => 100,
         is_foreign_key => 1,
-    }
+    },
+    manager_id => {
+        data_type => 'int',
+        size => 100,
+        is_foreign_key => 1,
+    },
+
 );
 __PACKAGE__->primary_key('id');
 __PACKAGE__->index('index_artist_id', ['id']);
 
 __PACKAGE__->belongs_to(label => 'Label');
+__PACKAGE__->belongs_to(manager => 'Manager');
 __PACKAGE__->has_one(rating => 'Rating');
 __PACKAGE__->has_many(albums => { ArtistCD => 'CD' });
 __PACKAGE__->generic(cvs => 'Cvs', { name => 'artist_name' });
