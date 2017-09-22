@@ -242,6 +242,39 @@ sub _mk_ro_accessors {
             return $_[0]->{$f}
         };
     }
+    use strict 'refs';
+}
+
+sub sql_fetch_all {
+    my ($class, $sql, @bind) = @_;
+
+    my $data = $class->dbh->selectall_arrayref($sql, { Slice => {} }, @bind);
+    my @list;
+    for my $row (@$data) {
+        my @fields;
+        for my $fld (keys %$row) {
+            push @fields, $fld;
+        }
+        $class->_mk_ro_accessors(\@fields);
+        bless $row, $class;
+        push @list, $row;
+    }
+
+    return \@list;
+}
+
+sub sql_fetch_row {
+    my ($class, $sql, @bind) = @_;
+
+    my $row = $class->dbh->selectrow_hashref($sql, undef, @bind);
+    my @fields;
+    for my $fld (keys %$row) {
+        push @fields, $fld;
+    }
+    $class->_mk_ro_accessors(\@fields);
+    bless $row, $class;
+
+    return $row;
 }
 
 sub connect {
