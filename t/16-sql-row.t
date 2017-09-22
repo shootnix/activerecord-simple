@@ -138,9 +138,6 @@ __PACKAGE__->auto_load();
 __PACKAGE__->has_many('orders' => 'Order');
 __PACKAGE__->has_many('achievements' => { 'CustomersAchievement' => 'Achievement' });
 
-
-
-
 package Order;
 
 our @ISA = qw/Schema/;

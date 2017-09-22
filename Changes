@@ -156,3 +156,6 @@ Revision history for Perl module ActiveRecord::Simple
         * Fixed error messages
         * Different fixes
 
+0.95    2017-09-22
+        + Method "sql_fetch_all"
+        + Method "sql_fetch_row"
