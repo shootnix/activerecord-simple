@@ -23,7 +23,7 @@ __PACKAGE__->table_name('customers');
 __PACKAGE__->primary_key('id');
 __PACKAGE__->columns(qw/id first_name second_name age email/);
 
-__PACKAGE__->has_one(info => 'CustomersInfo');
+#__PACKAGE__->has_one(info => 'CustomersInfo');
 
 __PACKAGE__->mixins(
 	mixin => sub {

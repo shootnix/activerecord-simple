@@ -26,8 +26,6 @@ sub new {
     my $class = shift;
     my $params = (scalar @_ > 1) ? {@_} : $_[0];
 
-    use Data::Dumper;
-
     # mixins
     if ($class->can('_get_mixins')) {
         my @keys = keys %{ $class->_get_mixins };
@@ -38,147 +36,14 @@ sub new {
     my $columns = $class->can('_get_columns') ? $class->_get_columns : [];
     $class->_mk_accessors($columns);
 
-    if ($class->can('_get_relations')) {
-        my $relations = $class->_get_relations;
+    # relations
+    $class->_init_relations if $class->can('_get_relations');
 
-        no strict 'refs';
-
-        RELATION_NAME:
-        for my $relation_name ( keys %{ $relations }) {
-            my $pkg_method_name = $class . '::' . $relation_name;
-            next RELATION_NAME if $class->can($pkg_method_name); ### FIXME: orrrr $relation_name???
-
-            *{$pkg_method_name} = sub {
-                my ($self, @args) = @_;
-
-                my $relation = $relations->{$relation_name};
-                my $full_relation_type = _get_relation_type($class, $relation);
-                my $related_class = _get_related_class($relation);
-
-                if (@args) {
-
-                    if ($relation->{type} eq 'many') {
-                        if ($full_relation_type eq 'many_to_one') {
-                            OBJECT:
-                            for my $object (@args) {
-                                next OBJECT if !blessed $object;
-
-                                my $fk = $relation->{params}{fk};
-                                my $pk = $self->_get_primary_key;
-                                $object->$fk($self->$pk)->save;
-                            }
-                        }
-                        elsif ($full_relation_type eq 'many_to_many') {
-
-                            unless (all { blessed $_ } @args) {
-                                return  $related_class->_find_many_to_many({
-                                    root_class => $class,
-                                    m_class    => _get_related_subclass($relation),
-                                    self       => $self,
-                                    where_statement => \@args,
-                                });
-                            }
-
-                            my $related_subclass = _get_related_subclass($relation);
-                            my ($fk1, $fk2);
-
-                            $fk1 = $relation->{params}{fk};
-
-                            RELATED_CLASS_RELATION:
-                            for my $related_class_relation (values %{ $related_class->_get_relations }) {
-                                next RELATED_CLASS_RELATION
-                                    unless _get_related_subclass($related_class_relation)
-                                        && $related_subclass eq _get_related_subclass($related_class_relation);
-
-                                $fk2 = $related_class_relation->{params}{fk};
-                            }
-
-                            my $pk1_name = $self->_get_primary_key;
-                            my $pk1 = $self->$pk1_name;
-
-                            defined $pk1 or croak 'You are trying to create relations between unsaved objects. Save your ' . $class . ' object first';
-
-                            OBJECT:
-                            for my $object (@args) {
-                                next OBJECT if !blessed $object;
-
-                                my $pk2_name = $object->_get_primary_key;
-                                my $pk2 = $object->$pk2_name;
-
-                                $related_subclass->new($fk1 => $pk1, $fk2 => $pk2)->save;
-                            }
-                        }
-                    }
-                    elsif ($relation->{type} eq 'one') {
-                        OBJECT:
-                        for my $object (@args) {
-                            next OBJECT unless ref $object && grep { $relation->{type} eq $_ } qw/one many/;
-
-                            $self->{"relation_instance_$relation_name"} = $object;
-                            my $pk = $relation->{params}{pk} or next OBJECT;
-                            my $fk = $relation->{params}{fk} or next OBJECT;
-
-                            $self->$fk($object->$pk);
-                        }
-                    }
-
-                    return $self;
-                }
-                # else
-                if (!$self->{"relation_instance_$relation_name"}) {
-                    if (any { $full_relation_type eq $_ } qw/one_to_many one_to_one one_to_only/) {
-                        my $fkey = $relation->{params}{fk};
-                        my $pkey = $relation->{params}{pk};
-
-                        $self->{"relation_instance_$relation_name"} =
-                            $related_class->get($self->$fkey) // $related_class;
-                    }
-                    elsif ($full_relation_type eq 'only_to_one') {
-                        my $fkey = $relation->{params}{fk};
-                        my $pkey = $relation->{params}{pk};
-
-                        $self->{"relation_instance_$relation_name"} =
-                            $related_class->find("$fkey = ?", $self->$pkey)->fetch;
-                    }
-                    elsif ($full_relation_type eq 'many_to_one') {
-                        return $related_class->new() if not $self->can('_get_primary_key');
-                        my $fkey = $relation->{params}{fk};
-                        my $pkey = $relation->{params}{pk};
-
-                        $self->{"relation_instance_$relation_name"}
-                            = $related_class->find("$fkey = ?", $self->$pkey);
-                    }
-                    elsif ($full_relation_type eq 'many_to_many') {
-                        $self->{"relation_instance_$relation_name"} =
-                            $related_class->_find_many_to_many({
-                                root_class => $class,
-                                m_class    => _get_related_subclass($relation),
-                                self       => $self,
-                            });
-                    }
-                    elsif ($full_relation_type eq 'generic_to_generic') {
-                        my %find_attrs;
-                        while (my ($k, $v) = each %{ $relation->{key} }) {
-                            $find_attrs{$v} = $self->$k;
-                        }
-                        $self->{"relation_instance_$relation_name"} =
-                            $related_class->find(\%find_attrs);
-                    }
-                }
-
-                $self->{"relation_instance_$relation_name"};
-            }
-        }
-
-        use strict 'refs';
-    }
-
+    # FIXME: dirty hack
     $class->auto_save(0);
 
     return bless $params || {}, $class;
 }
-
-
 
 sub auto_load {
     my ($class) = @_;
@@ -218,10 +83,6 @@ sub load_info {
     carp '[DEPRECATED] This method is deprecated and will be remowed in the feature. Use method "auto_load" instead.';
     $_[0]->auto_load;
 }
-
-
-
-
 
 sub sql_fetch_all {
     my ($class, $sql, @bind) = @_;
@@ -972,6 +833,167 @@ sub _mk_attribute_getter {
         no strict 'refs';
         *{$pkg_method_name} = sub { $return };
     }
+}
+
+sub _init_relations {
+    my ($class) = @_;
+
+    my $relations = $class->_get_relations;
+
+    no strict 'refs';
+    RELATION_NAME:
+    for my $relation_name ( keys %{ $relations }) {
+
+        my $pkg_method_name = $class . '::' . $relation_name;
+        next RELATION_NAME if $class->can($pkg_method_name); ### FIXME: orrrr $relation_name???
+
+        my $relation           = $relations->{$relation_name};
+        my $full_relation_type = _get_relation_type($class, $relation);
+        my $related_class      = _get_related_class($relation);
+
+        ### TODO: check for error if returns undef
+        my $pk = $relation->{params}{pk};
+        my $fk = $relation->{params}{fk};
+
+        my $instance_name = "relation_instance_$relation_name";
+
+        if (any { $full_relation_type eq $_ } qw/one_to_many one_to_one one_to_only/) {
+            *{$pkg_method_name} = sub {
+                my ($self, @args) = @_;
+
+                if (@args) {
+                    my $object = shift @args;
+                    $self->$fk($object->$pk);
+                    $self->{$instance_name} = $object;
+
+                    return $self;
+                }
+                # else
+                if (!$self->{$instance_name}) {
+                    $self->{$instance_name} = $related_class->get($self->$fk) // $related_class;
+                }
+
+                return $self->{$instance_name};
+            }
+        }
+        elsif ($full_relation_type eq 'only_to_one') {
+            *{$pkg_method_name} = sub {
+                my ($self, @args) = @_;
+
+                if (!$self->{$instance_name}) {
+                    $self->{$instance_name} = $related_class->find("$fk = ?", $self->$pk)->fetch;
+                }
+
+                return $self->{$instance_name};
+            }
+        }
+        elsif ($full_relation_type eq 'many_to_one') {
+            *{$pkg_method_name} = sub {
+                my ($self, @args) = @_;
+
+                if (@args) {
+
+                    unless (all { blessed $_ } @args) {
+                        return $related_class->find(@args)->left_join($self->_get_table_name);
+                    }
+
+                    OBJECT:
+                    for my $object (@args) {
+                        next OBJECT if !blessed $object;
+
+                        my $pk = $self->_get_primary_key;
+                        $object->$fk($self->$pk)->save;
+                    }
+
+                    return $self;
+                }
+                # else
+                return $related_class->new() if not $self->can('_get_primary_key');
+
+                if (!$self->{$instance_name}) {
+                    $self->{$instance_name} = $related_class->find("$fk = ?", $self->$pk);
+                }
+
+                return $self->{$instance_name};
+            }
+        }
+        elsif ($full_relation_type eq 'many_to_many') {
+            *{$pkg_method_name} = sub {
+                my ($self, @args) = @_;
+
+                if (@args) {
+
+                    unless (all { blessed $_ } @args) {
+                        return  $related_class->_find_many_to_many({
+                            root_class => $class,
+                            m_class    => _get_related_subclass($relation),
+                            self       => $self,
+                            where_statement => \@args,
+                        });
+                    }
+
+                    my $related_subclass = _get_related_subclass($relation);
+                    my ($fk1, $fk2);
+
+                    $fk1 = $fk;
+
+                    RELATED_CLASS_RELATION:
+                    for my $related_class_relation (values %{ $related_class->_get_relations }) {
+                        next RELATED_CLASS_RELATION
+                            unless _get_related_subclass($related_class_relation)
+                                && $related_subclass eq _get_related_subclass($related_class_relation);
+
+                        $fk2 = $related_class_relation->{params}{fk};
+                    }
+
+                    my $pk1_name = $self->_get_primary_key;
+                    my $pk1 = $self->$pk1_name;
+
+                    defined $pk1 or croak 'You are trying to create relations between unsaved objects. Save your ' . $class . ' object first';
+
+                    OBJECT:
+                    for my $object (@args) {
+                        next OBJECT if !blessed $object;
+
+                        my $pk2_name = $object->_get_primary_key;
+                        my $pk2 = $object->$pk2_name;
+
+                        $related_subclass->new($fk1 => $pk1, $fk2 => $pk2)->save;
+                    }
+
+                    return $self;
+                }
+                # else
+
+                if (!$self->{$instance_name}) {
+                    $self->{$instance_name} = $related_class->_find_many_to_many({
+                        root_class => $class,
+                        m_class    => _get_related_subclass($relation),
+                        self       => $self,
+                    });
+                }
+
+                return $self->{$instance_name};
+            }
+        }
+        elsif ($full_relation_type eq 'generic_to_generic') {
+            *{$pkg_method_name} = sub {
+                my ($self, @args) = @_;
+
+                if (!$self->{$instance_name}) {
+                    my %find_attrs;
+                    while (my ($k, $v) = each %{ $relation->{key} }) {
+                        $find_attrs{$v} = $self->$k;
+                    }
+                    $self->{$instance_name} = $related_class->find(\%find_attrs);
+                }
+
+                return $self->{$instance_name};
+            }
+        }
+    }
+
+    use strict 'refs';
 }
 
 1;

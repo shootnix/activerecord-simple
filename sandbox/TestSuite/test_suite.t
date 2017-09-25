@@ -77,7 +77,6 @@ Artist->dbh($dbh);
     ok( CDSong->new(song_id => $song1->id, cd_id => $album1->id)->save() );
     ok( CDSong->new(song_id => $song1->id, cd_id => $album1->id)->save() );
 };
-
 {
     pass '~ cd ~';
     ok my $album = CD->find({ title => 'Zooropa' })->fetch;
@@ -225,15 +224,15 @@ Artist->dbh($dbh);
     is $cd->title, 'Load';
 }
 
-{
-    pass '~ use_smart_saving ~';
-
-    ok my @a = Artist->find('id >= ?', 1)->fetch();
-    my $metallica = shift @a;
-    ok $metallica->save;
-    ok $metallica->_smart_saving_used;
-    ok $metallica->{snapshoot};
-}
+#{
+#    pass '~ use_smart_saving ~';
+#
+#    ok my @a = Artist->find('id >= ?', 1)->fetch();
+#    my $metallica = shift @a;
+#    ok $metallica->save;
+#    ok $metallica->_smart_saving_used;
+#    ok $metallica->{snapshoot};
+#}
 
 {
     pass '~ ordering ~';
@@ -278,8 +277,10 @@ Artist->dbh($dbh);
     my $artist = Artist->find({ name => 'U2' })->fetch;
     is $artist->name, 'U2';
 
+
     ok $artist->label;
     is $artist->label->name, 'EMI', 'chain works well';
+
     ok $artist->label(Label->new({name => 'FooBarBaz'})->save)->save;
     is $artist->label->name, 'FooBarBaz';
 
@@ -289,8 +290,8 @@ Artist->dbh($dbh);
     my $metallica = Artist->find({ name => 'Metallica' })->fetch;
     is $metallica->label->name, 'EMI';
 
-    #ok !$artist->label(Label->new({ name => 'NewFooBarBaz' }));
 }
+
 
 {
     pass '~ testing "only" ~';
@@ -399,17 +400,6 @@ Artist->dbh($dbh);
     $artist = Artist->find('artist.name = ?', 'Metallica')->left_join('label')->fetch;
     ok exists $artist->{relation_instance_label};
 }
-
-{
-    pass '~ smart relation accessors ~';
-
-    my $label = Label->new(name => 'Brand New Label')->save;
-    my $artist = Artist->find('artist.name = ?', 'Metallica')->fetch;
-
-    ok $artist->label($label)->save;
-    is(Artist->find('artist.name = ?', 'Metallica')->fetch->label->name, 'Brand New Label');
-}
-
 {
     pass '~ where-in request ~';
 

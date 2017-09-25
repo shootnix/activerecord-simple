@@ -19,11 +19,30 @@ ActiveRecord::Simple->connect("dbi:SQLite:test_suite.db", "", "", { HandleError 
 
 use Artist;
 use Label;
+
+
+
+my $a = Artist->new(name => 'Metallica')->save;
+
+
+
+my $b = Artist->find('artist.name = ?', 'Metallica')->fetch;
+my $l = Label->new(name => 'emi')->save;
+
+
+$b->label($l)->save;
+
+#$a->label($l)->save;
+#say Dumper $a;
+#my $l = Label->new;
+
+#$l->artists({ name => 'Metallica' })->fetch;
+
+
 #use Rating;
 
-my $a = Artist->find(id => [1, 2, 3]);
+#my $a = Artist->find(id => [1, 2, 3]);
 
-say Dumper $a;
 #$a->albums(1);
 #my $l = Label->new(name => 'EMI');
 
