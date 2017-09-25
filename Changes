@@ -159,3 +159,6 @@ Revision history for Perl module ActiveRecord::Simple
 0.95    2017-09-22
         + Method "sql_fetch_all"
         + Method "sql_fetch_row"
+
+0.96    2017-09-25
+        * Improve relations
