@@ -176,9 +176,18 @@ is $one1->one, 1;
 ok $one1->two;
 is $one1->two, 2;
 
+eval { $one1->foo };
+ok $@;
+
 ok my $two = Customer->sql_fetch_row('select 3 as three, 4 as four');
 isa_ok $two, 'Customer';
 ok $two->three;
 is $two->three, 3;
+eval { $two->five };
+ok $@;
+
+eval { $two->three(4) };
+ok $@;
+like $@, qr/read-only/i, 'accessors are read-only';
 
 done_testing();
