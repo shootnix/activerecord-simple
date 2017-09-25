@@ -182,7 +182,7 @@ ok my $achievement = Achievement->new({ title => 'Bill Achievement', id => 4 })-
 is $Bill->id, 3;
 is $achievement->id, 4;
 
-ok $Bill->achievement($achievement)->save, 'trying to bind achievement to the customer';
+ok $Bill->achievements($achievement)->save, 'trying to bind achievement to the customer';
 ok my $ca = CustomersAchievement->find({ customer_id => $Bill->id, achievement_id => $achievement->id })->fetch, 'fetching binding';
 is $ca->customer_id, $Bill->id;
 is $ca->achievement_id, $achievement->id;

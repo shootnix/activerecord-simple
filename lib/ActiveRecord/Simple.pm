@@ -13,6 +13,7 @@ use Storable qw/freeze/;
 use Module::Load;
 use vars qw/$AUTOLOAD/;
 use Scalar::Util qw/blessed/;
+use List::Util qw/any all/;
 
 use ActiveRecord::Simple::Find;
 use ActiveRecord::Simple::Utils;
@@ -23,61 +24,97 @@ our $connector;
 
 sub new {
     my $class = shift;
-    my $param = (scalar @_ > 1) ? {@_} : $_[0];
+    my $params = (scalar @_ > 1) ? {@_} : $_[0];
 
-    my $accessors_fields = $class->can('_get_columns') ? $class->_get_columns : [];
+    use Data::Dumper;
 
+    # mixins
     if ($class->can('_get_mixins')) {
         my @keys = keys %{ $class->_get_mixins };
         $class->_mk_ro_accessors(\@keys);
     }
-    $class->_mk_accessors($accessors_fields);
+
+    # columns
+    my $columns = $class->can('_get_columns') ? $class->_get_columns : [];
+    $class->_mk_accessors($columns);
 
     if ($class->can('_get_relations')) {
-        my $relations = $class->_get_relations();
+        my $relations = $class->_get_relations;
 
         no strict 'refs';
 
-        RELNAME:
-        for my $relname ( keys %{ $relations } ) {
-            my $pkg_method_name = $class . '::' . $relname;
-
-            next RELNAME if $class->can($pkg_method_name);
+        RELATION_NAME:
+        for my $relation_name ( keys %{ $relations }) {
+            my $pkg_method_name = $class . '::' . $relation_name;
+            next RELATION_NAME if $class->can($pkg_method_name); ### FIXME: orrrr $relation_name???
 
             *{$pkg_method_name} = sub {
-                my ($self, @objects) = @_;
+                my ($self, @args) = @_;
 
+                my $relation = $relations->{$relation_name};
+                my $full_relation_type = _get_relation_type($class, $relation);
+                my $related_class = _get_related_class($relation);
 
-                my $rel = $class->_get_relations->{$relname};
-                my $fkey = $rel->{foreign_key} || $rel->{key};
-                my $relation = $relations->{$relname};
-                if (@objects) {
+                if (@args) {
+
                     if ($relation->{type} eq 'many') {
-                        if ($objects[0] && blessed $objects[0]) {
-                            for my $object (@objects) {
+                        if ($full_relation_type eq 'many_to_one') {
+                            OBJECT:
+                            for my $object (@args) {
+                                next OBJECT if !blessed $object;
+
                                 my $fk = $relation->{params}{fk};
                                 my $pk = $self->_get_primary_key;
-                                $object->$fk($self->$pk);
-
-                                $object->save;
+                                $object->$fk($self->$pk)->save;
                             }
                         }
-                        else {
-                            my $rel_class = (%{ $rel->{class} })[1];
-                            return $rel_class->_find_many_to_many({
-                                root_class      => $class,
-                                m_class         => (%{ $rel->{class} })[0],
-                                self            => $self,
-                                where_statement => \@objects,
-                            });
+                        elsif ($full_relation_type eq 'many_to_many') {
+
+                            unless (all { blessed $_ } @args) {
+                                return  $related_class->_find_many_to_many({
+                                    root_class => $class,
+                                    m_class    => _get_related_subclass($relation),
+                                    self       => $self,
+                                    where_statement => \@args,
+                                });
+                            }
+
+                            my $related_subclass = _get_related_subclass($relation);
+                            my ($fk1, $fk2);
+
+                            $fk1 = $relation->{params}{fk};
+
+                            RELATED_CLASS_RELATION:
+                            for my $related_class_relation (values %{ $related_class->_get_relations }) {
+                                next RELATED_CLASS_RELATION
+                                    unless _get_related_subclass($related_class_relation)
+                                        && $related_subclass eq _get_related_subclass($related_class_relation);
+
+                                $fk2 = $related_class_relation->{params}{fk};
+                            }
+
+                            my $pk1_name = $self->_get_primary_key;
+                            my $pk1 = $self->$pk1_name;
+
+                            defined $pk1 or croak 'You are trying to create relations between unsaved objects. Save your ' . $class . ' object first';
+
+                            OBJECT:
+                            for my $object (@args) {
+                                next OBJECT if !blessed $object;
+
+                                my $pk2_name = $object->_get_primary_key;
+                                my $pk2 = $object->$pk2_name;
+
+                                $related_subclass->new($fk1 => $pk1, $fk2 => $pk2)->save;
+                            }
                         }
                     }
                     elsif ($relation->{type} eq 'one') {
                         OBJECT:
-                        for my $object (@objects) {
+                        for my $object (@args) {
                             next OBJECT unless ref $object && grep { $relation->{type} eq $_ } qw/one many/;
 
-                            $self->{"relation_instance_$relname"} = $object;
+                            $self->{"relation_instance_$relation_name"} = $object;
                             my $pk = $relation->{params}{pk} or next OBJECT;
                             my $fk = $relation->{params}{fk} or next OBJECT;
 
@@ -87,76 +124,60 @@ sub new {
 
                     return $self;
                 }
-                ### else
-                if (!$self->{"relation_instance_$relname"}) {
-                    my $rel  = $class->_get_relations->{$relname};
-                    my $fkey = $rel->{foreign_key} || $rel->{key};
+                # else
+                if (!$self->{"relation_instance_$relation_name"}) {
+                    if (any { $full_relation_type eq $_ } qw/one_to_many one_to_one one_to_only/) {
+                        my $fkey = $relation->{params}{fk};
+                        my $pkey = $relation->{params}{pk};
 
-                    my $type = $rel->{type} . '_to_';
-                    my $rel_class = ( ref $rel->{class} eq 'HASH' ) ?
-                        ( %{ $rel->{class} } )[1]
-                        : $rel->{class};
-
-                    #load $rel_class;
-
-                    ### TODO: check for relation existing
-                    while (my ($rel_key, $rel_opts) = each %{ $rel_class->_get_relations }) {
-                        my $rel_opts_class = (ref $rel_opts->{class} eq 'HASH') ?
-                            (%{ $rel_opts->{class} })[1]
-                            : $rel_opts->{class};
-                        $type .= $rel_opts->{type} if $rel_opts_class eq $class;
+                        $self->{"relation_instance_$relation_name"} =
+                            $related_class->get($self->$fkey) // $related_class;
                     }
+                    elsif ($full_relation_type eq 'only_to_one') {
+                        my $fkey = $relation->{params}{fk};
+                        my $pkey = $relation->{params}{pk};
 
-                    if ($type eq 'one_to_many' or $type eq 'one_to_one' or $type eq 'one_to_only') {
-                        my $fkey = $rel->{params}{fk};
-                        my $pkey = $rel->{params}{pk};
-
-                        $self->{"relation_instance_$relname"} =
-                            $rel_class->find("$pkey = ?", $self->$fkey)->fetch // $rel_class;
+                        $self->{"relation_instance_$relation_name"} =
+                            $related_class->find("$fkey = ?", $self->$pkey)->fetch;
                     }
-                    elsif ($type eq 'only_to_one') {
-                        my $fkey = $rel->{params}{fk};
-                        my $pkey = $rel->{params}{pk};
+                    elsif ($full_relation_type eq 'many_to_one') {
+                        return $related_class->new() if not $self->can('_get_primary_key');
+                        my $fkey = $relation->{params}{fk};
+                        my $pkey = $relation->{params}{pk};
 
-                        $self->{"relation_instance_$relname"} =
-                            $rel_class->find("$fkey = ?", $self->$pkey)->fetch;
+                        $self->{"relation_instance_$relation_name"}
+                            = $related_class->find("$fkey = ?", $self->$pkey);
                     }
-                    elsif ($type eq 'many_to_one') {
-                        return $rel_class->new() if not $self->can('_get_primary_key');
-                        my $fkey = $rel->{params}{fk};
-                        my $pkey = $rel->{params}{pk};
-
-                        $self->{"relation_instance_$relname"}
-                            = $rel_class->find("$fkey = ?", $self->$pkey);
-                    }
-                    elsif ( $type eq 'many_to_many' ) {
-                        $self->{"relation_instance_$relname"} =
-                            $rel_class->_find_many_to_many({
+                    elsif ($full_relation_type eq 'many_to_many') {
+                        $self->{"relation_instance_$relation_name"} =
+                            $related_class->_find_many_to_many({
                                 root_class => $class,
-                                m_class    => (%{ $rel->{class} })[0],
+                                m_class    => _get_related_subclass($relation),
                                 self       => $self,
                             });
                     }
-                    elsif ($type eq 'generic_to_generic') {
+                    elsif ($full_relation_type eq 'generic_to_generic') {
                         my %find_attrs;
-                        while (my ($k, $v) = each %{ $rel->{key} }) {
+                        while (my ($k, $v) = each %{ $relation->{key} }) {
                             $find_attrs{$v} = $self->$k;
                         }
-                        $self->{"relation_instance_$relname"} =
-                            $rel_class->find(\%find_attrs);
+                        $self->{"relation_instance_$relation_name"} =
+                            $related_class->find(\%find_attrs);
                     }
                 }
 
-                $self->{"relation_instance_$relname"};
+                $self->{"relation_instance_$relation_name"};
             }
         }
+
         use strict 'refs';
     }
 
     $class->auto_save(0);
 
-    return bless $param || {}, $class;
+    return bless $params || {}, $class;
 }
+
 
 
 sub auto_load {
@@ -198,52 +219,9 @@ sub load_info {
     $_[0]->auto_load;
 }
 
-sub _mk_accessors {
-    my ($class, $fields) = @_;
 
-    my $super = caller;
-    return unless $fields;
 
-    no strict 'refs';
-    FIELD:
-    for my $f (@$fields) {
-        my $pkg_accessor_name = $class . '::' . $f;
-        next FIELD if $class->can($pkg_accessor_name);
-        *{$pkg_accessor_name} = sub {
-            if ( scalar @_ > 1 ) {
-                $_[0]->{$f} = $_[1];
 
-                return $_[0];
-            }
-
-            return $_[0]->{$f};
-        }
-    }
-    use strict 'refs';
-
-    return 1;
-}
-
-sub _mk_ro_accessors {
-    my ($class, $fields) = @_;
-
-    return unless $fields;
-    my $super = caller;
-
-    no strict 'refs';
-    FIELD:
-    for my $f (@$fields) {
-        my $pkg_accessor_name = $class . '::' . $f;
-        next FIELD if $class->can($pkg_accessor_name);
-        *{$pkg_accessor_name} = sub {
-            croak "You can't change '$f': object is read-only"
-                if scalar @_ > 1;
-
-            return $_[0]->{$f}
-        };
-    }
-    use strict 'refs';
-}
 
 sub sql_fetch_all {
     my ($class, $sql, @bind) = @_;
@@ -363,24 +341,7 @@ sub has_many {
     return $class->_append_relation($rel_name => $new_relation);
 }
 
-sub _guess {
-    my ($what_key, $class) = @_;
 
-    return 'id' if $what_key eq 'primary_key';
-
-    eval { load $class };
-
-    my $table_name = $class->_table_name;
-    $table_name =~ s/s$// if $what_key eq 'foreign_key';
-
-    return ($what_key eq 'foreign_key') ? "$table_name\_id" : undef;
-}
-
-sub _delete_keys {
-    my ($self, $rx) = @_;
-
-    map { delete $self->{$_} if $_ =~ $rx } keys %$self;
-}
 
 sub has_one {
     my ($class, $rel_name, $rel_class, $params) = @_;
@@ -440,20 +401,7 @@ sub generic {
     return $class->_append_relation($rel_name => $new_relation);
 }
 
-sub _append_relation {
-    my ($class, $rel_name, $rel_hashref) = @_;
 
-    if ($class->can('_get_relations')) {
-        my $relations = $class->_get_relations();
-        $relations->{$rel_name} = $rel_hashref;
-        $class->relations($relations);
-    }
-    else {
-        $class->relations({ $rel_name => $rel_hashref });
-    }
-
-    return;
-}
 
 sub columns {
     my ($class, @args) = @_;
@@ -538,18 +486,7 @@ sub table_name {
     $class->_mk_attribute_getter('_get_table_name', $table_name);
 }
 
-sub _table_name {
-    my $class = ref $_[0] ? ref $_[0] : $_[0];
 
-    croak 'Invalid data class' if $class =~ /^ActiveRecord::Simple/;
-
-    my $table_name =
-        $class->can('_get_table_name') ?
-            $class->_get_table_name
-            : ActiveRecord::Simple::Utils::class_to_table_name($class);
-
-    return $table_name;
-}
 
 sub auto_save {
     my ($class, $is_on) = @_;
@@ -570,15 +507,7 @@ sub relations {
     $class->_mk_attribute_getter('_get_relations', $relations);
 }
 
-sub _mk_attribute_getter {
-    my ($class, $method_name, $return) = @_;
 
-    my $pkg_method_name = $class . '::' . $method_name;
-    if ( !$class->can($pkg_method_name) ) {
-        no strict 'refs';
-        *{$pkg_method_name} = sub { $return };
-    }
-}
 
 sub dbh {
     my ($self, $dbh) = @_;
@@ -662,6 +591,184 @@ sub update {
     }
 
     return $self;
+}
+
+
+
+# param:
+#     cascade => 1
+sub delete {
+    my ($self, $param) = @_;
+
+    return unless $self->dbh;
+
+    my $table_name = $self->_table_name;
+    my $pkey = $self->_get_primary_key;
+
+    return unless $self->{$pkey};
+
+    my $sql = qq{
+        DELETE FROM "$table_name" WHERE $pkey = ?
+    };
+    $sql .= ' CASCADE ' if $param && $param->{cascade};
+
+    my $res = undef;
+    $sql = ActiveRecord::Simple::Utils::quote_sql_stmt($sql, $self->dbh->{Driver}{Name});
+
+    if ( $self->dbh->do($sql, undef, $self->{$pkey}) ) {
+        $self->{isin_database} = undef;
+        delete $self->{$pkey};
+
+        $res = 1;
+    }
+
+    return $res;
+}
+
+sub is_defined {
+    my ($self) = @_;
+
+    return grep { defined $self->{$_} } @{ $self->_get_columns };
+}
+
+# param:
+#     only_defined_fields => 1
+###  TODO: refactor this
+sub to_hash {
+    my ($self, $param) = @_;
+
+    my $field_names = $self->_get_columns;
+    push @$field_names, keys %{ $self->_get_mixins } if $self->can('_get_mixins');
+    my $attrs = {};
+
+    for my $field (@$field_names) {
+        next if ref $field;
+        if ( $param && $param->{only_defined_fields} ) {
+            $attrs->{$field} = $self->{$field} if defined $self->$field;
+        }
+        else {
+            $attrs->{$field} = $self->{$field};
+        }
+    }
+
+    return $attrs;
+}
+
+sub increment {
+    my ($self, @fields) = @_;
+
+    FIELD:
+    for my $field (@fields) {
+        next FIELD if not exists $self->{$field};
+        $self->{$field} += 1;
+    }
+
+    return $self;
+}
+
+sub decrement {
+    my ($self, @fields) = @_;
+
+    FIELD:
+    for my $field (@fields) {
+        next FIELD if not exists $self->{$field};
+        $self->{$field} -= 1;
+    }
+
+    return $self;
+}
+
+#### Find ####
+
+sub find   { ActiveRecord::Simple::Find->new(shift, @_) }
+sub get    { shift->find(@_)->fetch } ### TODO: move to Finder
+sub count  { ActiveRecord::Simple::Find->count(shift, @_) }
+
+sub exists {
+    my $first_arg = shift;
+
+    my ($class, @search_criteria);
+    if (ref $first_arg) {
+        # FIXME: Ugly solution, need some beautifulness =)
+        # object method
+        $class = ref $first_arg;
+
+        if ($class eq 'ActiveRecord::Simple::Find') {
+            return $first_arg->exists;
+        }
+        else {
+            return ActiveRecord::Simple::Find->new($class, $first_arg->to_hash({ only_defined_fields => 1 }))->exists;
+        }
+    }
+    else {
+        carp '[DEPRECATED] This way of using method "exists" is deprecated. Please, see documentation to know how does it work now.';
+        $class = $first_arg;
+        @search_criteria = @_;
+        return (defined $class->find(@search_criteria)->fetch) ? 1 : 0;
+    }
+
+
+}
+
+sub first  { croak '[DEPRECATED] Using method "first" as a class-method is deprecated. Sorry about that. Please, use "first" in this way: "Model->find->first".'; }
+sub last   { croak '[DEPRECATED] Using method "last" as a class-method is deprecated. Sorry about that. Please, use "last" in this way: "Model->find->last".'; }
+sub select { ActiveRecord::Simple::Find->select(shift, @_) }
+
+sub _find_many_to_many { ActiveRecord::Simple::Find->_find_many_to_many(shift, @_) }
+
+sub DESTROY {}
+
+
+### Private
+
+
+sub _get_relation_type {
+    my ($class, $relation) = @_;
+
+    my $type = $relation->{type};
+    $type .= '_to_';
+
+    my $related_class = _get_related_class($relation);
+    eval { load $related_class }; ### TODO: check module is loaded
+
+    while (my ($rel_key, $rel_opts) = each %{ $related_class->_get_relations }) {
+        next if $class ne _get_related_class($rel_opts);
+        $type .= $rel_opts->{type};
+    }
+
+    return $type;
+}
+
+sub _get_related_subclass {
+    my ($relation) = @_;
+
+    return undef if !ref $relation->{class};
+
+    my $subclass;
+    if (ref $relation->{class} eq 'HASH') {
+        $subclass = (keys %{ $relation->{class} })[0];
+    }
+    elsif (ref $relation->{class} eq 'ARRAY') {
+        $subclass = $relation->{class}[0];
+    }
+
+    return $subclass;
+}
+
+sub _get_related_class {
+    my ($relation) = @_;
+
+    return $relation->{class} if !ref $relation->{class};
+
+    my $related_class;
+    if (ref $relation->{class} eq 'HASH') {
+        $related_class = ( %{ $relation->{class} } )[1]
+    }
+    elsif (ref $relation->{class} eq 'ARRAY') {
+        $related_class = $relation->{class}[1];
+    }
+
+    return $related_class;
 }
 
 sub _insert {
@@ -764,167 +871,108 @@ sub _update {
     return $self->dbh->do($sql_stm, undef, @bind);
 }
 
-# param:
-#     cascade => 1
-sub delete {
-    my ($self, $param) = @_;
+sub _mk_accessors {
+    my ($class, $fields) = @_;
 
-    return unless $self->dbh;
+    my $super = caller;
+    return unless $fields;
 
-    my $table_name = $self->_table_name;
-    my $pkey = $self->_get_primary_key;
-
-    return unless $self->{$pkey};
-
-    my $sql = qq{
-        DELETE FROM "$table_name" WHERE $pkey = ?
-    };
-    $sql .= ' CASCADE ' if $param && $param->{cascade};
-
-    my $res = undef;
-    $sql = ActiveRecord::Simple::Utils::quote_sql_stmt($sql, $self->dbh->{Driver}{Name});
-
-    if ( $self->dbh->do($sql, undef, $self->{$pkey}) ) {
-        $self->{isin_database} = undef;
-        delete $self->{$pkey};
-
-        $res = 1;
-    }
-
-    return $res;
-}
-
-sub is_defined {
-    my ($self) = @_;
-
-    return grep { defined $self->{$_} } @{ $self->_get_columns };
-}
-
-# param:
-#     only_defined_fields => 1
-###  TODO: refactor this
-sub to_hash {
-    my ($self, $param) = @_;
-
-    my $field_names = $self->_get_columns;
-    push @$field_names, keys %{ $self->_get_mixins } if $self->can('_get_mixins');
-    my $attrs = {};
-
-    for my $field (@$field_names) {
-        next if ref $field;
-        if ( $param && $param->{only_defined_fields} ) {
-            $attrs->{$field} = $self->{$field} if defined $self->$field;
-        }
-        else {
-            $attrs->{$field} = $self->{$field};
-        }
-    }
-
-    return $attrs;
-}
-
-sub increment {
-    my ($self, @fields) = @_;
-
+    no strict 'refs';
     FIELD:
-    for my $field (@fields) {
-        next FIELD if not exists $self->{$field};
-        $self->{$field} += 1;
+    for my $f (@$fields) {
+        my $pkg_accessor_name = $class . '::' . $f;
+        next FIELD if $class->can($pkg_accessor_name);
+        *{$pkg_accessor_name} = sub {
+            if ( scalar @_ > 1 ) {
+                $_[0]->{$f} = $_[1];
+
+                return $_[0];
+            }
+
+            return $_[0]->{$f};
+        }
     }
+    use strict 'refs';
 
-    return $self;
+    return 1;
 }
+sub _mk_ro_accessors {
+    my ($class, $fields) = @_;
 
-sub decrement {
-    my ($self, @fields) = @_;
+    return unless $fields;
+    my $super = caller;
 
+    no strict 'refs';
     FIELD:
-    for my $field (@fields) {
-        next FIELD if not exists $self->{$field};
-        $self->{$field} -= 1;
-    }
+    for my $f (@$fields) {
+        my $pkg_accessor_name = $class . '::' . $f;
+        next FIELD if $class->can($pkg_accessor_name);
+        *{$pkg_accessor_name} = sub {
+            croak "You can't change '$f': object is read-only"
+                if scalar @_ > 1;
 
-    return $self;
+            return $_[0]->{$f}
+        };
+    }
+    use strict 'refs';
 }
 
-#### Find ####
+sub _guess {
+    my ($what_key, $class) = @_;
 
-sub find   { ActiveRecord::Simple::Find->new(shift, @_) }
-sub get    { shift->find(@_)->fetch } ### TODO: move to Finder
-sub count  { ActiveRecord::Simple::Find->count(shift, @_) }
+    return 'id' if $what_key eq 'primary_key';
 
-sub exists {
-    my $first_arg = shift;
+    eval { load $class };
 
-    my ($class, @search_criteria);
-    if (ref $first_arg) {
-        # FOXME: Ugly solution, need some beautifulness =)
-        # object method
-        $class = ref $first_arg;
+    my $table_name = $class->_table_name;
+    $table_name =~ s/s$// if $what_key eq 'foreign_key';
 
-        if ($class eq 'ActiveRecord::Simple::Find') {
-            return $first_arg->exists;
-        }
-        else {
-            return ActiveRecord::Simple::Find->new($class, $first_arg->to_hash({ only_defined_fields => 1 }))->exists;
-        }
+    return ($what_key eq 'foreign_key') ? "$table_name\_id" : undef;
+}
+
+sub _delete_keys {
+    my ($self, $rx) = @_;
+
+    map { delete $self->{$_} if $_ =~ $rx } keys %$self;
+}
+
+sub _append_relation {
+    my ($class, $rel_name, $rel_hashref) = @_;
+
+    if ($class->can('_get_relations')) {
+        my $relations = $class->_get_relations();
+        $relations->{$rel_name} = $rel_hashref;
+        $class->relations($relations);
     }
     else {
-        carp '[DEPRECATED] This way of using method "exists" is deprecated. Please, see documentation to know how does it work now.';
-        $class = $first_arg;
-        @search_criteria = @_;
-        return (defined $class->find(@search_criteria)->fetch) ? 1 : 0;
+        $class->relations({ $rel_name => $rel_hashref });
     }
 
-
+    return;
 }
 
-sub first  { croak '[DEPRECATED] Using method "first" as a class-method is deprecated. Sorry about that. Please, use "first" in this way: "Model->find->first".'; }
-sub last   { croak '[DEPRECATED] Using method "last" as a class-method is deprecated. Sorry about that. Please, use "last" in this way: "Model->find->last".'; }
-sub select { ActiveRecord::Simple::Find->select(shift, @_) }
+sub _table_name {
+    my $class = ref $_[0] ? ref $_[0] : $_[0];
 
-sub _find_many_to_many { ActiveRecord::Simple::Find->_find_many_to_many(shift, @_) }
+    croak 'Invalid data class' if $class =~ /^ActiveRecord::Simple/;
 
-sub DESTROY {}
+    my $table_name =
+        $class->can('_get_table_name') ?
+            $class->_get_table_name
+            : ActiveRecord::Simple::Utils::class_to_table_name($class);
 
-### FIXME: this implementation is actually too slow, need much faster solution
-sub AUTOLOAD {
-    my ($self, $param) = @_;
+    return $table_name;
+}
 
-    my $sub = $AUTOLOAD; $sub =~ s/.*:://g;
-    my $error = "Unknown method: $sub";
+sub _mk_attribute_getter {
+    my ($class, $method_name, $return) = @_;
 
-    croak "Error while executing '$sub' method, '$self' is not a valid (blessed) object." unless blessed $self;
-    croak "Undefined object for method $sub: must be not undef" unless $param;
-
-    croak $error unless $self->can('_get_relations');
-    my @many2manies;
-    my $relations = $self->_get_relations;
-
-    my $subclass = undef;
-    my %class_options;
-    for my $relation (values %$relations) {
-        next unless $relation->{type} eq 'many' && ref $relation->{class} eq 'HASH';
-        ($subclass) = keys %{ $relation->{class} };
-        next if !$subclass->can('_get_relations');
-        my $relations2 = $subclass->_get_relations;
-
-        for my $rel_name (keys %$relations2) {
-            next unless exists $relations2->{$rel_name};
-
-            my $pk = $relations2->{$rel_name}{params}{pk};
-            my $fk = $relations2->{$rel_name}{params}{fk};
-
-            next unless $pk && $fk;
-
-            $class_options{$fk} = ($rel_name eq $sub) ? $param->$pk : $self->$pk;
-        }
+    my $pkg_method_name = $class . '::' . $method_name;
+    if ( !$class->can($pkg_method_name) ) {
+        no strict 'refs';
+        *{$pkg_method_name} = sub { $return };
     }
-
-    return $subclass->new(\%class_options);
 }
-
-### Private
 
 1;
 
