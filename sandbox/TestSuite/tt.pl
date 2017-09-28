@@ -26,11 +26,24 @@ my $a = Artist->new(name => 'Metallica')->save;
 
 
 
-my $b = Artist->find('artist.name = ?', 'Metallica')->fetch;
-my $l = Label->new(name => 'emi')->save;
+my $b = Artist->find('artist.name = ?', 'Metallica')->fields('name', 'mysum')->fetch;
+
+say Dumper $b;
+
+$b->name('Deep Purple')->save;
 
 
-$b->label($l)->save;
+
+
+say Dumper $b;
+
+
+
+
+#my $l = Label->new(name => 'emi')->save;
+
+
+#$b->label($l)->save;
 
 #$a->label($l)->save;
 #say Dumper $a;

@@ -37,7 +37,7 @@ sub new {
     $class->_mk_accessors($columns);
 
     # relations
-    $class->_init_relations if $class->can('_get_relations');
+    $class->_mk_relations_accessors if $class->can('_get_relations');
 
     # FIXME: dirty hack
     $class->auto_save(0);
@@ -146,7 +146,6 @@ sub belongs_to {
     my $new_relation = {
         class => $rel_class,
         type => 'one',
-        #params => $params
     };
 
     my $primary_key = $params->{pk} ||
@@ -163,7 +162,7 @@ sub belongs_to {
     };
 
     if ($class->can('_get_table_schema') && $class->can('_get_primary_key')) {
-       ### load $rel_class;
+        ### load $rel_class;
         $class->_get_table_schema->add_constraint(
             type => 'foreign_key',
             fields => $params, ### TODO: !!!this is wrong!!!
@@ -173,7 +172,7 @@ sub belongs_to {
         );
     }
 
-    return $class->_append_relation($rel_name => $new_relation);
+    $class->_append_relation($rel_name => $new_relation);
 }
 
 sub has_many {
@@ -199,10 +198,8 @@ sub has_many {
         fk => $foreign_key,
     };
 
-    return $class->_append_relation($rel_name => $new_relation);
+    $class->_append_relation($rel_name => $new_relation);
 }
-
-
 
 sub has_one {
     my ($class, $rel_name, $rel_class, $params) = @_;
@@ -259,10 +256,8 @@ sub generic {
         key => $key
     };
 
-    return $class->_append_relation($rel_name => $new_relation);
+    $class->_append_relation($rel_name => $new_relation);
 }
-
-
 
 sub columns {
     my ($class, @args) = @_;
@@ -347,8 +342,6 @@ sub table_name {
     $class->_mk_attribute_getter('_get_table_name', $table_name);
 }
 
-
-
 sub auto_save {
     my ($class, $is_on) = @_;
 
@@ -367,8 +360,6 @@ sub relations {
 
     $class->_mk_attribute_getter('_get_relations', $relations);
 }
-
-
 
 sub dbh {
     my ($self, $dbh) = @_;
@@ -453,8 +444,6 @@ sub update {
 
     return $self;
 }
-
-
 
 # param:
 #     cascade => 1
@@ -591,6 +580,7 @@ sub _get_relation_type {
 
     my $related_class = _get_related_class($relation);
     eval { load $related_class }; ### TODO: check module is loaded
+    eval { require $related_class };
 
     while (my ($rel_key, $rel_opts) = each %{ $related_class->_get_relations }) {
         next if $class ne _get_related_class($rel_opts);
@@ -835,7 +825,7 @@ sub _mk_attribute_getter {
     }
 }
 
-sub _init_relations {
+sub _mk_relations_accessors {
     my ($class) = @_;
 
     my $relations = $class->_get_relations;

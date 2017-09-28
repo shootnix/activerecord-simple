@@ -11,6 +11,17 @@ use Data::Dumper;
 use DBI;
 
 
+package Order;
+
+use parent 'ActiveRecord::Simple';
+
+
+__PACKAGE__->table_name('orders');
+__PACKAGE__->primary_key('id');
+__PACKAGE__->columns(qw/id title amount customer_id/);
+
+__PACKAGE__->belongs_to(customer => 'Customer');
+
 package Customer;
 
 use parent 'ActiveRecord::Simple';
@@ -22,18 +33,6 @@ __PACKAGE__->columns(qw/id first_name second_name age email/);
 
 __PACKAGE__->has_many('orders' => 'Order');
 __PACKAGE__->has_many('achievements' => { CustomersAchievement => 'Achievement' });
-
-
-package Order;
-
-use parent 'ActiveRecord::Simple';
-
-
-__PACKAGE__->table_name('orders');
-__PACKAGE__->primary_key('id');
-__PACKAGE__->columns(qw/id title amount customer_id/);
-
-__PACKAGE__->belongs_to(customer => 'Customer');
 
 
 package Achievement;

@@ -43,7 +43,7 @@ __PACKAGE__->index('index_artist_id', ['id']);
 __PACKAGE__->belongs_to(label => 'Label');
 __PACKAGE__->belongs_to(manager => 'Manager');
 __PACKAGE__->has_one(rating => 'Rating');
-__PACKAGE__->has_many(albums => { ArtistCD => 'CD' });
+__PACKAGE__->has_many(albums => 'CD');
 __PACKAGE__->generic(cvs => 'Cvs', { name => 'artist_name' });
 
 #__PACKAGE__->auto_save;
