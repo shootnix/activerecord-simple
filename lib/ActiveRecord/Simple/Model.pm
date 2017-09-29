@@ -74,20 +74,30 @@ sub new {
 	return $self;
 }
 
-#sub save {
-#	my ($self) = @_;
-#
-#	COLUMN_NAME:
-#	for my $column_name (@{ $self->_get_columns }) {
-#		my $fld = $self->_get_model_table_schema->{$column_name};
-#		next COLUMN_NAME unless $fld->{extra}{editable};
-#
-#		say 'column_name = ' . $column_name;
-#		#say $error_msg unless $success;
-#		for my $validator (@{ $fld->{extra}{validators} }) {
-#
-#		}
-#	}
-#}
+sub save {
+	my ($self) = @_;
+
+	my %validation_errors; my $n_errors = 0; my $save_result;
+	COLUMN_NAME:
+	for my $column_name (@{ $self->_get_columns }) {
+		my $fld = $self->_get_model_table_schema->{$column_name};
+		next COLUMN_NAME unless $fld->{extra}{editable};
+
+		my ($validation_ok, $errors) = ActiveRecord::Simple::Validate::check($fld, $self->$column_name);
+		next COLUMN_NAME if $validation_ok;
+
+		$validation_errors{$column_name} = $errors;
+		$n_errors++;
+	}
+
+	if ($n_errors > 0) {
+		return wantarray ? (undef, \%validation_errors) : undef;
+	}
+
+	# save
+	$self::SUPER->save();
+
+	return wantarray ? (1, undef) : 1;
+}
 
 1;

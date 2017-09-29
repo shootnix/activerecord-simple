@@ -13,7 +13,7 @@ use Storable qw/freeze/;
 use Module::Load;
 use vars qw/$AUTOLOAD/;
 use Scalar::Util qw/blessed/;
-use List::Util qw/any all/;
+use List::Util qw/any/;
 
 use ActiveRecord::Simple::Find;
 use ActiveRecord::Simple::Utils;
@@ -33,8 +33,14 @@ sub new {
     }
 
     # columns
-    my $columns = $class->can('_get_columns') ? $class->_get_columns : [];
-    $class->_mk_accessors($columns);
+    if ($class->can('_is_auto_loaded') && $class->_is_auto_loaded) {
+        $class->_auto_load;
+    }
+    else {
+        my $columns = $class->can('_get_columns') ? $class->_get_columns : [];
+        $class->_mk_accessors($columns);
+    }
+
 
     # relations
     $class->_mk_relations_accessors if $class->can('_get_relations');
@@ -48,13 +54,16 @@ sub new {
 sub auto_load {
     my ($class) = @_;
 
+    $class->_mk_attribute_getter('_is_auto_loaded', 1);
+}
+
+sub _auto_load {
+    my ($class) = @_;
+
     my @class_name_parts = split q/::/, $class;
     my $class_name = $class_name_parts[-1];
 
-    my $table_name = join '-', map {
-        join('_', map {lc} grep {length} split /([A-Z]{1}[^A-Z]*)/)
-    } $class_name;
-    $table_name .= 's';
+    my $table_name = ActiveRecord::Simple::Utils::class_to_table_name($class);
 
     # 0. check the name
     my $table_info_sth = $class->dbh->table_info('', '%', $table_name, 'TABLE');
@@ -63,6 +72,7 @@ sub auto_load {
     # 1. columns list
     my $column_info_sth = $class->dbh->column_info(undef, undef, $table_name, undef);
     my $cols = $column_info_sth->fetchall_arrayref({});
+
     my @columns = ();
     push @columns, $_->{COLUMN_NAME} for @$cols;
 
@@ -70,9 +80,6 @@ sub auto_load {
     my $primary_key_sth = $class->dbh->primary_key_info(undef, undef, $table_name);
     my $primary_key_data = $primary_key_sth->fetchrow_hashref;
     my $primary_key = ($primary_key_data) ? $primary_key_data->{COLUMN_NAME} : undef;
-
-    # 3. Foreign keys
-    # TODO
 
     $class->table_name($table_name) if $table_name;
     $class->primary_key($primary_key) if $primary_key;
@@ -142,11 +149,6 @@ sub connect {
 
 sub belongs_to {
     my ($class, $rel_name, $rel_class, $params) = @_;
-
-    use Data::Dumper;
-
-    say 'class = ' . $class;
-    say 'rel_name = ' . $rel_name;
 
     my $new_relation = {
         class => $rel_class,
@@ -537,6 +539,7 @@ sub decrement {
 #### Find ####
 
 sub find   { ActiveRecord::Simple::Find->new(shift, @_) }
+sub all    { find(@_) }
 sub get    { shift->find(@_)->fetch } ### TODO: move to Finder
 sub count  { ActiveRecord::Simple::Find->count(shift, @_) }
 
@@ -895,7 +898,7 @@ sub _mk_relations_accessors {
 
                 if (@args) {
 
-                    unless (all { blessed $_ } @args) {
+                    unless (List::Util::all { blessed $_ } @args) {
                         return $related_class->find(@args)->left_join($self->_get_table_name);
                     }
 
@@ -927,7 +930,7 @@ sub _mk_relations_accessors {
 
                     my $related_subclass = _get_related_subclass($relation);
 
-                    unless (all { blessed $_ } @args) {
+                    unless (List::Util::all { blessed $_ } @args) {
                         return  $related_class->_find_many_to_many({
                             root_class => $class,
                             via_table  => $relation->{via_table},
@@ -1221,6 +1224,7 @@ value is a subroutine that returns SQL:
 
     __PACKAGE__->mixins(
         sum_of_items => sub {
+            my ($this) = @_;
 
             return 'SUM(`item`)';
         }
@@ -1228,6 +1232,8 @@ value is a subroutine that returns SQL:
 
     # specify mixin as a field in the query:
     my @items = Model->find->fields('id', 'name', 'sum_of_items')->fetch;
+
+You can get access to current class within this coderef.
 
 =head2 primary_key
 

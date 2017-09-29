@@ -141,7 +141,7 @@ use ActiveRecord::Simple::Field;
 __PACKAGE__->setup([
 	first_name  => char_field(max_length => 200),
 	second_name => char_field(max_length => 200),
-	age         => small_integer_field(),
+	age         => small_integer_field(error_messages => { null => 'Must be not null' }),
 	email       => email_field(max_length => 200),
 ]);
 
@@ -155,7 +155,7 @@ use ActiveRecord::Simple::Field;
 our @ISA = qw/Model/;
 
 __PACKAGE__->setup([
-	the_title   => char_field(max_length => 200, 'db_column' => 'title'),
+	title   => char_field(max_length => 200, 'db_column' => 'title'),
 	amount      => decimal_field(default => '0.0', max_digits => 10),
 	customer_id => foreign_key(),
 ]);
@@ -195,6 +195,15 @@ is $order2->title, 'The Order #1', 'order title ok';
 is $order2->id, 1, 'order id ok';
 is $order2->customer->first_name, 'Bob', 'order has a customer';
 
-ok $order2->save;
+ok $order2->save, 'save';
+
+ok !$order2->title(undef)->save;
+my ($res, $errors) = $order2->title(undef)->save;
+is ref $errors->{title}, 'ARRAY';
+is $errors->{title}[0], 'NULL';
+
+my $customer = Model::Customer->new();
+($res, $errors) = $customer->age(undef)->save;
+is $errors->{age}[0], 'Must be not null';
 
 done_testing();

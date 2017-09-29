@@ -82,15 +82,15 @@ sub _generic_field {
 			editable      => $opts{editable} // 1,
 
 			error_messages => {
-				null     => 'NULL',
-				blank    => 'BLANK',
-				invalid  => 'INVALID',
-				positive => 'POSITIVE',
-				email    => 'EMAIL',
-				ip       => 'IP',
-				ipv6     => 'IPv6',
-				slug     => 'SLUG',
-				uuid     => 'UUID',
+				null     => $opts{error_messages}{null} || 'NULL',
+				blank    => $opts{error_messages}{blank} || 'BLANK',
+				invalid  => $opts{error_messages}{invalid} || 'INVALID',
+				positive => $opts{error_messages}{positive} || 'POSITIVE',
+				email    => $opts{error_messages}{email} || 'EMAIL',
+				ip       => $opts{error_messages}{ip} || 'IP',
+				ipv6     => $opts{error_messages}{ipv6} || 'IPv6',
+				slug     => $opts{error_messages}{slug} || 'SLUG',
+				uuid     => $opts{error_messages}{uuid} || 'UUID',
 			},
 
 			validators => [],
@@ -109,7 +109,7 @@ sub auto_field {
 	$field->{is_unique} = 1;
 	$field->{is_primary_key} = $opts->{primary_key} // 0;
 
-	push @{ $field->{extra}{validators} }, qw/invalid null blank/;
+	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
 
 	$field->{extra}{widget} = 'number';
 
@@ -149,7 +149,7 @@ sub boolean_field {
 	$field->{data_type} = 'tinyint';
 	$field->{extra}{widget} = 'checkbox';
 
-	push @{ $field->{extra}{validators} }, qw/invalid null blank/;
+	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
 
 	return $field;
 }
@@ -161,7 +161,7 @@ sub char_field {
 	$field->{size} = [$opts->{max_length}];
 	$field->{extra}{widget} = 'text';
 
-	push @{ $field->{extra}{validators} }, qw/invalid null blank/;
+	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
 
 	return $field;
 }
@@ -174,7 +174,7 @@ sub date_field {
 	$field->{extra}{widget} = 'date';
 	$field->{extra}{default_value} = \&current_date;
 
-	push @{ $field->{extra}{validators} }, qw/invalid null blank/;
+	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
 
 	return $field;
 }
@@ -186,7 +186,7 @@ sub date_time_field {
 	$field->{extra}{widget} = 'date';
 	$field->{extra}{default_value} = \&current_date_time;
 
-	push @{ $field->{extra}{validators} }, qw/invalid null blank/;
+	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
 
 	return $field;
 }
@@ -199,7 +199,7 @@ sub decimal_field {
 	$field->{extra}{widget} = 'text';
 	$field->{extra}{default_value} = '0.0';
 
-	push @{ $field->{extra}{validators} }, qw/invalid null blank/;
+	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
 
 	return $field;
 }
@@ -227,7 +227,7 @@ sub integer_field {
 	$field->{data_type} = 'integer';
 	$field->{size} = [11];
 
-	push @{ $field->{extra}{validators} }, qw/invalid null blank/;
+	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
 
 	return $field;
 }

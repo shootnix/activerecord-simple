@@ -161,4 +161,8 @@ Revision history for Perl module ActiveRecord::Simple
         + Method "sql_fetch_row"
 
 0.96    2017-09-25
-        * Improve relations
+        + Method "all", the same as "find"
+        + Mixins now can get $class
+        * Improved relations
+        * Fixed "auto_load" behavior
+

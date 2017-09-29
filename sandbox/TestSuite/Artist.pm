@@ -10,8 +10,7 @@ use parent 'ActiveRecord::Simple';
 
 #__PACKAGE__->auto_load;
 
-
-__PACKAGE__->table_name('artist');
+__PACKAGE__->table_name('artists');
 __PACKAGE__->columns(
     id => {
         data_type => 'int',
@@ -54,6 +53,5 @@ __PACKAGE__->mixins(
         return 'SUM(id)';
     }
 );
-
 
 1;

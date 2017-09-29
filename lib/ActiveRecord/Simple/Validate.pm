@@ -9,57 +9,37 @@ use 5.010;
 sub check {
 	my ($fld, $val) = @_;
 
-	my $check_result = _check($val, {
-        data_type     => $fld->{data_type},
-        is_nullable   => $fld->{is_nullable},
-        size          => $fld->{size},
-        default_value => $fld->{default_value},
-    });
+    my @error_messages;
+    VALIDATOR:
+    for my $validator (@{ $fld->{extra}{validators} }) {
+        if ($validator eq 'null') {
+            if ($fld->{is_nullable} == 0 && !defined $val) {
+                push @error_messages, $fld->{extra}{error_messages}{null};
+            }
+        }
+        elsif ($validator eq 'blank') {
+            next VALIDATOR if !defined $val;
+            if ($fld->{extra}{is_blank} == 0 && $val eq q//) {
+                push @error_messages, $fld->{extra}{error_messages}{blank};
+            }
+        }
+        elsif ($validator eq 'invalid') {
+            next VALIDATOR if !defined $val;
+            if (!_check_for_data_type($val, $fld->{data_type}, $fld->{size})) {
+                push @error_messages, $fld->{extra}{error_messages}{invalid};
+            }
+        }
+        else {
 
-    if ($check_result->{error}) {
-        return wantarray ? (0, $check_result->{error}) : 0;
+        }
+    }
+
+    if (@error_messages) {
+        return wantarray ? (0, \@error_messages) : 0;
     }
     # else
 
-    return 1;
-}
-
-sub _check {
-    my ($val, $fld) = @_;
-
-    if (exists $fld->{is_nullable}) {
-        _check_for_null(
-            $val,
-            $fld->{is_nullable},
-            (exists $fld->{default_value} && defined $fld->{default_value})
-        )
-        or return { error => "Can't be null" };
-    }
-
-    if (exists $fld->{data_type}) {
-        _check_for_data_type($val, $fld->{data_type}, $fld->{size})
-            or return { error => "Invalid value for type " . $fld->{data_type} };
-    }
-
-    return { result => 1 };
-}
-
-sub _check_for_null {
-    my ($val, $is_nullable, $has_default_value) = @_;
-
-    if ($is_nullable == 0 && (not defined $val or $val eq '')) {
-        return $has_default_value ? 1 : undef;
-    }
-    # else
-    return 1;
-}
-
-sub _check_for_blank {
-    my ($val, $is_blank) = @_;
-
-    ### ...
-
-    return 1;
+    return wantarray ? (1, undef) : 1;
 }
 
 sub _check_for_data_type {
