@@ -16,7 +16,7 @@ package Order;
 use parent 'ActiveRecord::Simple';
 
 
-__PACKAGE__->table_name('orders');
+__PACKAGE__->table_name('order');
 __PACKAGE__->primary_key('id');
 __PACKAGE__->columns(qw/id title amount customer_id/);
 
@@ -27,12 +27,12 @@ package Customer;
 use parent 'ActiveRecord::Simple';
 
 
-__PACKAGE__->table_name('customers');
+__PACKAGE__->table_name('customer');
 __PACKAGE__->primary_key('id');
 __PACKAGE__->columns(qw/id first_name second_name age email/);
 
 __PACKAGE__->has_many('orders' => 'Order');
-__PACKAGE__->has_many('achievements' => { CustomersAchievement => 'Achievement' });
+__PACKAGE__->has_many('achievements' => 'Achievement', { via => 'customer_achievement' });
 
 
 package Achievement;
@@ -40,23 +40,11 @@ package Achievement;
 use parent 'ActiveRecord::Simple';
 
 
-__PACKAGE__->table_name('achievements');
+__PACKAGE__->table_name('achievement');
 __PACKAGE__->primary_key('id');
 __PACKAGE__->columns(qw/id title/);
 
-__PACKAGE__->has_many(customers => { 'CustomersAchievement' => 'Customer' });
-
-
-package CustomersAchievement;
-
-use parent 'ActiveRecord::Simple';
-
-
-__PACKAGE__->table_name('customers_achievements');
-__PACKAGE__->columns(qw/customer_id achievement_id/);
-
-__PACKAGE__->belongs_to(customer => 'Customer');
-__PACKAGE__->belongs_to(achievement => 'Achievement');
+__PACKAGE__->has_many(customers => 'Customer', { via => 'customer_achievement' });
 
 
 package main;
@@ -70,7 +58,7 @@ my $dbh = DBI->connect("dbi:SQLite:dbname=:memory:","","")
 
 my $_INIT_SQL_CUSTOMERS = q{
 
-	CREATE TABLE `customers` (
+	CREATE TABLE `customer` (
   		`id` int AUTO_INCREMENT,
   		`first_name` varchar(200) NULL,
   		`second_name` varchar(200) NOT NULL,
@@ -83,7 +71,7 @@ my $_INIT_SQL_CUSTOMERS = q{
 
 my $_DATA_SQL_CUSTOMERS = q{
 
-	INSERT INTO `customers` (`id`, `first_name`, `second_name`, `age`, `email`)
+	INSERT INTO `customer` (`id`, `first_name`, `second_name`, `age`, `email`)
 	VALUES
 		(1,'Bob','Dylan',NULL,'bob.dylan@aol.com'),
 		(2,'John','Doe',77,'john@doe.com'),
@@ -98,7 +86,7 @@ $dbh->do($_DATA_SQL_CUSTOMERS);
 
 my $_INIT_SQL_ORDERS = q{
 
-	CREATE TABLE `orders` (
+	CREATE TABLE `order` (
 		`id` int AUTO_INCREMENT,
 		`title` varchar(200) NOT NULL,
 		`amount` decimal(10,2) NOT NULL DEFAULT 0.0,
@@ -110,7 +98,7 @@ my $_INIT_SQL_ORDERS = q{
 
 my $_DATA_SQL_ORDERS = q{
 
-	INSERT INTO `orders` (`id`, `title`, `amount`, `customer_id`)
+	INSERT INTO `order` (`id`, `title`, `amount`, `customer_id`)
 	VALUES
 		(1, 'The Order #1', 10, 1),
 		(2, 'The Order #2', 5.66, 2),
@@ -125,7 +113,7 @@ $dbh->do($_DATA_SQL_ORDERS);
 
 my $_INIT_SQL_ACHIEVEMENTS = q{
 
-	CREATE TABLE `achievements` (
+	CREATE TABLE `achievement` (
 		`id` int AUTO_INCREMENT,
 		`title` varchar(30) NOT NULL,
 		PRIMARY KEY (`id`)
@@ -135,7 +123,7 @@ my $_INIT_SQL_ACHIEVEMENTS = q{
 
 my $_DATA_SQL_ACHEIVEMENTS = q{
 
-	INSERT INTO `achievements` (`id`, `title`)
+	INSERT INTO `achievement` (`id`, `title`)
 	VALUES
 		(1, 'Bronze'),
 		(2, 'Silver'),
@@ -148,7 +136,7 @@ $dbh->do($_DATA_SQL_ACHEIVEMENTS);
 
 my $_INIT_SQL_CA = q{
 
-	CREATE TABLE `customers_achievements` (
+	CREATE TABLE `customer_achievement` (
 		`customer_id` int NOT NULL references customers (id),
 		`achievement_id` int NOT NULL references achievements (id)
 	);
@@ -157,7 +145,7 @@ my $_INIT_SQL_CA = q{
 
 my $_DATA_SQL_CA = q{
 
-	INSERT INTO `customers_achievements` (`customer_id`, `achievement_id`)
+	INSERT INTO `customer_achievement` (`customer_id`, `achievement_id`)
 	VALUES
 		(1, 1),
 		(1, 2),
@@ -175,19 +163,14 @@ $dbh->do($_DATA_SQL_CA);
 
 Customer->dbh($dbh);
 
+
 ok my $Bill = Customer->get(3), 'got Bill';
 ok my $achievement = Achievement->new({ title => 'Bill Achievement', id => 4 })->save, 'create achievement';
 
 is $Bill->id, 3;
 is $achievement->id, 4;
 
-ok $Bill->achievements($achievement)->save, 'trying to bind achievement to the customer';
-ok my $ca = CustomersAchievement->find({ customer_id => $Bill->id, achievement_id => $achievement->id })->fetch, 'fetching binding';
-is $ca->customer_id, $Bill->id;
-is $ca->achievement_id, $achievement->id;
-
-my @ca = CustomersAchievement->find({ customer_id => $Bill->id, achievement_id => $achievement->id })->fetch;
-
+ok $Bill->achievements($achievement), 'trying to bind achievement to the customer';
 ok my $cnt = $Bill->achievements({ title => 'Bill Achievement' })->count(), 'trying to count customers achievements';
 is $cnt, 1, 'looks good';
 
@@ -209,6 +192,5 @@ isa_ok $achievements[0], 'Achievement';
 ok my $a = Achievement->get(1);
 ok my @customers = $a->customers->order_by('id')->fetch;
 is @customers, 3;
-
 
 done_testing();

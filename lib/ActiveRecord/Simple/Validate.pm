@@ -3,6 +3,8 @@ package ActiveRecord::Simple::Validate;
 use strict;
 use warnings;
 
+use 5.010;
+
 
 sub check {
 	my ($fld, $val) = @_;
@@ -14,8 +16,10 @@ sub check {
         default_value => $fld->{default_value},
     });
 
-    return (0, $check_result->{error})
-    	if $check_result->{error};
+    if ($check_result->{error}) {
+        return wantarray ? (0, $check_result->{error}) : 0;
+    }
+    # else
 
     return 1;
 }
@@ -47,6 +51,14 @@ sub _check_for_null {
         return $has_default_value ? 1 : undef;
     }
     # else
+    return 1;
+}
+
+sub _check_for_blank {
+    my ($val, $is_blank) = @_;
+
+    ### ...
+
     return 1;
 }
 

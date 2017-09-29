@@ -143,6 +143,11 @@ sub connect {
 sub belongs_to {
     my ($class, $rel_name, $rel_class, $params) = @_;
 
+    use Data::Dumper;
+
+    say 'class = ' . $class;
+    say 'rel_name = ' . $rel_name;
+
     my $new_relation = {
         class => $rel_class,
         type => 'one',
@@ -198,6 +203,8 @@ sub has_many {
         fk => $foreign_key,
     };
 
+    $new_relation->{via_table} = $params->{via} if $params->{via};
+
     $class->_append_relation($rel_name => $new_relation);
 }
 
@@ -235,8 +242,7 @@ sub as_sql {
     eval { require SQL::Translator }
       || croak('Please install SQL::Translator to use this feature.');
 
-    $class->can('_get_table_schema')
-        or return;
+    $class->can('_get_table_schema') or return;
 
     my $t = SQL::Translator->new;
     my $schema = $t->schema;
@@ -308,7 +314,7 @@ sub fields {
     }
 
     $class->_mk_attribute_getter('_get_table_schema', $table);
-    $class->columns([keys %fields]);
+    $class->columns([keys %fields]) unless $class->can('_get_columns');
 }
 
 sub index {
@@ -579,13 +585,18 @@ sub _get_relation_type {
     $type .= '_to_';
 
     my $related_class = _get_related_class($relation);
-    eval { load $related_class }; ### TODO: check module is loaded
-    eval { require $related_class };
 
+    eval { load $related_class }; ### TODO: check module is loaded
+
+    my $rel_type = undef;
     while (my ($rel_key, $rel_opts) = each %{ $related_class->_get_relations }) {
         next if $class ne _get_related_class($rel_opts);
-        $type .= $rel_opts->{type};
+        $rel_type = $rel_opts->{type};
     }
+
+    croak 'Oops! Looks like related class ' . $related_class . ' has no relations with ' . $class unless $rel_type;
+
+    $type .= $rel_type;
 
     return $type;
 }
@@ -822,6 +833,7 @@ sub _mk_attribute_getter {
     if ( !$class->can($pkg_method_name) ) {
         no strict 'refs';
         *{$pkg_method_name} = sub { $return };
+        use strict 'refs';
     }
 }
 
@@ -913,42 +925,69 @@ sub _mk_relations_accessors {
 
                 if (@args) {
 
+                    my $related_subclass = _get_related_subclass($relation);
+
                     unless (all { blessed $_ } @args) {
                         return  $related_class->_find_many_to_many({
                             root_class => $class,
-                            m_class    => _get_related_subclass($relation),
+                            via_table  => $relation->{via_table},
+                            m_class    => $related_subclass,
                             self       => $self,
                             where_statement => \@args,
                         });
                     }
 
-                    my $related_subclass = _get_related_subclass($relation);
-                    my ($fk1, $fk2);
 
-                    $fk1 = $fk;
+                    if (defined $related_subclass) {
+                        my ($fk1, $fk2);
 
-                    RELATED_CLASS_RELATION:
-                    for my $related_class_relation (values %{ $related_class->_get_relations }) {
-                        next RELATED_CLASS_RELATION
-                            unless _get_related_subclass($related_class_relation)
-                                && $related_subclass eq _get_related_subclass($related_class_relation);
+                        $fk1 = $fk;
 
-                        $fk2 = $related_class_relation->{params}{fk};
+                        RELATED_CLASS_RELATION:
+                        for my $related_class_relation (values %{ $related_class->_get_relations }) {
+                            next RELATED_CLASS_RELATION
+                                unless _get_related_subclass($related_class_relation)
+                                    && $related_subclass eq _get_related_subclass($related_class_relation);
+
+                            $fk2 = $related_class_relation->{params}{fk};
+                        }
+
+                        my $pk1_name = $self->_get_primary_key;
+                        my $pk1 = $self->$pk1_name;
+
+                        defined $pk1 or croak 'You are trying to create relations between unsaved objects. Save your ' . $class . ' object first';
+
+                        OBJECT:
+                        for my $object (@args) {
+                            next OBJECT if !blessed $object;
+
+                            my $pk2_name = $object->_get_primary_key;
+                            my $pk2 = $object->$pk2_name;
+
+                            $related_subclass->new($fk1 => $pk1, $fk2 => $pk2)->save;
+                        }
                     }
+                    else {
+                        my ($fk1, $fk2);
+                        $fk1 = $fk;
 
-                    my $pk1_name = $self->_get_primary_key;
-                    my $pk1 = $self->$pk1_name;
+                        $fk2 = ActiveRecord::Simple::Utils::class_to_table_name($related_class) . '_id';
 
-                    defined $pk1 or croak 'You are trying to create relations between unsaved objects. Save your ' . $class . ' object first';
+                        my $pk1_name = $self->_get_primary_key;
+                        my $pk1 = $self->$pk1_name;
 
-                    OBJECT:
-                    for my $object (@args) {
-                        next OBJECT if !blessed $object;
+                        my $via_table = $relation->{via_table};
 
-                        my $pk2_name = $object->_get_primary_key;
-                        my $pk2 = $object->$pk2_name;
+                        OBJECT:
+                        for my $object (@args) {
+                            next OBJECT if !blessed $object;
 
-                        $related_subclass->new($fk1 => $pk1, $fk2 => $pk2)->save;
+                            my $pk2_name = $object->_get_primary_key;
+                            my $pk2 = $object->$pk2_name;
+
+                            my $sql = qq/INSERT INTO "$via_table" ("$fk1", "$fk2") VALUES (?, ?)/;
+                            $self->dbh->do($sql, undef, $pk1, $pk2);
+                        }
                     }
 
                     return $self;
@@ -959,6 +998,7 @@ sub _mk_relations_accessors {
                     $self->{$instance_name} = $related_class->_find_many_to_many({
                         root_class => $class,
                         m_class    => _get_related_subclass($relation),
+                        via_table  => $relation->{via_table},
                         self       => $self,
                     });
                 }

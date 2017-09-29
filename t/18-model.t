@@ -4,8 +4,6 @@ use strict;
 use warnings;
 use 5.010;
 
-use Test::More;
-
 use FindBin '$Bin';
 use lib "$Bin/../lib";
 
@@ -24,7 +22,7 @@ BEGIN {
 
 	my $_INIT_SQL_CUSTOMERS = q{
 
-	CREATE TABLE `customers` (
+	CREATE TABLE `customer` (
   		`id` int AUTO_INCREMENT,
   		`first_name` varchar(200) NULL,
   		`second_name` varchar(200) NOT NULL,
@@ -37,7 +35,7 @@ BEGIN {
 
 	my $_DATA_SQL_CUSTOMERS = q{
 
-	INSERT INTO `customers` (`id`, `first_name`, `second_name`, `age`, `email`)
+	INSERT INTO `customer` (`id`, `first_name`, `second_name`, `age`, `email`)
 	VALUES
 		(1,'Bob','Dylan',NULL,'bob.dylan@aol.com'),
 		(2,'John','Doe',77,'john@doe.com'),
@@ -52,7 +50,7 @@ BEGIN {
 
 	my $_INIT_SQL_ORDERS = q{
 
-	CREATE TABLE `orders` (
+	CREATE TABLE `order` (
 		`id` int AUTO_INCREMENT,
 		`title` varchar(200) NOT NULL,
 		`amount` decimal(10,2) NOT NULL DEFAULT 0.0,
@@ -64,9 +62,9 @@ BEGIN {
 
 	my $_DATA_SQL_ORDERS = q{
 
-	INSERT INTO `orders` (`id`, `title`, `amount`, `customer_id`)
+	INSERT INTO `order` (`id`, `title`, `amount`, `customer_id`)
 	VALUES
-		(1, 'The Order #1', 10, 1),
+		(1, 'The Order #1', 10.00, 1),
 		(2, 'The Order #2', 5.66, 2),
 		(3, 'The Order #3', 6.43, 3),
 		(4, 'The Order #4', 2.20, 1),
@@ -79,7 +77,7 @@ BEGIN {
 
 	my $_INIT_SQL_ACHIEVEMENTS = q{
 
-	CREATE TABLE `achievements` (
+	CREATE TABLE `achievement` (
 		`id` int AUTO_INCREMENT,
 		`title` varchar(30) NOT NULL,
 		PRIMARY KEY (`id`)
@@ -89,7 +87,7 @@ BEGIN {
 
 	my $_DATA_SQL_ACHEIVEMENTS = q{
 
-	INSERT INTO `achievements` (`id`, `title`)
+	INSERT INTO `achievement` (`id`, `title`)
 	VALUES
 		(1, 'Bronze'),
 		(2, 'Silver'),
@@ -102,7 +100,7 @@ BEGIN {
 
 	my $_INIT_SQL_CA = q{
 
-	CREATE TABLE `customers_achievements` (
+	CREATE TABLE `customer_achievement` (
 		`customer_id` int NOT NULL references customers (id),
 		`achievement_id` int NOT NULL references achievements (id)
 	);
@@ -111,7 +109,7 @@ BEGIN {
 
 	my $_DATA_SQL_CA = q{
 
-	INSERT INTO `customers_achievements` (`customer_id`, `achievement_id`)
+	INSERT INTO `customer_achievement` (`customer_id`, `achievement_id`)
 	VALUES
 		(1, 1),
 		(1, 2),
@@ -135,35 +133,68 @@ package Model;
 use parent 'ActiveRecord::Simple::Model';
 
 
+package Model::Customer;
+
+our @ISA = qw/Model/;
+use ActiveRecord::Simple::Field;
+
+__PACKAGE__->setup([
+	first_name  => char_field(max_length => 200),
+	second_name => char_field(max_length => 200),
+	age         => small_integer_field(),
+	email       => email_field(max_length => 200),
+]);
+
+__PACKAGE__->has_many(achievements => 'Model::Achievement', { via => 'customer_achievement' });
+__PACKAGE__->has_many(orders => 'Model::Order');
+
+
+package Model::Order;
+use ActiveRecord::Simple::Field;
+
+our @ISA = qw/Model/;
+
+__PACKAGE__->setup([
+	the_title   => char_field(max_length => 200, 'db_column' => 'title'),
+	amount      => decimal_field(default => '0.0', max_digits => 10),
+	customer_id => foreign_key(),
+]);
+
+__PACKAGE__->belongs_to(customer => 'Model::Customer');
+
+
+package Model::Achievement;
+use ActiveRecord::Simple::Field;
+
+our @ISA = qw/Model/;
+
+__PACKAGE__->setup([
+	title => char_field(max_length => 200),
+]);
+
+__PACKAGE__->has_many(customers => 'Model::Customer', { via => 'customer_achievement' });
+
+
 package main;
 
-ok(Model->field->auto_field(primary_key => 1));
+use Test::More;
+use Data::Dumper;
 
+is(Model::Customer->_get_table_name, 'customer', 'table_name is ok');
+is_deeply(Model::Customer->_get_columns, ['id', 'first_name', 'second_name', 'age', 'email'], 'columns is ok');
+is_deeply(Model::Order->_get_columns, ['id', 'title', 'amount', 'customer_id']);
+is(Model::Customer->_get_primary_key, 'id', 'primary_key is ok');
+
+ok my $order = Model::Order->new(), 'new is ok';
+isa_ok $order, 'Model::Order';
+ok $order->amount, 'default amount value set';
+is $order->amount, '0.0', 'default amount value is valid';
+
+ok my $order2 = Model::Order->get(1);
+is $order2->title, 'The Order #1', 'order title ok';
+is $order2->id, 1, 'order id ok';
+is $order2->customer->first_name, 'Bob', 'order has a customer';
+
+ok $order2->save;
 
 done_testing();
-
-
-#package Model::Customer;
-#
-#our @ISA = qw/Model/;
-#
-#
-#__PACKAGE__->setup([
-#	id          => Model->auto_field(primary_key => 1),
-#	first_name  => Model->char_field(max_length => 200),
-#	second_name => Model->char_field(max_length => 200),
-#	age         => Model->small_integer_field(),
-#	email       => Model->email_field(max_length => 200),
-#]);
-
-
-#package Model::Order;
-
-#our @ISA = qw/Model/;
-
-#__PACKAGE__->setup([
-#	id          => Model->auto_field(primary_key => 1),
-#	title       => Model->char_field(max_length => 200),
-#	amount      => Model->decimal_field(), ### Params?
-#	customer_id => Model->foreign_key('Model::Customer'),
-#]);

@@ -11,6 +11,8 @@ use Module::Load;
 
 use parent 'ActiveRecord::Simple';
 
+use ActiveRecord::Simple::Utils;
+
 
 our $MAXIMUM_LIMIT = 100_000_000_000;
 
@@ -547,30 +549,54 @@ sub _find_many_to_many {
     my $class_opts = {};
     my $root_class_opts = {};
 
-    eval { load $param->{m_class} };
+    if ($param->{m_class}) {
+        eval { load $param->{m_class} };
 
-    for my $opts ( values %{ $param->{m_class}->_get_relations } ) {
-        if ($opts->{class} eq $param->{root_class}) {
-            $root_class_opts = $opts;
+
+
+        for my $opts ( values %{ $param->{m_class}->_get_relations } ) {
+            if ($opts->{class} eq $param->{root_class}) {
+                $root_class_opts = $opts;
+            }
+            elsif ($opts->{class} eq $class) {
+                $class_opts = $opts;
+            }
         }
-        elsif ($opts->{class} eq $class) {
-            $class_opts = $opts;
-        }
+
+        my $self = $self_class->new($class, @{ $param->{where_statement} });
+
+        my $connected_table_name = $class->_get_table_name;
+        $self->{prep_select_from} = [ $param->{m_class}->_get_table_name ];
+
+        push @{ $self->{prep_left_joins} },
+            'JOIN ' . $connected_table_name . ' ON ' . $connected_table_name . '.' . $class->_get_primary_key . ' = '
+                . $param->{m_class}->_get_table_name . '.' . $class_opts->{params}{fk};
+
+        push @{ $self->{prep_select_where} },
+            $root_class_opts->{params}{fk} . ' = ' . $param->{self}->{ $param->{root_class}->_get_primary_key };
+
+        return $self;
+    }
+    else {
+        my $self = $self_class->new($class, @{ $param->{where_statement} });
+
+        my $connected_table_name = $class->_get_table_name;
+        $self->{prep_select_from} = [ $param->{via_table} ];
+        my $fk = ActiveRecord::Simple::Utils::class_to_table_name($class);
+        $fk .= '_id';
+
+        push @{ $self->{prep_left_joins} },
+            'JOIN ' . $connected_table_name . ' ON ' . $connected_table_name . '.' . $class->_get_primary_key . ' = '
+                . $param->{via_table} . '.' . $fk;
+
+        my $fk2 = ActiveRecord::Simple::Utils::class_to_table_name($param->{root_class}) . '_id';
+
+        push @{ $self->{prep_select_where} },
+            $fk2 . ' = ' . $param->{self}->{ $param->{root_class}->_get_primary_key };
+
+        return $self;
     }
 
-    my $self = $self_class->new($class, @{ $param->{where_statement} });
-
-    my $connected_table_name = $class->_get_table_name;
-    $self->{prep_select_from} = [ $param->{m_class}->_get_table_name ];
-
-    push @{ $self->{prep_left_joins} },
-        'JOIN ' . $connected_table_name . ' ON ' . $connected_table_name . '.' . $class->_get_primary_key . ' = '
-            . $param->{m_class}->_get_table_name . '.' . $class_opts->{params}{fk};
-
-    push @{ $self->{prep_select_where} },
-        $root_class_opts->{params}{fk} . ' = ' . $param->{self}->{ $param->{root_class}->_get_primary_key };
-
-    return $self;
 }
 
 sub _get_slice {

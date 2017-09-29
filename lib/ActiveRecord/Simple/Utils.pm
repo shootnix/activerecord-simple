@@ -27,7 +27,6 @@ sub class_to_table_name {
 
     $class_name =~ s/.*:://;
     $class_name = lc $class_name;
-    $class_name .= 's';
 
     return $class_name;
 }
