@@ -5,6 +5,10 @@ use warnings;
 
 use 5.010;
 
+require Exporter;
+our @ISA = ('Exporter');
+our @EXPORT_OK = ('check');
+
 
 sub check {
 	my ($fld, $val) = @_;

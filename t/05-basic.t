@@ -140,14 +140,19 @@ ok $r = t::class->find->last, 'last';
 #ok $r = t::class->find->last(10), 'last 10';
 #is $r->{prep_limit}, 10, 'limit is 10, last ok';
 
-is(t::ClaSs3->_table_name, 'class3s');
+is(t::ClaSs3->_table_name, 'class3');
 is(t::class->_table_name, 't');
 
 my $cs1 = t::class->new();
 my $cs2 = t::ClaSs3->new();
 
-#is $cs1->_table_name, 't';
-#is $cs2->_table_name, 'class3s';
+is $cs1->meta->table_name, 't';
+is $cs1->meta->primary_key_name, 'foo';
+is_deeply $cs1->meta->columns_list, ['foo', 'bar'];
+
+is(t::class->meta->table_name, 't');
+is(t::class->meta->primary_key_name, 'foo');
+is_deeply(t::class->meta->columns_list, ['foo', 'bar']);
 
 
 done_testing();

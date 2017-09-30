@@ -18,6 +18,7 @@ use List::Util qw/any/;
 use ActiveRecord::Simple::Find;
 use ActiveRecord::Simple::Utils;
 use ActiveRecord::Simple::Connect;
+use ActiveRecord::Simple::Meta;
 
 our $connector;
 
@@ -55,35 +56,6 @@ sub auto_load {
     my ($class) = @_;
 
     $class->_mk_attribute_getter('_is_auto_loaded', 1);
-}
-
-sub _auto_load {
-    my ($class) = @_;
-
-    my @class_name_parts = split q/::/, $class;
-    my $class_name = $class_name_parts[-1];
-
-    my $table_name = ActiveRecord::Simple::Utils::class_to_table_name($class);
-
-    # 0. check the name
-    my $table_info_sth = $class->dbh->table_info('', '%', $table_name, 'TABLE');
-    $table_info_sth->fetchrow_hashref or croak "Can't find table '$table_name' in the database";
-
-    # 1. columns list
-    my $column_info_sth = $class->dbh->column_info(undef, undef, $table_name, undef);
-    my $cols = $column_info_sth->fetchall_arrayref({});
-
-    my @columns = ();
-    push @columns, $_->{COLUMN_NAME} for @$cols;
-
-    # 2. Primary key
-    my $primary_key_sth = $class->dbh->primary_key_info(undef, undef, $table_name);
-    my $primary_key_data = $primary_key_sth->fetchrow_hashref;
-    my $primary_key = ($primary_key_data) ? $primary_key_data->{COLUMN_NAME} : undef;
-
-    $class->table_name($table_name) if $table_name;
-    $class->primary_key($primary_key) if $primary_key;
-    $class->columns(\@columns) if @columns;
 }
 
 sub load_info {
@@ -536,6 +508,34 @@ sub decrement {
     return $self;
 }
 
+sub meta {
+    my ($self) = @_;
+
+    if (!$self->can('_get_meta_data')) {
+        my $pkey_val; my $pkey = $self->_get_primary_key;
+        my $relations;
+        if (blessed $self) {
+            $pkey_val = $self->$pkey;
+        }
+        if ($self->can('_get_relations')) {
+            $relations = $self->_get_relations;
+        }
+        my $meta = ActiveRecord::Simple::Meta->new({
+            table_name => $self->_get_table_name,
+            primary_key_name => $pkey,
+            primary_key_value => $pkey_val,
+            columns_list => $self->_get_columns,
+            relations => $relations,
+        });
+
+        my $class = blessed $self ? ref $self : $self;
+
+        $class->_mk_attribute_getter('_get_meta_data', $meta);
+    }
+
+    return $self->_get_meta_data;
+}
+
 #### Find ####
 
 sub find   { ActiveRecord::Simple::Find->new(shift, @_) }
@@ -565,8 +565,6 @@ sub exists {
         @search_criteria = @_;
         return (defined $class->find(@search_criteria)->fetch) ? 1 : 0;
     }
-
-
 }
 
 sub first  { croak '[DEPRECATED] Using method "first" as a class-method is deprecated. Sorry about that. Please, use "first" in this way: "Model->find->first".'; }
@@ -1028,6 +1026,37 @@ sub _mk_relations_accessors {
 
     use strict 'refs';
 }
+
+sub _auto_load {
+    my ($class) = @_;
+
+    my @class_name_parts = split q/::/, $class;
+    my $class_name = $class_name_parts[-1];
+
+    my $table_name = ActiveRecord::Simple::Utils::class_to_table_name($class);
+
+    # 0. check the name
+    my $table_info_sth = $class->dbh->table_info('', '%', $table_name, 'TABLE');
+    $table_info_sth->fetchrow_hashref or croak "Can't find table '$table_name' in the database";
+
+    # 1. columns list
+    my $column_info_sth = $class->dbh->column_info(undef, undef, $table_name, undef);
+    my $cols = $column_info_sth->fetchall_arrayref({});
+
+    my @columns = ();
+    push @columns, $_->{COLUMN_NAME} for @$cols;
+
+    # 2. Primary key
+    my $primary_key_sth = $class->dbh->primary_key_info(undef, undef, $table_name);
+    my $primary_key_data = $primary_key_sth->fetchrow_hashref;
+    my $primary_key = ($primary_key_data) ? $primary_key_data->{COLUMN_NAME} : undef;
+
+    $class->table_name($table_name) if $table_name;
+    $class->primary_key($primary_key) if $primary_key;
+    $class->columns(\@columns) if @columns;
+}
+
+
 
 1;
 

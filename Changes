@@ -163,6 +163,7 @@ Revision history for Perl module ActiveRecord::Simple
 0.96    2017-09-25
         + Method "all", the same as "find"
         + Mixins now can get $class
+        + Added class Meta.pm, access via method "meta"
         * Improved relations
         * Fixed "auto_load" behavior
 
