@@ -18,7 +18,6 @@ use List::Util qw/any/;
 use ActiveRecord::Simple::Find;
 use ActiveRecord::Simple::Utils;
 use ActiveRecord::Simple::Connect;
-use ActiveRecord::Simple::Meta;
 
 our $connector;
 
@@ -54,6 +53,8 @@ sub new {
 
 sub auto_load {
     my ($class) = @_;
+
+    say '--- auto_load ---';
 
     $class->_mk_attribute_getter('_is_auto_loaded', 1);
 }
@@ -508,38 +509,10 @@ sub decrement {
     return $self;
 }
 
-sub meta {
-    my ($self) = @_;
-
-    if (!$self->can('_get_meta_data')) {
-        my $pkey_val; my $pkey = $self->_get_primary_key;
-        my $relations;
-        if (blessed $self) {
-            $pkey_val = $self->$pkey;
-        }
-        if ($self->can('_get_relations')) {
-            $relations = $self->_get_relations;
-        }
-        my $meta = ActiveRecord::Simple::Meta->new({
-            table_name => $self->_get_table_name,
-            primary_key_name => $pkey,
-            primary_key_value => $pkey_val,
-            columns_list => $self->_get_columns,
-            relations => $relations,
-        });
-
-        my $class = blessed $self ? ref $self : $self;
-
-        $class->_mk_attribute_getter('_get_meta_data', $meta);
-    }
-
-    return $self->_get_meta_data;
-}
-
 #### Find ####
 
 sub find   { ActiveRecord::Simple::Find->new(shift, @_) }
-sub all    { find(@_) }
+sub all    { shift->find() }
 sub get    { shift->find(@_)->fetch } ### TODO: move to Finder
 sub count  { ActiveRecord::Simple::Find->count(shift, @_) }
 

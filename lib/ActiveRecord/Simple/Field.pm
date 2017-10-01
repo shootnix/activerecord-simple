@@ -80,6 +80,7 @@ sub _generic_field {
 			choices       => $opts{choices} // undef,
 			db_column     => $opts{db_column} // undef,
 			editable      => $opts{editable} // 1,
+			widget        => 'text', ### default widget is input type="text"
 
 			error_messages => {
 				null     => $opts{error_messages}{null} || 'NULL',
@@ -159,7 +160,7 @@ sub char_field {
 
 	$field->{data_type} = 'varchar';
 	$field->{size} = [$opts->{max_length}];
-	$field->{extra}{widget} = 'text';
+	$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'text';
 
 	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
 
@@ -171,7 +172,7 @@ sub date_field {
 	my ($field, $opts) = _generic_field(@_);
 
 	$field->{data_type} = 'date';
-	$field->{extra}{widget} = 'date';
+	$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'date';
 	$field->{extra}{default_value} = \&current_date;
 
 	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
@@ -183,7 +184,7 @@ sub date_time_field {
 	my ($field, $opts) = _generic_field(@_);
 
 	$field->{data_type} = 'datetime';
-	$field->{extra}{widget} = 'date';
+	$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'date';
 	$field->{extra}{default_value} = \&current_date_time;
 
 	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
@@ -196,7 +197,7 @@ sub decimal_field {
 
 	$field->{data_type} = 'decimal';
 	$field->{size} = [$opts->{max_digits} || 1, $opts->{decimal_places} || 2];
-	$field->{extra}{widget} = 'text';
+	$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'text';
 	$field->{extra}{default_value} = '0.0';
 
 	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
@@ -227,6 +228,8 @@ sub integer_field {
 	$field->{data_type} = 'integer';
 	$field->{size} = [11];
 
+	$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'number';
+
 	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
 
 	return $field;
@@ -236,6 +239,7 @@ sub generic_ip_address_field {
 
 	$field->{size} = [19];
 	push @{ $field->{extra}{validators} }, 'ip';
+	#$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'text';
 
 	return $field;
 }
@@ -244,6 +248,7 @@ sub generic_ipv6_address_field {
 
 	$field->{size} = [45];
 	push @{ $field->{extra}{validators} }, 'ipv6';
+	#$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'text';
 
 	return $field;
 }

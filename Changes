@@ -161,9 +161,9 @@ Revision history for Perl module ActiveRecord::Simple
         + Method "sql_fetch_row"
 
 0.96    2017-09-25
-        + Method "all", the same as "find"
+        + Method "all"
         + Mixins now can get $class
-        + Added class Meta.pm, access via method "meta"
+        + Added class Meta.pm, access via method "META" in ARS::Model
         * Improved relations
         * Fixed "auto_load" behavior
 

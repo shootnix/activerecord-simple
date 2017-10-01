@@ -138,12 +138,12 @@ package Model::Customer;
 our @ISA = qw/Model/;
 use ActiveRecord::Simple::Field;
 
-__PACKAGE__->setup([
+__PACKAGE__->setup(
 	first_name  => char_field(max_length => 200),
 	second_name => char_field(max_length => 200),
 	age         => small_integer_field(error_messages => { null => 'Must be not null' }),
 	email       => email_field(max_length => 200),
-]);
+);
 
 __PACKAGE__->has_many(achievements => 'Model::Achievement', { via => 'customer_achievement' });
 __PACKAGE__->has_many(orders => 'Model::Order');
@@ -154,11 +154,11 @@ use ActiveRecord::Simple::Field;
 
 our @ISA = qw/Model/;
 
-__PACKAGE__->setup([
-	title   => char_field(max_length => 200, 'db_column' => 'title'),
+__PACKAGE__->setup(
+	title       => char_field(max_length => 200, 'db_column' => 'title'),
 	amount      => decimal_field(default => '0.0', max_digits => 10),
 	customer_id => foreign_key(),
-]);
+);
 
 __PACKAGE__->belongs_to(customer => 'Model::Customer');
 
@@ -168,9 +168,7 @@ use ActiveRecord::Simple::Field;
 
 our @ISA = qw/Model/;
 
-__PACKAGE__->setup([
-	title => char_field(max_length => 200),
-]);
+__PACKAGE__->setup();
 
 __PACKAGE__->has_many(customers => 'Model::Customer', { via => 'customer_achievement' });
 
@@ -195,6 +193,16 @@ is $order2->title, 'The Order #1', 'order title ok';
 is $order2->id, 1, 'order id ok';
 is $order2->customer->first_name, 'Bob', 'order has a customer';
 
+ok my $achievement = Model::Achievement->new(title => 'test'), 'setup with no params';
+is $achievement->title, 'test';
+is ref $achievement->META->schema, 'HASH';
+ok $achievement->META->schema->{id};
+ok $achievement->META->schema->{title};
+is $achievement->META->primary_key_name, 'id', 'primary_key_name = id';
+is $achievement->META->table_name, 'achievement';
+#say Dumper $achievement->META;
+
+=c
 ok $order2->save, 'save';
 
 ok !$order2->title(undef)->save;
@@ -205,5 +213,10 @@ is $errors->{title}[0], 'NULL';
 my $customer = Model::Customer->new();
 ($res, $errors) = $customer->age(undef)->save;
 is $errors->{age}[0], 'Must be not null';
+
+is $order->META->table_name, 'order';
+is $order->META->primary_key_name, 'id';
+is $order->META->primary_key_value, $order->id;
+=cut
 
 done_testing();

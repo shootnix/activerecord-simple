@@ -9,28 +9,68 @@ require Exporter;
 our @ISA = ('Exporter');
 our @EXPORT_OK = ('check');
 
+our %ERROR_MESSAGES = (
+    null    => 'NULL',
+    blank   => 'BLANK',
+    invalid => 'INVALID',
+);
 
-sub check {
-	my ($fld, $val) = @_;
+our @VALIDATORS = (
+    'null',    \&_check_null,
+    'blank',   \&_check_blank,
+    'invalid', \&_check_invalid,
+);
+
+
+sub new {
+    my ($class, %params) = @_;
+
+    my $self = {
+        error_messages => $params{error_messages} || \%ERROR_MESSAGES,
+    };
+
+    return bless $self, $class;
+}
+
+sub error_messages {
+    my ($self, $messages) = @_;
+
+    if ($messages) {
+        $self->{error_messages} = $messages;
+    }
+
+    return $self->{error_messages}
+}
+
+sub validators {
+    my ($self, $validators) = @_;
+
+    push @VALIDATORS, @$validators if $validators;
+
+    return @VALIDATORS;
+}
+
+sub check_errors {
+	my ($self, $fld, $val) = @_;
 
     my @error_messages;
     VALIDATOR:
     for my $validator (@{ $fld->{extra}{validators} }) {
         if ($validator eq 'null') {
             if ($fld->{is_nullable} == 0 && !defined $val) {
-                push @error_messages, $fld->{extra}{error_messages}{null};
+                push @error_messages, $self->error_messages->{null};
             }
         }
         elsif ($validator eq 'blank') {
             next VALIDATOR if !defined $val;
             if ($fld->{extra}{is_blank} == 0 && $val eq q//) {
-                push @error_messages, $fld->{extra}{error_messages}{blank};
+                push @error_messages, $self->error_messages->{blank};
             }
         }
         elsif ($validator eq 'invalid') {
             next VALIDATOR if !defined $val;
             if (!_check_for_data_type($val, $fld->{data_type}, $fld->{size})) {
-                push @error_messages, $fld->{extra}{error_messages}{invalid};
+                push @error_messages, $self->error_messages->{invalid};
             }
         }
         else {
@@ -38,12 +78,7 @@ sub check {
         }
     }
 
-    if (@error_messages) {
-        return wantarray ? (0, \@error_messages) : 0;
-    }
-    # else
-
-    return wantarray ? (1, undef) : 1;
+    return \@error_messages;
 }
 
 sub _check_for_data_type {
@@ -114,6 +149,8 @@ sub _check_numeric {
         defined $size &&
         ref $size eq 'ARRAY' &&
         scalar @$size == 2;
+
+    return 1 if $val =~ /^\d+$/;
 
     my ($first, $last) = $val =~ /^(\d+)\.(\d+)$/;
 

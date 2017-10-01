@@ -146,13 +146,5 @@ is(t::class->_table_name, 't');
 my $cs1 = t::class->new();
 my $cs2 = t::ClaSs3->new();
 
-is $cs1->meta->table_name, 't';
-is $cs1->meta->primary_key_name, 'foo';
-is_deeply $cs1->meta->columns_list, ['foo', 'bar'];
-
-is(t::class->meta->table_name, 't');
-is(t::class->meta->primary_key_name, 'foo');
-is_deeply(t::class->meta->columns_list, ['foo', 'bar']);
-
 
 done_testing();
