@@ -54,8 +54,6 @@ sub new {
 sub auto_load {
     my ($class) = @_;
 
-    say '--- auto_load ---';
-
     $class->_mk_attribute_getter('_is_auto_loaded', 1);
 }
 

@@ -64,10 +64,23 @@ ok any {$_ eq 'invalid'} @$boolean_field_validators;
 is $boolean_field->{extra}{widget}, 'checkbox', 'boolean_field.widget = "checkbox"';
 is $boolean_field->{extra}{default_value}, 1, 'boolean_field.default = 1';
 
+my $bool_field_2 = boolean_field(null => 1);
+is $bool_field_2->{is_nullable}, 1;
+is_deeply $bool_field_2->{extra}{validators}, ['blank', 'invalid'], 'is [blank invalid]';
+
+my $bool_field_3 = boolean_field(blank => 1);
+is $bool_field_3->{extra}{is_blank}, 1, 'is_blank';
+is_deeply $bool_field_3->{extra}{validators}, ['null', 'invalid'], 'is [null invalid]';
+
+my $bool_field_4 = boolean_field(null => 1, blank => 1);
+is $bool_field_4->{is_nullable}, 1;
+is $bool_field_4->{extra}{is_blank}, 1;
+is_deeply $bool_field_4->{extra}{validators}, ['invalid'];
+
 # char_field
 my $char_field_1 = char_field(max_length => 10);
 is $char_field_1->{data_type}, 'varchar', 'char_field_1.data_type = varchar';
-is $char_field_1->{size}, 10, 'char_field_1.size = 10';
+is_deeply $char_field_1->{size}, [10], 'char_field_1.size = 10';
 is $char_field_1->{is_nullable}, 0, 'char_field_1.is_nullable = 0';
 is $char_field_1->{extra}{is_blank}, 0, 'char_field_1.is_blank = 0';
 is $char_field_1->{extra}{widget}, 'text', 'char_field_1.widget = "text"';

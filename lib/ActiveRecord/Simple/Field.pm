@@ -140,6 +140,12 @@ sub binary_field {
 	$field->{data_type} = 'blob';
 	$field->{extra}{widget} = 'file';
 
+	$field->{is_nullable} = $opts->{null} || 0;
+	$field->{extra}{is_blank} = $opts->{blank} || 0;
+
+	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
+	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{is_blank};
+
 	return $field;
 }
 
@@ -150,7 +156,12 @@ sub boolean_field {
 	$field->{data_type} = 'tinyint';
 	$field->{extra}{widget} = 'checkbox';
 
-	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
+	$field->{is_nullable} = $opts->{null} || 0;
+	$field->{extra}{is_blank} = $opts->{blank} || 0;
+
+	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
+	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{is_blank};
+	push @{ $field->{extra}{validators} }, 'invalid', 'boolean';
 
 	return $field;
 }
@@ -162,7 +173,12 @@ sub char_field {
 	$field->{size} = [$opts->{max_length}];
 	$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'text';
 
-	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
+	$field->{is_nullable} = $opts->{null} || 0;
+	$field->{extra}{is_blank} = $opts->{blank} || 0;
+
+	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
+	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{blank};
+	push @{ $field->{extra}{validators} }, 'invalid';
 
 	return $field;
 }
@@ -175,7 +191,12 @@ sub date_field {
 	$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'date';
 	$field->{extra}{default_value} = \&current_date;
 
-	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
+	$field->{is_nullable} = $opts->{null} || 0;
+	$field->{extra}{is_blank} = $opts->{blank} || 0;
+
+	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
+	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{blank};
+	push @{ $field->{extra}{validators} }, 'invalid';
 
 	return $field;
 }
@@ -187,7 +208,12 @@ sub date_time_field {
 	$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'date';
 	$field->{extra}{default_value} = \&current_date_time;
 
-	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
+	$field->{is_nullable} = $opts->{null} || 0;
+	$field->{extra}{is_blank} = $opts->{blank} || 0;
+
+	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
+	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{blank};
+	push @{ $field->{extra}{validators} }, 'invalid';
 
 	return $field;
 }
@@ -200,7 +226,12 @@ sub decimal_field {
 	$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'text';
 	$field->{extra}{default_value} = '0.0';
 
-	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
+	$field->{is_nullable} = $opts->{null} || 0;
+	$field->{extra}{is_blank} = $opts->{blank} || 0;
+
+	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
+	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{blank};
+	push @{ $field->{extra}{validators} }, 'invalid';
 
 	return $field;
 }
@@ -230,7 +261,12 @@ sub integer_field {
 
 	$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'number';
 
-	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
+	$field->{is_nullable} = $opts->{null} || 0;
+	$field->{extra}{is_blank} = $opts->{blank} || 0;
+
+	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
+	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{blank};
+	push @{ $field->{extra}{validators} }, 'invalid';
 
 	return $field;
 }
@@ -301,6 +337,13 @@ sub text_field {
 	$field->{data_type} = 'text';
 	$field->{size} = [$opts->{max_length}];
 	$field->{extra}{widget} = 'textarea';
+
+	$field->{is_nullable} = $opts->{null} || 0;
+	$field->{extra}{is_blank} = $opts->{blank} || 0;
+
+	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
+	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{blank};
+	push @{ $field->{extra}{validators} }, 'invalid';
 
 	return $field;
 }
