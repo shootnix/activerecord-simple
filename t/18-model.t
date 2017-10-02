@@ -200,9 +200,7 @@ ok $achievement->META->schema->{id};
 ok $achievement->META->schema->{title};
 is $achievement->META->primary_key_name, 'id', 'primary_key_name = id';
 is $achievement->META->table_name, 'achievement';
-#say Dumper $achievement->META;
 
-=c
 ok $order2->save, 'save';
 
 ok !$order2->title(undef)->save;
@@ -217,6 +215,9 @@ is $errors->{age}[0], 'Must be not null';
 is $order->META->table_name, 'order';
 is $order->META->primary_key_name, 'id';
 is $order->META->primary_key_value, $order->id;
-=cut
+
+ok my $a1 = Model::Achievement->new(title => 'new achievement')->save;
+my $b = Model::Achievement->find({ title => 'new achievement' })->fetch;
+ok $b, 'find saved value';
 
 done_testing();

@@ -20,8 +20,6 @@ use Carp qw/carp croak/;
 use Time::Local;
 
 
-use Data::Dumper;
-
 sub check_errors {
 	my ($fld, $val) = @_;
 

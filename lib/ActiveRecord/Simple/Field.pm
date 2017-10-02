@@ -44,8 +44,6 @@ our @EXPORT = qw/
 	foreign_key
 /;
 
-use Data::Dumper;
-
 
 sub _params {
 	my $verbose_name = scalar @_ % 2 ? shift @_ : undef;

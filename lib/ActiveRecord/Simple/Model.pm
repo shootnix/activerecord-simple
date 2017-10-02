@@ -7,9 +7,8 @@ use 5.010;
 use parent 'ActiveRecord::Simple';
 use ActiveRecord::Simple::Field;
 use ActiveRecord::Simple::Utils;
-use ActiveRecord::Simple::Validate;
+use ActiveRecord::Simple::Validate qw/check_errors/;
 use ActiveRecord::Simple::Meta;
-#use Module::Load;
 
 use Data::Dumper;
 
@@ -89,23 +88,23 @@ sub new {
 sub save {
 	my ($self) = @_;
 
-	my %validation_errors; my $n_errors = 0; my $save_result;
+	# validate before save:
+	my %validation_errors; my $n_errors = 0;
 	COLUMN_NAME:
 	for my $column_name (@{ $self->_get_columns }) {
 		my $fld = $self->_get_model_table_schema->{$column_name};
 		next COLUMN_NAME unless $fld->{extra}{editable};
-		#my $validator = ActiveRecord::Simple::Validate->new(error_messages => $fld->{extra}{error_messages});
-		#my $errors = $validator->check_errors($fld, $self->$column_name);
+		if (my $errors = check_errors($fld, $self->$column_name)) {
+			$n_errors++;
+			$validation_errors{$column_name} = $errors;
+		}
 	}
 
-	#if ($n_errors > 0) {
-	#	return wantarray ? (undef, \%validation_errors) : undef;
-	#}
+	if ($n_errors > 0) {
+		return wantarray ? (undef, \%validation_errors) : undef;
+	}
 
-	# save
-	#$self::SUPER->save();
-
-	#return wantarray ? (1, undef) : 1;
+	$self->SUPER::save();
 }
 
 sub META {
@@ -130,7 +129,6 @@ sub META {
         });
 
         my $class = blessed $self ? ref $self : $self;
-
         $class->_mk_attribute_getter('_get_meta_data', $meta);
     }
 
