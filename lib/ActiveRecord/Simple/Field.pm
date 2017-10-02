@@ -172,7 +172,7 @@ sub char_field {
 
 	$field->{data_type} = 'varchar';
 	$field->{size} = [$opts->{max_length}];
-	$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'text';
+	#$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'text';
 
 	$field->{is_nullable} = $opts->{null} || 0;
 	$field->{extra}{is_blank} = $opts->{blank} || 0;
@@ -183,6 +183,7 @@ sub char_field {
 	if ($opts->{choices}) {
 		$field->{extra}{choices} = $opts->{choices};
 		push @{ $field->{extra}{validators} }, 'choices';
+		$field->{extra}{widget} = 'select';
 	}
 
 	push @{ $field->{extra}{validators} }, 'invalid';
@@ -195,7 +196,7 @@ sub date_field {
 	my ($field, $opts) = _generic_field(@_);
 
 	$field->{data_type} = 'date';
-	$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'date';
+	$field->{extra}{widget} = 'date';
 	$field->{extra}{default_value} = \&current_date;
 
 	$field->{is_nullable} = $opts->{null} || 0;
@@ -207,6 +208,7 @@ sub date_field {
 	if ($opts->{choices}) {
 		$field->{extra}{choices} = $opts->{choices};
 		push @{ $field->{extra}{validators} }, 'choices';
+		$field->{extra}{widget} = 'select';
 	}
 
 	push @{ $field->{extra}{validators} }, 'invalid';
@@ -218,7 +220,7 @@ sub date_time_field {
 	my ($field, $opts) = _generic_field(@_);
 
 	$field->{data_type} = 'datetime';
-	$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'date';
+	$field->{extra}{widget} = 'date';
 	$field->{extra}{default_value} = \&current_date_time;
 
 	$field->{is_nullable} = $opts->{null} || 0;
@@ -230,6 +232,7 @@ sub date_time_field {
 	if ($opts->{choices}) {
 		$field->{extra}{choices} = $opts->{choices};
 		push @{ $field->{extra}{validators} }, 'choices';
+		$field->{extra}{widget} = 'select';
 	}
 
 	push @{ $field->{extra}{validators} }, 'invalid';
@@ -242,7 +245,6 @@ sub decimal_field {
 
 	$field->{data_type} = 'decimal';
 	$field->{size} = [$opts->{max_digits} || 1, $opts->{decimal_places} || 2];
-	$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'text';
 	$field->{extra}{default_value} = '0.0';
 
 	$field->{is_nullable} = $opts->{null} || 0;
@@ -254,6 +256,7 @@ sub decimal_field {
 	if ($opts->{choices}) {
 		$field->{extra}{choices} = $opts->{choices};
 		push @{ $field->{extra}{validators} }, 'choices';
+		$field->{extra}{widget} = 'select';
 	}
 
 	push @{ $field->{extra}{validators} }, 'invalid';
@@ -284,7 +287,7 @@ sub integer_field {
 	$field->{data_type} = 'integer';
 	$field->{size} = [11];
 
-	$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'number';
+	$field->{extra}{widget} = 'number';
 
 	$field->{is_nullable} = $opts->{null} || 0;
 	$field->{extra}{is_blank} = $opts->{blank} || 0;
@@ -295,6 +298,7 @@ sub integer_field {
 	if ($opts->{choices}) {
 		$field->{extra}{choices} = $opts->{choices};
 		push @{ $field->{extra}{validators} }, 'choices';
+		$field->{extra}{widget} = 'select';
 	}
 
 	push @{ $field->{extra}{validators} }, 'invalid';

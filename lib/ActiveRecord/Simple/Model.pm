@@ -66,7 +66,7 @@ sub new {
 	my $self = shift->SUPER::new(@_);
 
 	COLUMN_NAME:
-	for my $column_name (@{ $self->META->columns_list }) {
+	for my $column_name (@{ $self->_meta_->columns_list }) {
 		next COLUMN_NAME if defined $self->$column_name;
 
 		my $default_value = $self->_get_model_table_schema->{$column_name}{extra}{default_value};
@@ -105,7 +105,7 @@ sub save {
 	$self->SUPER::save();
 }
 
-sub META {
+sub _meta_ {
     my ($self) = @_;
 
     if (!$self->can('_get_meta_data')) {

@@ -195,11 +195,11 @@ is $order2->customer->first_name, 'Bob', 'order has a customer';
 
 ok my $achievement = Model::Achievement->new(title => 'test'), 'setup with no params';
 is $achievement->title, 'test';
-is ref $achievement->META->schema, 'HASH';
-ok $achievement->META->schema->{id};
-ok $achievement->META->schema->{title};
-is $achievement->META->primary_key_name, 'id', 'primary_key_name = id';
-is $achievement->META->table_name, 'achievement';
+is ref $achievement->__meta__->schema, 'HASH';
+ok $achievement->_meta_->schema->{id};
+ok $achievement->_meta_->schema->{title};
+is $achievement->_meta_->primary_key_name, 'id', 'primary_key_name = id';
+is $achievement->_meta_->table_name, 'achievement';
 
 ok $order2->save, 'save';
 
@@ -212,9 +212,9 @@ my $customer = Model::Customer->new();
 ($res, $errors) = $customer->age(undef)->save;
 is $errors->{age}[0], 'Must be not null';
 
-is $order->META->table_name, 'order';
-is $order->META->primary_key_name, 'id';
-is $order->META->primary_key_value, $order->id;
+is $order->_meta_->table_name, 'order';
+is $order->_meta_->primary_key_name, 'id';
+is $order->_meta_->primary_key_value, $order->id;
 
 ok my $a1 = Model::Achievement->new(title => 'new achievement')->save;
 my $b = Model::Achievement->find({ title => 'new achievement' })->fetch;
