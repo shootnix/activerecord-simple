@@ -2,7 +2,6 @@ package ActiveRecord::Simple::Meta;
 
 use strict;
 use warnings;
-use 5.010;
 
 
 sub new {

@@ -15,7 +15,7 @@ our %ERROR_MESSAGES = (
     invalid => 'INVALID',
 );
 
-use List::Util qw/any/;
+use List::Util qw/any all/;
 use Carp qw/carp croak/;
 use Time::Local;
 
@@ -79,9 +79,29 @@ sub check_errors {
                 push @error_messages, $error_messages->{positive} || $error_messages->{invalid} || $ERROR_MESSAGES{invalid};
             }
         }
+        elsif ($validator eq 'choices') {
+            next VALIDATOR if !defined $val;
+            if (!_check_choices($val, $fld->{extra}{choices})) {
+                push @error_messages, $error_messages->{choices} || $error_messages->{invalid} || $ERROR_MESSAGES{invalid};
+            }
+        }
     }
 
     return @error_messages ? \@error_messages : undef;
+}
+
+sub _check_choices {
+    my ($val, $choices) = @_;
+
+    if (all { ref $_ && ref $_ eq 'ARRAY' } @$choices) {
+        for my $choice (@$choices) {
+            return 1 if $val eq $choice->[0];
+        }
+        return;
+    }
+    # else
+
+    return any { $val eq $_ } @$choices;
 }
 
 sub _check_positive {
@@ -197,6 +217,8 @@ sub _check_int {
 }
 sub _check_varchar {
     my ($val, $size) = @_;
+
+    return 1 unless $size;
 
     return length $val <= $size->[0];
 }

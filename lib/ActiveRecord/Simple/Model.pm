@@ -10,8 +10,6 @@ use ActiveRecord::Simple::Utils;
 use ActiveRecord::Simple::Validate qw/check_errors/;
 use ActiveRecord::Simple::Meta;
 
-use Data::Dumper;
-
 
 our $VERSION = '0.01';
 

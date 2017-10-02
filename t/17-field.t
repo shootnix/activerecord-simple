@@ -89,6 +89,14 @@ my $char_field_2 = char_field('char_field_2', max_length => 10, default => 'hell
 is $char_field_2->{extra}{verbose_name}, 'char field 2', 'char_field_2.verbose_name is "char field 2"';
 is $char_field_2->{extra}{default_value}, 'hello', 'char_field_2.default = "hello"';
 
+my $char_field_3 = char_field(choices => ['foo', 'bar', 'buzz']);
+my $char_field_4 = char_field(choices => [['foo', 'Foo'], ['bar', 'Bar'], ['buzz', 'Buzz']]);
+
+is_deeply $char_field_3->{extra}{choices}, ['foo', 'bar', 'buzz'], 'choices';
+is_deeply $char_field_4->{extra}{choices}, [['foo', 'Foo'], ['bar', 'Bar'], ['buzz', 'Buzz']];
+
+ok any { $_ eq 'choices' } @{ $char_field_3->{extra}{validators} };
+
 # date_field
 my $date_field = date_field();
 is $date_field->{is_nullable}, 0, 'date_field is not null';

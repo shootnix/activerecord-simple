@@ -90,4 +90,11 @@ ok ! check_errors({ data_type => 'varchar', extra => { validators => ['ipv6'] } 
 ok check_errors({ data_type => 'int', extra => { validators => ['positive'] } }, -10), 'positive';
 ok ! check_errors({ data_type => 'int', extra => { validators => ['positive'] } }, 10), 'positive';
 
+ok ! check_errors({ data_type => 'varchar', extra => { validators => ['invalid', 'choices'], choices => ['foo', 'bar', 'buzz'] } }, 'foo');
+ok ! check_errors({ data_type => 'varchar', extra => { validators => ['invalid', 'choices'], choices => [['foo', 'Foo'], ['bar', 'Bar'], ['buzz', 'Buzz']] } }, 'foo');
+
+ok check_errors({ data_type => 'varchar', extra => { validators => ['invalid', 'choices'], choices => ['foo', 'bar', 'buzz'] } }, 'foo1');
+ok check_errors({ data_type => 'varchar', extra => { validators => ['invalid', 'choices'], choices => [['foo', 'Foo'], ['bar', 'Bar'], ['buzz', 'Buzz']] } }, 'foo1');
+
+
 done_testing();

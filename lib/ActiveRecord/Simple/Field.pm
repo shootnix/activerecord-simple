@@ -45,6 +45,9 @@ our @EXPORT = qw/
 /;
 
 
+our $VERSION = '0.01';
+
+
 sub _params {
 	my $verbose_name = scalar @_ % 2 ? shift @_ : undef;
 
@@ -176,6 +179,12 @@ sub char_field {
 
 	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
 	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{blank};
+
+	if ($opts->{choices}) {
+		$field->{extra}{choices} = $opts->{choices};
+		push @{ $field->{extra}{validators} }, 'choices';
+	}
+
 	push @{ $field->{extra}{validators} }, 'invalid';
 
 	return $field;
@@ -194,6 +203,12 @@ sub date_field {
 
 	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
 	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{blank};
+
+	if ($opts->{choices}) {
+		$field->{extra}{choices} = $opts->{choices};
+		push @{ $field->{extra}{validators} }, 'choices';
+	}
+
 	push @{ $field->{extra}{validators} }, 'invalid';
 
 	return $field;
@@ -211,6 +226,12 @@ sub date_time_field {
 
 	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
 	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{blank};
+
+	if ($opts->{choices}) {
+		$field->{extra}{choices} = $opts->{choices};
+		push @{ $field->{extra}{validators} }, 'choices';
+	}
+
 	push @{ $field->{extra}{validators} }, 'invalid';
 
 	return $field;
@@ -229,6 +250,12 @@ sub decimal_field {
 
 	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
 	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{blank};
+
+	if ($opts->{choices}) {
+		$field->{extra}{choices} = $opts->{choices};
+		push @{ $field->{extra}{validators} }, 'choices';
+	}
+
 	push @{ $field->{extra}{validators} }, 'invalid';
 
 	return $field;
@@ -264,25 +291,29 @@ sub integer_field {
 
 	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
 	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{blank};
+
+	if ($opts->{choices}) {
+		$field->{extra}{choices} = $opts->{choices};
+		push @{ $field->{extra}{validators} }, 'choices';
+	}
+
 	push @{ $field->{extra}{validators} }, 'invalid';
 
 	return $field;
 }
 sub generic_ip_address_field {
-	my ($field) = _char_field(@_);
+	my ($field) = char_field(@_);
 
 	$field->{size} = [19];
 	push @{ $field->{extra}{validators} }, 'ip';
-	#$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'text';
 
 	return $field;
 }
 sub generic_ipv6_address_field {
-	my ($field) = _char_field(@_);
+	my ($field) = char_field(@_);
 
 	$field->{size} = [45];
 	push @{ $field->{extra}{validators} }, 'ipv6';
-	#$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'text';
 
 	return $field;
 }
