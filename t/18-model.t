@@ -156,9 +156,11 @@ our @ISA = qw/Model/;
 
 __PACKAGE__->setup(
 	title       => char_field(max_length => 200, 'db_column' => 'title'),
-	amount      => decimal_field(default => '0.0', max_digits => 10),
+	amount      => decimal_field(max_digits => 10, default => '10.0'),
 	customer_id => foreign_key(),
 );
+
+__PACKAGE__->strict_types(1);
 
 __PACKAGE__->belongs_to(customer => 'Model::Customer');
 
@@ -186,7 +188,8 @@ is(Model::Customer->_get_primary_key, 'id', 'primary_key is ok');
 ok my $order = Model::Order->new(), 'new is ok';
 isa_ok $order, 'Model::Order';
 ok $order->amount, 'default amount value set';
-is $order->amount, '0.0', 'default amount value is valid';
+is $order->amount, '10.0', 'default amount value is valid';
+
 
 ok my $order2 = Model::Order->get(1);
 is $order2->title, 'The Order #1', 'order title ok';
@@ -195,7 +198,7 @@ is $order2->customer->first_name, 'Bob', 'order has a customer';
 
 ok my $achievement = Model::Achievement->new(title => 'test'), 'setup with no params';
 is $achievement->title, 'test';
-is ref $achievement->__meta__->schema, 'HASH';
+is ref $achievement->_meta_->schema, 'HASH';
 ok $achievement->_meta_->schema->{id};
 ok $achievement->_meta_->schema->{title};
 is $achievement->_meta_->primary_key_name, 'id', 'primary_key_name = id';
@@ -212,9 +215,12 @@ my $customer = Model::Customer->new();
 ($res, $errors) = $customer->age(undef)->save;
 is $errors->{age}[0], 'Must be not null';
 
+ok $customer->age(''), "set age to ''";
+ok ! defined $customer->age, 'age is undef';
+
+
 is $order->_meta_->table_name, 'order';
 is $order->_meta_->primary_key_name, 'id';
-is $order->_meta_->primary_key_value, $order->id;
 
 ok my $a1 = Model::Achievement->new(title => 'new achievement')->save;
 my $b = Model::Achievement->find({ title => 'new achievement' })->fetch;

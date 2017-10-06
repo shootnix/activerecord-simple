@@ -7,7 +7,7 @@ use 5.010;
 
 require Exporter;
 our @ISA = ('Exporter');
-our @EXPORT_OK = ('check_errors');
+our @EXPORT_OK = ('check_errors', 'error_messages');
 
 our %ERROR_MESSAGES = (
     null    => 'NULL',
@@ -15,7 +15,8 @@ our %ERROR_MESSAGES = (
     invalid => 'INVALID',
 );
 
-use List::Util qw/any all/;
+my $NULL = 'NULL';
+
 use Carp qw/carp croak/;
 use Time::Local;
 
@@ -23,91 +24,125 @@ use Time::Local;
 sub check_errors {
 	my ($fld, $val) = @_;
 
-    my $validators = $fld->{extra}{validators} or return;
-    ref $validators eq 'ARRAY' or return;
-    scalar @$validators > 0 or return;
-
     my $error_messages = $fld->{extra}{error_messages} || {};
-    my @error_messages;
 
-    VALIDATOR:
-    for my $validator (@$validators) {
-        if ($validator eq 'null') {
-            if ($fld->{is_nullable} == 0 && ! defined $val) {
-                push @error_messages, $error_messages->{null} || $ERROR_MESSAGES{null};
-            }
+    if ($fld->{extra}{choices}) {
+        # checks booleans and null_booleans too
+        return _error_message_for('invalid', $error_messages)
+            if ! _exists_in_choices($val, $fld->{extra}{choices});
+    }
+
+    # 1. is null
+    return _error_message_for('null', $error_messages)
+        if exists $fld->{is_nullable} && $fld->{is_nullable} == 0 && ! defined $val;
+    return unless defined $val;
+
+    # 2. blank
+    if (exists $fld->{extra}{is_blank} && $fld->{extra}{is_blank} == 0) {
+        return _error_message_for('blank', $error_messages)
+            if $val eq q//;
+    }
+    return if exists $fld->{extra}{is_blank} && $fld->{extra}{is_blank} == 1 && $val eq q//;
+
+    # 3. kind
+    my $fld_kind = $fld->{extra}{kind};
+    if (_is_integer($fld_kind)) {
+        return _error_message_for('integer', $error_messages)
+            if ! _check_int($val);
+    }
+    elsif (_is_positive_integer($fld_kind)) {
+        return _error_message_for('integer', $error_messages)
+            if ! _check_int($val);
+
+        return _error_message_for('positive', $error_messages)
+            if $val < 0;
+    }
+    elsif ($fld_kind eq 'char') {
+        return _error_message_for('char', $error_messages)
+            if ! _check_varchar($val, $fld->{size});
+    }
+    elsif ($fld_kind eq 'date') {
+        return _error_message_for('date', $error_messages)
+            if ! _check_date($val);
+    }
+    elsif ($fld_kind eq 'date_time') {
+        return _error_message_for('date_time', $error_messages)
+            if ! _check_datetime($val);
+    }
+    elsif ($fld_kind eq 'decimal') {
+        return _error_message_for('decimal', $error_messages)
+            if ! _check_decimal($val, $fld->{size});
+    }
+    elsif ($fld_kind eq 'email') {
+        return _error_message_for('char', $error_messages)
+            if ! _check_varchar($val, $fld->{size});
+
+        return _error_message_for('email', $error_messages)
+            if ! _check_email($val);
+    }
+    elsif ($fld_kind eq 'generic_ip_address') {
+        return _error_message_for('char', $error_messages)
+            if ! _check_varchar($val, $fld->{size});
+
+        return _error_message_for('generic_ip_address', $error_messages)
+            if ! _check_ip($val);
+    }
+    elsif ($fld_kind eq 'generic_ipv6_address') {
+        return _error_message_for('char', $error_messages)
+            if ! _check_varchar($val, $fld->{size});
+
+        return _error_message_for('ipv6', $error_messages)
+            if ! _check_ipv6($val);
+    }
+
+    return undef;
+}
+
+sub error_messages {
+    my ($error) = @_;
+
+    return unless $error;
+    return unless exists $ERROR_MESSAGES{$error};
+
+    return $ERROR_MESSAGES{$error}
+}
+
+sub _exists_in_choices {
+    my ($a, $choices) = @_;
+
+    $a //= $NULL;
+
+    my $matched = 0;
+    for my $choice (@$choices) {
+        if (ref $choice && ref $choice eq 'ARRAY') {
+            my $b = $choice->[0] // $NULL;
+            $matched += 1 if $a eq $b;
         }
-        elsif ($validator eq 'blank') {
-            next VALIDATOR if !defined $val;
-            if ($fld->{extra}{is_blank} == 0 && $val eq q//) {
-                push @error_messages, $error_messages->{blank} || $ERROR_MESSAGES{blank};
-            }
-        }
-        elsif ($validator eq 'invalid') {
-            next VALIDATOR if !defined $val;
-            if (!_check_for_data_type($val, $fld->{data_type}, $fld->{size})) {
-                push @error_messages, $error_messages->{invalid} || $ERROR_MESSAGES{invalid};
-            }
-        }
-        elsif ($validator eq 'boolean') {
-            next VALIDATOR if !defined $val;
-            if (!_check_boolean($val)) {
-                push @error_messages, $error_messages->{boolean} || $error_messages->{invalid} || $ERROR_MESSAGES{invalid};
-            }
-        }
-        elsif ($validator eq 'email') {
-            next VALIDATOR if !defined $val;
-            if (!_check_email($val)) {
-                push @error_messages, $error_messages->{email} || $error_messages->{invalid} || $ERROR_MESSAGES{invalid};
-            }
-        }
-        elsif ($validator eq 'ip') {
-            next VALIDATOR if !defined $val;
-            if (!_check_ip($val)) {
-                push @error_messages, $error_messages->{ip} || $error_messages->{invalid} || $ERROR_MESSAGES{invalid};
-            }
-        }
-        elsif ($validator eq 'ipv6') {
-            next VALIDATOR if !defined $val;
-            if (!_check_ipv6($val)) {
-                push @error_messages, $error_messages->{ipv6} || $error_messages->{invalid} || $ERROR_MESSAGES{invalid};
-            }
-        }
-        elsif ($validator eq 'positive') {
-            next VALIDATOR if !defined $val;
-            if (!_check_positive($val)) {
-                push @error_messages, $error_messages->{positive} || $error_messages->{invalid} || $ERROR_MESSAGES{invalid};
-            }
-        }
-        elsif ($validator eq 'choices') {
-            next VALIDATOR if !defined $val;
-            if (!_check_choices($val, $fld->{extra}{choices})) {
-                push @error_messages, $error_messages->{choices} || $error_messages->{invalid} || $ERROR_MESSAGES{invalid};
-            }
+        else {
+            $choice //= $NULL;
+            $matched += 1 if $a eq $choice;
         }
     }
 
-    return @error_messages ? \@error_messages : undef;
+    return $matched;
 }
 
-sub _check_choices {
-    my ($val, $choices) = @_;
+sub _is_integer {
+    my ($kind) = @_;
 
-    if (all { ref $_ && ref $_ eq 'ARRAY' } @$choices) {
-        for my $choice (@$choices) {
-            return 1 if $val eq $choice->[0];
-        }
-        return;
-    }
-    # else
-
-    return any { $val eq $_ } @$choices;
+    return grep { $kind eq $_ } qw/big_integer tinyint integer small_integer/;
 }
 
-sub _check_positive {
-    my ($val) = @_;
+sub _is_positive_integer {
+    my ($kind) = @_;
 
-    return $val > 0;
+    return grep { $kind eq $_ } qw/auto big_auto time foreign_key positive_small_integer boolean null_boolean positive_integer/;
+}
+
+sub _error_message_for {
+    my ($kind, $error_messages) = @_;
+
+    return $error_messages->{$kind} || $ERROR_MESSAGES{$kind} || $error_messages->{'invalid'} || $ERROR_MESSAGES{'invalid'};
 }
 
 sub _check_ip {
@@ -139,50 +174,6 @@ sub _check_ipv6 {
     return $ipv6 =~ $IPv6_re;
 }
 
-sub _check_for_data_type {
-    my ($val, $data_type, $size) = @_;
-
-    return 1 unless $data_type;
-
-    my %TYPE_CHECKS = (
-        int      => \&_check_int,
-        integer  => \&_check_int,
-        tinyint  => \&_check_int,
-        smallint => \&_check_int,
-        bigint   => \&_check_int,
-
-        double => \&_check_numeric,
-       'double precision' => \&_check_numeric,
-
-        decimal => \&_check_numeric,
-        dec => \&_check_numeric,
-        numeric => \&_check_numeric,
-
-        real => \&_check_float,
-        float => \&_check_float,
-
-        bit => \&_check_bit,
-
-        date => \&_check_date,
-        datetime => \&_check_datetime,
-        timestamp => \&_check_int, # DUMMY
-        time => \&_check_DUMMY, # DUMMY
-
-        char => \&_check_char,
-        varchar => \&_check_varchar,
-
-        binary => \&_check_DUMMY, # DUMMY
-        varbinary => \&_check_DUMMY, # DUMMY
-        tinyblob => \&_check_DUMMY, # DUMMY
-        blob => \&_check_DUMMY, # DUMMY
-        text => \&_check_DUMMY,
-    );
-
-    return (exists $TYPE_CHECKS{$data_type}) ? $TYPE_CHECKS{$data_type}->($val, $size) : 1;
-}
-
-sub _check_DUMMY { 1 }
-
 sub _check_date {
     my ($date) = @_;
 
@@ -212,53 +203,43 @@ sub _check_datetime {
 sub _check_int {
     my ($int) = @_;
     no warnings 'numeric';
-    return 0 unless ($int eq int($int));
+    return unless ($int eq int($int));
     return 1;
 }
+
 sub _check_varchar {
     my ($val, $size) = @_;
 
+    return unless defined $val;
+    return 1 if $val eq q//;
     return 1 unless $size;
 
     return length $val <= $size->[0];
 }
-sub _check_char {
+
+sub _check_decimal {
     my ($val, $size) = @_;
 
-    return length $val == $size->[0];
-}
-sub _check_float { shift =~ /^\d+\.\d+$/ }
-
-sub _check_numeric {
-    my ($val, $size) = @_;
+    #warn "val = $val";
 
     return 1 unless
         defined $size &&
         ref $size eq 'ARRAY' &&
         scalar @$size == 2;
 
+    #warn "1 check";
+
     return 1 if _check_int($val);
 
     my ($first, $last) = $val =~ /^(\d+)\.(\d+)$/;
 
-    return unless $first && $last;
+    return unless defined $first && defined $last;
     return unless _check_int($first);
 
-    $first && length $first <= $size->[0] or return;
-    $last && length $last <= $size->[1] or return;
+    length($first . $last) <= $size->[0] or return;
+    length $last <= $size->[1] or return;
 
     return 1;
 }
-
-sub _check_bit {
-    my ($val) = @_;
-
-    return unless _check_int($val);
-
-    return ($val == 0 || $val == 1) ? 1 : undef;
-}
-
-sub _check_boolean { _check_bit(@_) }
-
 
 1;

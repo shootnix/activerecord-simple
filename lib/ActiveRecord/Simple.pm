@@ -549,6 +549,16 @@ sub DESTROY {}
 
 ### Private
 
+sub _get_primary_key_value {
+    my ($self) = @_;
+
+    croak "Sory, you can call method '_get_primary_key_value' on unblessed scalar."
+        unless blessed $self;
+
+    my $pk = $self->_get_primary_key;
+    return $self->$pk;
+}
+
 
 sub _get_relation_type {
     my ($class, $relation) = @_;
@@ -730,6 +740,7 @@ sub _mk_accessors {
 
     return 1;
 }
+
 sub _mk_ro_accessors {
     my ($class, $fields) = @_;
 

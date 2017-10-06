@@ -2,6 +2,8 @@ package ActiveRecord::Simple::Meta;
 
 use strict;
 use warnings;
+use Scalar::Util qw/blessed/;
+use Carp qw/croak carp/;
 
 
 sub new {
@@ -12,7 +14,7 @@ sub new {
 
 sub table_name { shift->{table_name} }
 sub primary_key_name { shift->{primary_key_name} }
-sub primary_key_value { shift->{primary_key_value} }
+
 sub columns_list { shift->{columns_list} }
 sub relations { shift->{relations} }
 sub schema { shift->{schema} }
@@ -34,7 +36,7 @@ sub verbose_name_plural {
 		$self->{verbose_name_plural} = $verbose_name_plural;
 	}
 
-	return $self->{verbose_name_plural};
+	return $self->{verbose_name_plural} || $self->verbose_name . 's';
 }
 
 sub ordering {

@@ -74,28 +74,20 @@ sub _generic_field {
 		extra => {
 
 			verbose_name  => $verbose_name,
-			verbose_name_plural => undef,
-			is_blank      => $opts{blank} // 0,
+			verbose_name_plural => $opts{verbose_name_plural},
+			#is_blank      => $opts{blank} // 0,
 			default_value => $opts{default} // undef,
 			help_text     => $opts{help_text},
 			choices       => $opts{choices} // undef,
 			db_column     => $opts{db_column} // undef,
 			editable      => $opts{editable} // 1,
-			widget        => 'text', ### default widget is input type="text"
+			widget        => $opts{widget} || 'text', ### default widget is input type="text"
 
 			error_messages => {
 				null     => $opts{error_messages}{null} || 'NULL',
 				blank    => $opts{error_messages}{blank} || 'BLANK',
 				invalid  => $opts{error_messages}{invalid} || 'INVALID',
-				positive => $opts{error_messages}{positive} || 'POSITIVE',
-				email    => $opts{error_messages}{email} || 'EMAIL',
-				ip       => $opts{error_messages}{ip} || 'IP',
-				ipv6     => $opts{error_messages}{ipv6} || 'IPv6',
-				slug     => $opts{error_messages}{slug} || 'SLUG',
-				uuid     => $opts{error_messages}{uuid} || 'UUID',
 			},
-
-			validators => [],
 		},
 	};
 
@@ -110,8 +102,7 @@ sub auto_field {
 	$field->{size} = $opts->{max_length} // 11;
 	$field->{is_unique} = 1;
 	$field->{is_primary_key} = $opts->{primary_key} // 0;
-
-	push @{ $field->{extra}{validators} }, qw/null blank invalid/;
+	$field->{extra}{kind} = 'auto';
 
 	$field->{extra}{widget} = 'number';
 
@@ -122,6 +113,7 @@ sub big_auto_field {
 	my $field = auto_field(@_);
 
 	$field->{data_type} = 'bigint';
+	$field->{extra}{kind} = 'big_auto';
 
 	return $field;
 }
@@ -131,6 +123,7 @@ sub big_integer_field {
 	my $field = integer_field(@_);
 
 	$field->{data_type} = 'bigint';
+	$field->{extra}{kind} = 'big_integer';
 
 	return $field;
 }
@@ -140,12 +133,10 @@ sub binary_field {
 
 	$field->{data_type} = 'blob';
 	$field->{extra}{widget} = 'file';
+	$field->{extra}{kind} = 'binary';
 
 	$field->{is_nullable} = $opts->{null} || 0;
 	$field->{extra}{is_blank} = $opts->{blank} || 0;
-
-	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
-	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{is_blank};
 
 	return $field;
 }
@@ -153,16 +144,12 @@ sub binary_field {
 sub boolean_field {
 	my ($field, $opts) = _generic_field(@_);
 
-	$field->{size} = 1;
+	$field->{size} = [1];
 	$field->{data_type} = 'tinyint';
-	$field->{extra}{widget} = 'checkbox';
 
-	$field->{is_nullable} = $opts->{null} || 0;
-	$field->{extra}{is_blank} = $opts->{blank} || 0;
-
-	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
-	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{is_blank};
-	push @{ $field->{extra}{validators} }, 'invalid', 'boolean';
+	$field->{extra}{kind} = 'boolean';
+	$field->{extra}{widget} = $opts->{widget} || 'checkbox';
+	$field->{extra}{choices} = [0, 1];
 
 	return $field;
 }
@@ -171,22 +158,21 @@ sub char_field {
 	my ($field, $opts) = _generic_field(@_);
 
 	$field->{data_type} = 'varchar';
+	$field->{extra}{kind} = 'char';
 	$field->{size} = [$opts->{max_length}];
-	#$field->{extra}{widget} = defined $field->{extra}{choices} ? 'select' : 'text';
 
 	$field->{is_nullable} = $opts->{null} || 0;
 	$field->{extra}{is_blank} = $opts->{blank} || 0;
 
-	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
-	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{blank};
 
 	if ($opts->{choices}) {
 		$field->{extra}{choices} = $opts->{choices};
-		push @{ $field->{extra}{validators} }, 'choices';
-		$field->{extra}{widget} = 'select';
+		$field->{extra}{widget} = $opts->{widget} || 'select';
+		if ($field->{extra}{widget} eq 'radio') {
+			carp 'Warning: you\'re using "radio" widget without default value and "null" attribute set to 0'
+				if $field->{is_nullable} == 0 && ! defined $field->{extra}{default_value};
+		}
 	}
-
-	push @{ $field->{extra}{validators} }, 'invalid';
 
 	return $field;
 }
@@ -196,22 +182,17 @@ sub date_field {
 	my ($field, $opts) = _generic_field(@_);
 
 	$field->{data_type} = 'date';
+	$field->{extra}{kind} = 'date';
 	$field->{extra}{widget} = 'date';
-	$field->{extra}{default_value} = \&current_date;
+	#$field->{extra}{default_value} = \&current_date;
 
 	$field->{is_nullable} = $opts->{null} || 0;
-	$field->{extra}{is_blank} = $opts->{blank} || 0;
-
-	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
-	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{blank};
+	#$field->{extra}{is_blank} = $opts->{blank} || 0;
 
 	if ($opts->{choices}) {
 		$field->{extra}{choices} = $opts->{choices};
-		push @{ $field->{extra}{validators} }, 'choices';
 		$field->{extra}{widget} = 'select';
 	}
-
-	push @{ $field->{extra}{validators} }, 'invalid';
 
 	return $field;
 }
@@ -220,22 +201,16 @@ sub date_time_field {
 	my ($field, $opts) = _generic_field(@_);
 
 	$field->{data_type} = 'datetime';
-	$field->{extra}{widget} = 'date';
-	$field->{extra}{default_value} = \&current_date_time;
+	$field->{extra}{kind} = 'date_time';
+	$field->{extra}{widget} = 'datetime';
 
 	$field->{is_nullable} = $opts->{null} || 0;
-	$field->{extra}{is_blank} = $opts->{blank} || 0;
-
-	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
-	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{blank};
+	#$field->{extra}{is_blank} = $opts->{blank} || 0;
 
 	if ($opts->{choices}) {
 		$field->{extra}{choices} = $opts->{choices};
-		push @{ $field->{extra}{validators} }, 'choices';
 		$field->{extra}{widget} = 'select';
 	}
-
-	push @{ $field->{extra}{validators} }, 'invalid';
 
 	return $field;
 }
@@ -244,22 +219,16 @@ sub decimal_field {
 	my ($field, $opts) = _generic_field(@_);
 
 	$field->{data_type} = 'decimal';
-	$field->{size} = [$opts->{max_digits} || 1, $opts->{decimal_places} || 2];
-	$field->{extra}{default_value} = '0.0';
+	$field->{extra}{kind} = 'decimal';
+	$field->{size} = [$opts->{max_digits} || 4, $opts->{decimal_places} || 2];
 
 	$field->{is_nullable} = $opts->{null} || 0;
-	$field->{extra}{is_blank} = $opts->{blank} || 0;
-
-	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
-	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{blank};
+	#$field->{extra}{is_blank} = $opts->{blank} || 0;
 
 	if ($opts->{choices}) {
 		$field->{extra}{choices} = $opts->{choices};
-		push @{ $field->{extra}{validators} }, 'choices';
 		$field->{extra}{widget} = 'select';
 	}
-
-	push @{ $field->{extra}{validators} }, 'invalid';
 
 	return $field;
 }
@@ -269,39 +238,56 @@ sub duration_field { big_integer_field(@_); }
 sub email_field {
 	my $field = char_field(@_);
 
-	push @{ $field->{extra}{validators} }, 'email';
+	$field->{extra}{kind} = 'email';
+	$field->{extra}{is_blank} = $opts->{blank} || 0;
 
 	return $field;
 }
-sub file_field { my ($field) = char_field(@_); $field->{extra}{widget} = 'file' }
+sub file_field {
+	my ($field) = char_field(@_);
 
-sub file_path_field { file_field(@_); }
+	$field->{extra}{widget} = 'file';
+	$field->{extra}{kind} = 'file';
+
+	return $field;
+}
+
+sub file_path_field {
+	my ($field) = file_field(@_);
+
+	$field->{extra}{kind} = 'file_path';
+	$field->{extra}{is_blank} = $opts->{blank} || 0;
+
+	return $field;
+}
 
 sub float_field { decimal_field(@_); }
 
-sub image_field { file_field(@_); }
+sub image_field {
+	my ($field) = file_field(@_);
+
+	$field->{extra}{kind} = 'image';
+}
 
 sub integer_field {
 	my ($field, $opts) = _generic_field(@_);
 
 	$field->{data_type} = 'integer';
+	$field->{extra}{kind} = 'integer';
 	$field->{size} = [11];
 
 	$field->{extra}{widget} = 'number';
 
 	$field->{is_nullable} = $opts->{null} || 0;
-	$field->{extra}{is_blank} = $opts->{blank} || 0;
-
-	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
-	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{blank};
 
 	if ($opts->{choices}) {
 		$field->{extra}{choices} = $opts->{choices};
-		push @{ $field->{extra}{validators} }, 'choices';
-		$field->{extra}{widget} = 'select';
+		$field->{extra}{widget} = $opts->{widget} || 'select';
+		if ($field->{extra}{widget} eq 'radio') {
+			carp 'Warning: you\'re using "radio" widget without default value and "null" attribute set to 0'
+				if $field->{is_nullable} == 0 && ! defined $field->{extra}{default_value};
+		}
 	}
-
-	push @{ $field->{extra}{validators} }, 'invalid';
 
 	return $field;
 }
@@ -309,15 +295,17 @@ sub generic_ip_address_field {
 	my ($field) = char_field(@_);
 
 	$field->{size} = [19];
-	push @{ $field->{extra}{validators} }, 'ip';
+	$field->{extra}{kind} = 'generic_ip_address';
+	$field->{extra}{is_blank} = $opts->{blank} || 0;
 
 	return $field;
 }
 sub generic_ipv6_address_field {
 	my ($field) = char_field(@_);
 
+	$field->{extra}{kind} = 'generic_ipv6_address';
 	$field->{size} = [45];
-	push @{ $field->{extra}{validators} }, 'ipv6';
+	$field->{extra}{is_blank} = $opts->{blank} || 0;
 
 	return $field;
 }
@@ -326,6 +314,10 @@ sub null_boolean_field {
 	my ($field) = boolean_field(@_);
 
 	$field->{is_nullable} = 1;
+	$field->{extra}{widget} = $field->{extra}{widget} eq 'radio' ? $field->{extra}{widget} : 'select';
+	$field->{extra}{choices} //= [[undef, 'Unknown'], [1, 'Yes'], [0, 'No']];
+
+	$field->{extra}{kind} = 'null_boolean';
 
 	return $field;
 }
@@ -334,7 +326,7 @@ sub positive_integer_field {
 	my ($field) = integer_field(@_);
 
 	$field->{is_unsigned} = 1;
-	push @{ $field->{extra}{validators} }, 'positive';
+	$field->{extra}{kind} = 'positive_integer';
 
 	return $field;
 }
@@ -342,6 +334,7 @@ sub positive_small_integer_field {
 	my ($field) = positive_integer_field(@_);
 
 	$field->{data_type} = 'smallint';
+	$field->{extra}{kind} = 'positive_small_integer';
 
 	return $field;
 }
@@ -350,16 +343,18 @@ sub foreign_key {
 	my ($field, $opts) = positive_integer_field(@_);
 
 	$field->{is_foreign_key} = 1;
+	$field->{extra}{kind} = 'foreign_key';
 
 	return $field;
 }
 
-sub slug_field { my ($field) = char_field(@_); push @{ $field->{extra}{validators} }, 'slug' }
+sub slug_field { my ($field) = char_field(@_); }
 
 sub small_integer_field {
 	my ($field) = integer_field(@_);
 
 	$field->{data_type} = 'smallint';
+	$field->{extra}{kind} = 'small_integer';
 
 	return $field;
 }
@@ -368,26 +363,42 @@ sub text_field {
 	my ($field, $opts) = _generic_field(@_);
 
 	$field->{data_type} = 'text';
+	$field->{extra}{kind} = 'text';
 	$field->{size} = [$opts->{max_length}];
 	$field->{extra}{widget} = 'textarea';
 
-	$field->{is_nullable} = $opts->{null} || 0;
 	$field->{extra}{is_blank} = $opts->{blank} || 0;
-
-	push @{ $field->{extra}{validators} }, 'null' unless $field->{is_nullable};
-	push @{ $field->{extra}{validators} }, 'blank' unless $field->{extra}{blank};
-	push @{ $field->{extra}{validators} }, 'invalid';
+	$field->{is_nullable} = $opts->{null} || 0;
 
 	return $field;
 }
 
-sub time_field { big_integer_field(@_); }
+sub time_field {
+	my ($field) = big_integer_field(@_);
 
-sub url_field {  my ($field) = char_field(@_); push @{ $field->{extra}{validators} }, 'url' }
+	$field->{extra}{kind} = 'time';
 
-sub uuid_field { my ($field) = char_field(@_); push @{ $field->{extra}{validators} }, 'uuid' }
+	return $field;
+}
 
-### Private
+sub url_field {
+	my ($field) = char_field(@_);
+
+	$field->{extra}{kind} = 'url';
+	$field->{extra}{is_blank} = $opts->{blank} || 0;
+
+	return $field
+}
+
+sub uuid_field {
+	my ($field) = char_field(@_);
+
+	$field->{extra}{kind} = 'uuid';
+	$field->{extra}{is_blank} = $opts->{blank} || 0;
+
+	return $field
+}
+
 
 sub current_date {
 	my ($time) = @_;
@@ -395,7 +406,7 @@ sub current_date {
 	$time ||= time();
 	my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime($time);
 
-	my $date = sprintf "%.4d-%.2d-%2d", $year+1900, $mon+1, $mday;
+	my $date = sprintf "%.4d-%.2d-%.2d", $year+1900, $mon+1, $mday;
 
 	return $date;
 }
@@ -406,7 +417,7 @@ sub current_date_time {
 	$time ||= time();
 	my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime($time);
 
-	my $datetime = sprintf "%.4d-%.2d-%2d %.2d:%.2d:%.2d", $year+1900, $mon+1, $mday, $hour, $min, $sec;
+	my $datetime = sprintf "%.4d-%.2d-%.2d %.2d:%.2d:%.2d", $year+1900, $mon+1, $mday, $hour, $min, $sec;
 
 	return $datetime;
 }

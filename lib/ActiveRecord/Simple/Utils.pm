@@ -31,4 +31,12 @@ sub class_to_table_name {
     return $class_name;
 }
 
+sub is_numeric {
+    my ($data_type) = @_;
+
+    return unless $data_type;
+
+    return grep { $data_type eq $_ } qw/integer bigint tinyint decimal smallint/;
+}
+
 1;
