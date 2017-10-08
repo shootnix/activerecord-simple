@@ -6,6 +6,7 @@ use 5.010;
 
 use Carp qw/croak carp/;
 use List::Util qw/any/;
+use ActiveRecord::Simple::Utils;
 
 require Exporter;
 our @ISA = qw/Exporter/;
@@ -40,6 +41,7 @@ our @EXPORT = qw/
 	uuid_field
 	current_date
 	current_date_time
+	set_kind
 
 	foreign_key
 /;
@@ -103,6 +105,7 @@ sub auto_field {
 	$field->{is_unique} = 1;
 	$field->{is_primary_key} = $opts->{primary_key} // 0;
 	$field->{extra}{kind} = 'auto';
+	$field->{extra}{editable} = 0;
 
 	$field->{extra}{widget} = 'number';
 
@@ -114,6 +117,7 @@ sub big_auto_field {
 
 	$field->{data_type} = 'bigint';
 	$field->{extra}{kind} = 'big_auto';
+	$field->{extra}{editable} = 0;
 
 	return $field;
 }
@@ -239,7 +243,6 @@ sub email_field {
 	my $field = char_field(@_);
 
 	$field->{extra}{kind} = 'email';
-	$field->{extra}{is_blank} = $opts->{blank} || 0;
 
 	return $field;
 }
@@ -256,7 +259,6 @@ sub file_path_field {
 	my ($field) = file_field(@_);
 
 	$field->{extra}{kind} = 'file_path';
-	$field->{extra}{is_blank} = $opts->{blank} || 0;
 
 	return $field;
 }
@@ -296,7 +298,6 @@ sub generic_ip_address_field {
 
 	$field->{size} = [19];
 	$field->{extra}{kind} = 'generic_ip_address';
-	$field->{extra}{is_blank} = $opts->{blank} || 0;
 
 	return $field;
 }
@@ -305,7 +306,6 @@ sub generic_ipv6_address_field {
 
 	$field->{extra}{kind} = 'generic_ipv6_address';
 	$field->{size} = [45];
-	$field->{extra}{is_blank} = $opts->{blank} || 0;
 
 	return $field;
 }
@@ -385,7 +385,6 @@ sub url_field {
 	my ($field) = char_field(@_);
 
 	$field->{extra}{kind} = 'url';
-	$field->{extra}{is_blank} = $opts->{blank} || 0;
 
 	return $field
 }
@@ -394,7 +393,6 @@ sub uuid_field {
 	my ($field) = char_field(@_);
 
 	$field->{extra}{kind} = 'uuid';
-	$field->{extra}{is_blank} = $opts->{blank} || 0;
 
 	return $field
 }
@@ -420,6 +418,48 @@ sub current_date_time {
 	my $datetime = sprintf "%.4d-%.2d-%.2d %.2d:%.2d:%.2d", $year+1900, $mon+1, $mday, $hour, $min, $sec;
 
 	return $datetime;
+}
+
+sub set_kind {
+	my ($fld) = @_;
+
+	return if exists $fld->{extra}{kind} && defined $fld->{extra}{kind};
+	my $data_type = $fld->{data_type} or return;
+	my $kind;
+
+	if ($data_type eq 'varchar' || $data_type eq 'char') {
+		$kind = 'char';
+	}
+	elsif (ActiveRecord::Simple::Utils::is_integer($data_type)) {
+		if ($fld->{is_auto_increment}) {
+			$kind = $data_type eq 'bigint' ? 'big_auto' : 'auto';
+		}
+		else {
+			if ($data_type eq 'bigint') {
+				$kind = 'big_integer';
+			}
+			elsif ($data_type eq 'smallint') {
+				$kind = 'small_integer';
+			}
+			else {
+				$kind = 'integer';
+			}
+		}
+	}
+	elsif ($data_type eq 'decimal' || $data_type eq 'numeric') {
+		$kind = 'decimal';
+	}
+	elsif ($data_type eq 'blob') {
+		$kind = 'binary';
+	}
+	elsif ($data_type eq 'text') {
+		$kind = 'text';
+	}
+	else {
+		$kind = 'char';
+	}
+
+	$fld->{extra}{kind} = $kind;
 }
 
 

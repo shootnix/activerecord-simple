@@ -1012,8 +1012,8 @@ sub _mk_relations_accessors {
 sub _auto_load {
     my ($class) = @_;
 
-    my @class_name_parts = split q/::/, $class;
-    my $class_name = $class_name_parts[-1];
+    #my @class_name_parts = split q/::/, $class;
+    #my $class_name = $class_name_parts[-1];
 
     my $table_name = ActiveRecord::Simple::Utils::class_to_table_name($class);
 

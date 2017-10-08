@@ -84,7 +84,7 @@ is check_errors($integer_null_1_2_3, undef), $INVALID, "error ($INVALID): intege
 
 my $integer_not_null_1_2_NULL = { is_nullable => 0, extra => { kind => 'integer', choices => [1, 2, undef] } };
 
-is check_errors($integer_not_null_1_2_NULL, undef), $NULL, "error ($NULL): integer_not_null_1_2_NULL = undef";
+ok ! check_errors($integer_not_null_1_2_NULL, undef), "integer_not_null_1_2_NULL = undef";
 
 
 my $integer_not_null_1A_2B_3C = { is_nullable => 0, extra => { kind => 'integer', choices => [[1, 'A'], [2, 'B'], [3, 'C']] } };

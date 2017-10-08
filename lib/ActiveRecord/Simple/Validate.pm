@@ -28,8 +28,9 @@ sub check_errors {
 
     if ($fld->{extra}{choices}) {
         # checks booleans and null_booleans too
-        return _error_message_for('invalid', $error_messages)
-            if ! _exists_in_choices($val, $fld->{extra}{choices});
+        #return _error_message_for('invalid', $error_messages)
+        #    if ! _exists_in_choices($val, $fld->{extra}{choices});
+        return _exists_in_choices($val, $fld->{extra}{choices}) ? undef : _error_message_for('invalid', $error_messages);
     }
 
     # 1. is null
@@ -45,7 +46,7 @@ sub check_errors {
     return if exists $fld->{extra}{is_blank} && $fld->{extra}{is_blank} == 1 && $val eq q//;
 
     # 3. kind
-    my $fld_kind = $fld->{extra}{kind};
+    my $fld_kind = $fld->{extra}{kind} or return;
     if (_is_integer($fld_kind)) {
         return _error_message_for('integer', $error_messages)
             if ! _check_int($val);
@@ -209,6 +210,11 @@ sub _check_int {
 
 sub _check_varchar {
     my ($val, $size) = @_;
+
+    return 1 unless
+        defined $size &&
+        ref $size eq 'ARRAY' &&
+        scalar @$size == 2;
 
     return unless defined $val;
     return 1 if $val eq q//;
