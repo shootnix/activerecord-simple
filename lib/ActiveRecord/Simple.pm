@@ -4,7 +4,7 @@ use 5.010;
 use strict;
 use warnings;
 
-our $VERSION = '0.96';
+our $VERSION = '0.97';
 
 use utf8;
 use Encode;
@@ -54,7 +54,7 @@ sub new {
 sub auto_load {
     my ($class) = @_;
 
-    $class->_mk_attribute_getter('_is_auto_loaded', 1);
+    $class->_auto_load();
 }
 
 sub load_info {
@@ -209,23 +209,6 @@ sub has_one {
     $class->_append_relation($rel_name => $new_relation);
 }
 
-sub as_sql {
-    my ($class, $producer_name, %args) = @_;
-
-    eval { require SQL::Translator }
-      || croak('Please install SQL::Translator to use this feature.');
-
-    $class->can('_get_table_schema') or return;
-
-    my $t = SQL::Translator->new;
-    my $schema = $t->schema;
-    $schema->add_table($class->_get_table_schema);
-
-    $t->producer($producer_name || 'PostgreSQL', %args);
-
-    return $t->translate;
-}
-
 sub generic {
     my ($class, $rel_name, $rel_class, $key) = @_;
 
@@ -239,66 +222,18 @@ sub generic {
 }
 
 sub columns {
-    my ($class, @args) = @_;
+    my ($class, @columns_list) = @_;
 
-    #return if $class->can('_get_columns');
+    croak "Error: array-ref no longer supported for 'columns' method, sorry"
+        if scalar @columns_list == 1 && ref $columns_list[0] eq 'ARRAY';
 
-    my $columns = [];
-    if (scalar @args == 1) {
-        my $arg = shift @args;
-        if (ref $arg && ref $arg eq 'ARRAY') {
-            $columns = $arg;
-        }
-        elsif (ref $arg && ref $arg eq 'HASH') {
-            $columns = [keys %$arg];
-            $class->fields(%$arg);
-        }
-        else {
-            # just one column?
-            push @$columns, $arg;
-        }
-    }
-    elsif (scalar @args > 1) {
-        push @$columns, @args;
-    }
-
-    $class->_mk_attribute_getter('_get_columns', $columns);
+    $class->_mk_attribute_getter('_get_columns', \@columns_list);
 }
 
 sub mixins {
     my ($class, %mixins) = @_;
 
     $class->_mk_attribute_getter('_get_mixins', \%mixins);
-}
-
-sub fields {
-    my ($class, %fields) = @_;
-
-    eval { require SQL::Translator }
-      || croak('Please install SQL::Translator to use this feature. ');
-
-    my $sql_translator = SQL::Translator->new(no_comments => 1);
-    my $schema = $sql_translator->schema;
-    my $table = $schema->add_table(name => $class->_table_name);
-
-    FIELD:
-    for my $field (keys %fields) {
-        $table->add_field(name => $field, %{ $fields{$field} });
-    }
-
-    $class->_mk_attribute_getter('_get_table_schema', $table);
-    $class->columns([keys %fields]) unless $class->can('_get_columns');
-}
-
-sub index {
-    my ($class, $index_name, $fields) = @_;
-
-    if ($class->can('_get_table_schema')) {
-        $class->_get_table_schema->add_index(
-            name => $index_name,
-            fields => $fields
-        );
-    }
 }
 
 sub primary_key {
@@ -1035,7 +970,7 @@ sub _auto_load {
 
     $class->table_name($table_name) if $table_name;
     $class->primary_key($primary_key) if $primary_key;
-    $class->columns(\@columns) if @columns;
+    $class->columns(@columns) if @columns;
 }
 
 

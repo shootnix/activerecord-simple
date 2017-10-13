@@ -167,3 +167,8 @@ Revision history for Perl module ActiveRecord::Simple
         * Improved relations
         * Fixed "auto_load" behavior
 
+0.97    2017-10-13
+        - Method "fields"
+        - Classes
+        - SQL::Traslator things
+

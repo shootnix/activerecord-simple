@@ -23,7 +23,7 @@ BEGIN {
 
 	my $_INIT_SQL_CUSTOMERS = q{
 
-	CREATE TABLE `customers` (
+	CREATE TABLE `customer` (
   		`id` int AUTO_INCREMENT,
   		`first_name` varchar(200) NULL,
   		`second_name` varchar(200) NOT NULL,
@@ -36,7 +36,7 @@ BEGIN {
 
 	my $_DATA_SQL_CUSTOMERS = q{
 
-	INSERT INTO `customers` (`id`, `first_name`, `second_name`, `age`, `email`)
+	INSERT INTO `customer` (`id`, `first_name`, `second_name`, `age`, `email`)
 	VALUES
 		(1,'Bob','Dylan',NULL,'bob.dylan@aol.com'),
 		(2,'John','Doe',77,'john@doe.com'),
@@ -51,7 +51,7 @@ BEGIN {
 
 	my $_INIT_SQL_ORDERS = q{
 
-	CREATE TABLE `orders` (
+	CREATE TABLE `order` (
 		`id` int AUTO_INCREMENT,
 		`title` varchar(200) NOT NULL,
 		`amount` decimal(10,2) NOT NULL DEFAULT 0.0,
@@ -63,7 +63,7 @@ BEGIN {
 
 	my $_DATA_SQL_ORDERS = q{
 
-	INSERT INTO `orders` (`id`, `title`, `amount`, `customer_id`)
+	INSERT INTO `order` (`id`, `title`, `amount`, `customer_id`)
 	VALUES
 		(1, 'The Order #1', 10, 1),
 		(2, 'The Order #2', 5.66, 2),
@@ -78,7 +78,7 @@ BEGIN {
 
 	my $_INIT_SQL_ACHIEVEMENTS = q{
 
-	CREATE TABLE `achievements` (
+	CREATE TABLE `achievement` (
 		`id` int AUTO_INCREMENT,
 		`title` varchar(30) NOT NULL,
 		PRIMARY KEY (`id`)
@@ -88,7 +88,7 @@ BEGIN {
 
 	my $_DATA_SQL_ACHEIVEMENTS = q{
 
-	INSERT INTO `achievements` (`id`, `title`)
+	INSERT INTO `achievement` (`id`, `title`)
 	VALUES
 		(1, 'Bronze'),
 		(2, 'Silver'),
@@ -101,7 +101,7 @@ BEGIN {
 
 	my $_INIT_SQL_CA = q{
 
-	CREATE TABLE `customers_achievements` (
+	CREATE TABLE `customer_achievement` (
 		`customer_id` int NOT NULL references customers (id),
 		`achievement_id` int NOT NULL references achievements (id)
 	);
@@ -110,7 +110,7 @@ BEGIN {
 
 	my $_DATA_SQL_CA = q{
 
-	INSERT INTO `customers_achievements` (`customer_id`, `achievement_id`)
+	INSERT INTO `customer_achievement` (`customer_id`, `achievement_id`)
 	VALUES
 		(1, 1),
 		(1, 2),
@@ -134,7 +134,7 @@ our @ISA = qw/Schema/;
 
 __PACKAGE__->auto_load();
 __PACKAGE__->has_many('orders' => 'Order');
-__PACKAGE__->has_many('achievements' => { 'CustomersAchievement' => 'Achievement' });
+__PACKAGE__->has_many('achievements' =>'Achievement', { via => 'customer_achievement' });
 
 
 package Order;
@@ -150,16 +150,7 @@ package Achievement;
 our @ISA = qw/Schema/;
 
 __PACKAGE__->auto_load();
-__PACKAGE__->has_many(customers => { 'CustomersAchievement' => 'Customer' });
-
-
-package CustomersAchievement;
-
-our @ISA = qw/Schema/;
-
-__PACKAGE__->auto_load();
-__PACKAGE__->belongs_to(customer => 'Customer');
-__PACKAGE__->belongs_to(achievement => 'Achievement');
+__PACKAGE__->has_many(customers => 'Customer', { via => 'customer_achievement' });
 
 
 package main;

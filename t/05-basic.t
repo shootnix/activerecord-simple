@@ -14,7 +14,7 @@ package t::class;
 use base 'ActiveRecord::Simple';
 
 __PACKAGE__->table_name('t');
-__PACKAGE__->columns(['foo', 'bar']);
+__PACKAGE__->columns('foo', 'bar');
 __PACKAGE__->primary_key('foo');
 
 #__PACKAGE__->belongs_to(class2 => 't::class2');
@@ -26,7 +26,7 @@ package t::class2;
 use base 'ActiveRecord::Simple';
 
 __PACKAGE__->table_name('t');
-__PACKAGE__->columns(['foo', 'bar']);
+__PACKAGE__->columns('foo', 'bar');
 __PACKAGE__->primary_key('foo');
 
 #__PACKAGE__->belongs_to(class => 't::class');
