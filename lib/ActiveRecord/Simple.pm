@@ -990,42 +990,12 @@ pattern. It's fast, very simple and very light.
 
 =head1 SYNOPSIS
 
-    # easy way:
-
     package MyModel:Person;
     use base 'ActiveRecord::Simple';
 
     __PACKAGE__->auto_load()
 
     1;
-
-    # hardcore:
-
-    package MyModel::Person;
-    use base 'ActiveRecord::Simple';
-
-    __PACKAGE__->table_name('persons');
-    __PACKAGE__->fields(
-        id_person => {
-            data_type => 'int',
-            is_auto_increment => 1,
-            is_primary_key => 1
-        },
-        first_name => {
-            data_type => 'varchar',
-            size => 64,
-            is_nullable => 0
-        },
-        second_name => {
-            data_type => 'varchar',
-            size => 64,
-            is_nullable => 0,
-        },
-        registered => {
-            data_type => 'timestamp',
-            is_nullable => 0,
-        });
-    __PACKAGE__->primary_key('id_person');
 
 That's it! Now you're ready to use your active-record class in the application:
 
@@ -1042,7 +1012,7 @@ That's it! Now you're ready to use your active-record class in the application:
     my $person = MyModel::Person->get(1);
 
     # to get the record with specified fields:
-    my $person = MyModel::Person->find(1)->only('first_name', 'second_name')->fetch;
+    my $person = MyModel::Person->find(1)->fields('first_name', 'second_name')->fetch;
 
     # to find records by parameters:
     my @persons = MyModel::Person->find({ first_name => 'Foo' })->fetch();
@@ -1057,13 +1027,12 @@ That's it! Now you're ready to use your active-record class in the application:
     }
 
     # You can add any relationships to your tables:
-    __PACKAGE__->has_many(cars => 'MyModel::Car' => 'id_preson');
-    __PACKAGE__->belongs_to(wife => 'MyModel::Wife' => 'id_person');
+    __PACKAGE__->has_many(cars => 'MyModel::Car');
+    __PACKAGE__->belongs_to(wife => 'MyModel::Wife');
 
     # And then, you're ready to go:
     say $person->cars->fetch->id; # if the relation is one to many
     say $person->wife->name; # if the relation is one to one
-    $person->wife(Wife->new({ name => 'Jane', age => '18' })->save)->save; # change wife ;-)
 
 =head1 METHODS
 
@@ -1103,74 +1072,20 @@ You can pass as a parameter related object, ActiveRecord::Simple will do the res
 
 =head2 columns
 
-    __PACKAGE__->columns([qw/id_person first_name second_name]);
-    # or
+
     __PACKAGE__->columns('id_person', 'first_name', 'second_name');
-    # or
-    __PACKAGE__->columns({
-        id_person => {
-            # ...
-        },
-        first_name => {
-            # ...
-        },
-        second_name => {
-            # ...
-        }
-    });
-    # or
-    __PACKAGE__->columns(
-        id_person => {
-            # ...
-        },
-        first_name => {
-            # ...
-        },
-        second_name => {
-            # ...
-        }
-    );
 
 This method is required.
 Set names of the table columns and add accessors to object of the class.
-If you set a hash or a hashref with additional parameters, the method will be dispatched to
-another method, "fields".
-
-=head2 fields
-
-    __PACKAGE__->fields(
-        id_person => {
-            data_type => 'int',
-            is_auto_increment => 1,
-            is_primary_key => 1
-        },
-        first_name => {
-            data_type => 'varchar',
-            size => 64,
-            is_nullable => 0
-        },
-        second_name => {
-            data_type => 'varchar',
-            size => 64,
-            is_nullable => 0,
-        }
-    );
-
-This method requires L<SQL::Translator> to be installed.
-Create SQL-Schema and data type validation for each specified field using SQL::Translator features.
-You don't need to call "columns" method explicitly, if you use "fields".
-
-See L<SQL::Translator> for more information about schema and L<SQL::Translator::Field>
-for information about available data types.
 
 =head2 mixins
 
 Use this method when you need to add optional fields, computed fields etc. Method takes hash, key is a name of field,
-value is a subroutine that returns SQL:
+value is a subroutine that returns SQL-code:
 
     __PACKAGE__->mixins(
         sum_of_items => sub {
-            my ($this) = @_;
+            my ($class) = @_;
 
             return 'SUM(`item`)';
         }
@@ -1178,6 +1093,7 @@ value is a subroutine that returns SQL:
 
     # specify mixin as a field in the query:
     my @items = Model->find->fields('id', 'name', 'sum_of_items')->fetch;
+    say $item->sum_of_items;
 
 You can get access to current class within this coderef.
 
@@ -1195,12 +1111,6 @@ Set name of the primary key. This method is not required to use in the child
 If you don't need to use primary key, but need to insert or update data, using specific
 parameters, you can try this one: secondary key. It doesn't reflect schema, it's just about
 the code.
-
-=head2 index
-
-    __PACKAGE__->index('index_id_person', ['id_person']);
-
-Create an index and add it to the schema. Works only when method "fields" is using.
 
 =head2 table_name
 
@@ -1402,6 +1312,27 @@ Another syntax of command "fetch" allows you to make read-only objects:
     my @persons = MyModel::Person->find->fetch({ read_only => 1, limit => 2 });
     # all two object are read-only
 
+=head2 all
+
+Get all rows. Doesn't take any arguments.
+
+    my @persons = Person->all->fetch; # takes all records in the database.
+
+=head2 sql_fetch_all
+
+Same as a standard DBI method fetchall_arrayref('...', { Slice => {} }), but every
+key of every hash you get becomes accessors:
+
+    my $persons = Person->sql_fetch_all('SELECT first_name, age FORM person WHERE age > ?', 18);
+    say $_->first_name for @$persons; # instead of $_->{first_name} in DBI
+
+=head2 sql_fetch_row
+
+Same as a standard DBI method fetchrow_hashref, but every key of given hash becomes an accessor:
+
+    my $person = Person->sql_fetch_row('SELECT first_name, age FORM person WHERE id = ?', 1);
+    say $person->first_name; # instead of $person->{first_name} in DBI
+
 =head2 select
 
 Yet another way to select data from the database:
@@ -1471,13 +1402,6 @@ Decrement the field value:
     say $person->age;  # prints e.g. 100
     $person->decrement('age');
     say $person->age; # prints 99
-
-=head2 as_sql
-
-    say MyModel::Person->as_sql('PostgreSQL');
-
-This method requires L<SQL::Translator> to be installed.
-Create an SQL-schema using method "fields". See SQL::Translator for more details.
 
 =head2 dbh
 

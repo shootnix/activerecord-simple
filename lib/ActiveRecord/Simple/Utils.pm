@@ -3,6 +3,11 @@ package ActiveRecord::Simple::Utils;
 use strict;
 use warnings;
 
+require Exporter;
+
+our @ISA = qw/Exporter/;
+our @EXPORT = qw/class_to_table_name/;
+
 
 sub quote_sql_stmt {
     my ($sql, $driver_name) = @_;
@@ -26,9 +31,10 @@ sub class_to_table_name {
     my ($class_name) = @_;
 
     $class_name =~ s/.*:://;
-    $class_name = lc $class_name;
+    #$class_name = lc $class_name;
+    my $table_name = join('_', map {lc} grep {length} split /([A-Z]{1}[^A-Z]*)/, $class_name);
 
-    return $class_name;
+    return $table_name;
 }
 
 sub is_integer {
