@@ -226,8 +226,6 @@ sub primary_key {
     my ($class, $primary_key) = @_;
 
     $class->_mk_attribute_getter('_get_primary_key', $primary_key);
-    $class->_get_table_schema->primary_key($primary_key)
-        if $class->can('_get_table_schema')
 }
 
 sub secondary_key {
