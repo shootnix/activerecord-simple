@@ -41,7 +41,6 @@ sub new {
         $class->_mk_accessors($columns);
     }
 
-
     # relations
     $class->_mk_relations_accessors if $class->can('_get_relations');
 
@@ -139,18 +138,7 @@ sub belongs_to {
         fk => $foreign_key,
     };
 
-    if ($class->can('_get_table_schema') && $class->can('_get_primary_key')) {
-        ### load $rel_class;
-        $class->_get_table_schema->add_constraint(
-            type => 'foreign_key',
-            fields => $params, ### TODO: !!!this is wrong!!!
-            reference_fields => $class->_get_primary_key,
-            reference_table => $rel_class->_table_name,
-            on_delete => 'cascade'
-        );
-    }
-
-    $class->_append_relation($rel_name => $new_relation);
+    return $class->_append_relation($rel_name => $new_relation);
 }
 
 sub has_many {
@@ -204,9 +192,7 @@ sub has_one {
         fk => $foreign_key,
     };
 
-    #$class->_mk_attribute_getter('_get_secondary_key', $key);
-    ### TODO: add schema constraints
-    $class->_append_relation($rel_name => $new_relation);
+    return $class->_append_relation($rel_name => $new_relation);
 }
 
 sub generic {
@@ -218,7 +204,7 @@ sub generic {
         key => $key
     };
 
-    $class->_append_relation($rel_name => $new_relation);
+    return $class->_append_relation($rel_name => $new_relation);
 }
 
 sub columns {
@@ -728,7 +714,7 @@ sub _append_relation {
         $class->relations({ $rel_name => $rel_hashref });
     }
 
-    return;
+    return $rel_hashref;
 }
 
 sub _table_name {
