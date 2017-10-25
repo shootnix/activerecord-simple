@@ -578,6 +578,7 @@ sub _insert {
         }
     }
     else {
+
         my $sth = $self->dbh->prepare(
             ActiveRecord::Simple::Utils::quote_sql_stmt($sql_stm, $self->dbh->{Driver}{Name})
         );
@@ -587,7 +588,10 @@ sub _insert {
             $pkey_val = $self->{$primary_key};
         }
         else {
-            $pkey_val = $self->dbh->last_insert_id(undef, undef, $table_name, undef);
+            $pkey_val =
+                exists $sth->{mysql_insertid} # mysql only
+                    ? $sth->{mysql_insertid}
+                    : $self->dbh->last_insert_id(undef, undef, $table_name, undef);
         }
     }
 
@@ -747,7 +751,6 @@ sub _mk_relations_accessors {
     no strict 'refs';
     RELATION_NAME:
     for my $relation_name ( keys %{ $relations }) {
-
         my $pkg_method_name = $class . '::' . $relation_name;
         next RELATION_NAME if $class->can($pkg_method_name); ### FIXME: orrrr $relation_name???
 
@@ -764,9 +767,13 @@ sub _mk_relations_accessors {
         if (any { $full_relation_type eq $_ } qw/one_to_many one_to_one one_to_only/) {
             *{$pkg_method_name} = sub {
                 my ($self, @args) = @_;
-
                 if (@args) {
                     my $object = shift @args;
+                    croak "Using unblessed scalar as an object reference"
+                        unless blessed $object;
+
+                    $object->save() if ! exists $object->{isin_database} && !$object->{isin_database} == 1;
+
                     $self->$fk($object->$pk);
                     $self->{$instance_name} = $object;
 
