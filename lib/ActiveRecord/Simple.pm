@@ -23,34 +23,33 @@ sub new {
     my $class = shift;
     my $params = (scalar @_ > 1) ? {@_} : $_[0];
 
-    # mixins
-    if ($class->can('_get_mixins')) {
-        my @keys = keys %{ $class->_get_mixins };
-        $class->_mk_ro_accessors(\@keys);
-    }
-
-    # columns
-    if ($class->can('_is_auto_loaded') && $class->_is_auto_loaded) {
-        $class->_auto_load;
-    }
-    else {
-        my $columns = $class->can('_get_columns') ? $class->_get_columns : [];
-
-       # warn "columns: $columns";
-
-        $class->_mk_accessors($columns);
-    }
-
-    # relations
-    $class->_mk_relations_accessors if $class->can('_get_relations');
-
     return bless $params || {}, $class;
 }
 
 sub auto_load {
-    my ($class) = @_;
+   my ($class) = @_;
 
-    $class->_auto_load();
+    my $table_name = ActiveRecord::Simple::Utils::class_to_table_name($class);
+
+    # 0. check the name
+    my $table_info_sth = $class->dbh->table_info('', '%', $table_name, 'TABLE');
+    $table_info_sth->fetchrow_hashref or croak "Can't find table '$table_name' in the database";
+
+    # 1. columns list
+    my $column_info_sth = $class->dbh->column_info(undef, undef, $table_name, undef);
+    my $cols = $column_info_sth->fetchall_arrayref({});
+
+    my @columns = ();
+    push @columns, $_->{COLUMN_NAME} for @$cols;
+
+    # 2. Primary key
+    my $primary_key_sth = $class->dbh->primary_key_info(undef, undef, $table_name);
+    my $primary_key_data = $primary_key_sth->fetchrow_hashref;
+    my $primary_key = ($primary_key_data) ? $primary_key_data->{COLUMN_NAME} : undef;
+
+    $class->table_name($table_name) if $table_name;
+    $class->primary_key($primary_key) if $primary_key;
+    $class->columns(@columns) if @columns;
 }
 
 sub load_info {
@@ -135,7 +134,8 @@ sub belongs_to {
         fk => $foreign_key,
     };
 
-    return $class->_append_relation($rel_name => $new_relation);
+    $class->_append_relation($rel_name => $new_relation);
+    $class->_mk_relations_accessors;
 }
 
 sub has_many {
@@ -164,6 +164,7 @@ sub has_many {
     $new_relation->{via_table} = $params->{via} if $params->{via};
 
     $class->_append_relation($rel_name => $new_relation);
+    $class->_mk_relations_accessors;
 }
 
 sub has_one {
@@ -190,6 +191,7 @@ sub has_one {
     };
 
     return $class->_append_relation($rel_name => $new_relation);
+    $class->_mk_relations_accessors;
 }
 
 sub generic {
@@ -202,6 +204,7 @@ sub generic {
     };
 
     return $class->_append_relation($rel_name => $new_relation);
+    $class->_mk_relations_accessors;
 }
 
 sub columns {
@@ -211,6 +214,7 @@ sub columns {
         if scalar @columns_list == 1 && ref $columns_list[0] eq 'ARRAY';
 
     $class->_mk_attribute_getter('_get_columns', \@columns_list);
+    $class->_mk_rw_accessors(\@columns_list) unless $class->can('_make_columns_accessors') && $class->_make_columns_accessors == 0;
 }
 
 sub make_columns_accessors {
@@ -225,6 +229,7 @@ sub mixins {
     my ($class, %mixins) = @_;
 
     $class->_mk_attribute_getter('_get_mixins', \%mixins);
+    $class->_mk_ro_accessors([keys %mixins]);
 }
 
 sub primary_key {
@@ -626,23 +631,13 @@ sub _update {
     return $self->dbh->do($sql_stm, undef, @bind);
 }
 
-sub _mk_accessors {
+sub _mk_rw_accessors {
     my ($class, $fields) = @_;
 
     return unless $fields;
     return if $class->can('_make_columns_accessors') && $class->_make_columns_accessors == 0;
 
-    # FIXME
-    my @methods;
-    for my $method_name (@$fields) {
-        push @methods, $method_name unless $class->can($method_name);
-    }
-
-    eval join "\n", "package $class;", map {
-        "sub $_ { if (\@_ > 1) { \$_[0]->{$_} = \$_[1]; return \$_[0] } return \$_[0]->{$_} }"
-    } @methods;
-
-    return 1;
+    $class->_mk_accessors($fields, 'rw');
 }
 
 
@@ -652,17 +647,25 @@ sub _mk_ro_accessors {
     return unless $fields;
     return if $class->can('_make_columns_accessors') && $class->_make_columns_accessors == 0;
 
-    # FIXME
-    my @methods;
+    $class->_mk_accessors($fields, 'ro');
+}
+
+sub _mk_accessors {
+    my ($class, $fields, $type) = @_;
+
+    $type ||= 'rw';
+    my $code_string = q//;
+    METHOD_NAME:
     for my $method_name (@$fields) {
-        push @methods, $method_name unless $class->can($method_name);
+        next METHOD_NAME if $class->can($method_name);
+        $code_string .= "sub $method_name {\n";
+        if ($type eq 'rw') {
+            $code_string .= "if (\@_ > 1) { \$_[0]->{$method_name} = \$_[1]; return \$_[0] }\n";
+        }
+        $code_string .= "return \$_[0]->{$method_name};\n }\n";
     }
 
-    eval join "\n", "package $class;", map {
-        "sub $_ { \$_[0]->{$_} = \$_[1] if \@_ > 1; return \$_[0]->{$_} }";
-    } @$fields;
-
-    return 1;
+    eval "package $class;\n $code_string" if $code_string;
 }
 
 sub _guess {
@@ -909,37 +912,6 @@ sub _mk_relations_accessors {
 
     use strict 'refs';
 }
-
-sub _auto_load {
-    my ($class) = @_;
-
-    #my @class_name_parts = split q/::/, $class;
-    #my $class_name = $class_name_parts[-1];
-
-    my $table_name = ActiveRecord::Simple::Utils::class_to_table_name($class);
-
-    # 0. check the name
-    my $table_info_sth = $class->dbh->table_info('', '%', $table_name, 'TABLE');
-    $table_info_sth->fetchrow_hashref or croak "Can't find table '$table_name' in the database";
-
-    # 1. columns list
-    my $column_info_sth = $class->dbh->column_info(undef, undef, $table_name, undef);
-    my $cols = $column_info_sth->fetchall_arrayref({});
-
-    my @columns = ();
-    push @columns, $_->{COLUMN_NAME} for @$cols;
-
-    # 2. Primary key
-    my $primary_key_sth = $class->dbh->primary_key_info(undef, undef, $table_name);
-    my $primary_key_data = $primary_key_sth->fetchrow_hashref;
-    my $primary_key = ($primary_key_data) ? $primary_key_data->{COLUMN_NAME} : undef;
-
-    $class->table_name($table_name) if $table_name;
-    $class->primary_key($primary_key) if $primary_key;
-    $class->columns(@columns) if @columns;
-}
-
-
 
 1;
 

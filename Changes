@@ -172,3 +172,7 @@ Revision history for Perl module ActiveRecord::Simple
         - Classes
         - SQL::Traslator things
 
+1.00    2018-XX-XX
+        * New faster accessors
+        + New option "make_columns_accessors"
+

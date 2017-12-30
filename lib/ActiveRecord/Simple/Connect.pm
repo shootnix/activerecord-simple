@@ -31,9 +31,6 @@ sub new {
 sub db_connect {
 	my ($self) = @_;
 
-	use Data::Dumper;
-	say '-------';
-
 	$self->{dbh} = DBI->connect(
 		$self->{dsn},
 		$self->{username},

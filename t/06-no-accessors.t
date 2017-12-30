@@ -11,11 +11,13 @@ use lib "$Bin/../lib";
 use parent 'ActiveRecord::Simple';
 
 
+__PACKAGE__->no_accessors;
+
 __PACKAGE__->table_name('customer');
 __PACKAGE__->columns(qw/id first_name last_name email/);
 __PACKAGE__->primary_key('id');
 
-__PACKAGE__->make_columns_accessors(0);
+
 
 
 package main;

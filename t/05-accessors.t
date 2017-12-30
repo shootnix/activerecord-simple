@@ -48,6 +48,11 @@ my $c2 = Customer->new(
 is $c2->id, 2;
 is $c2->first_name, 'Bob';
 
+Customer->_mk_ro_accessors(['say_hello']);
+$customer->{say_hello} = 'Hello!';
+
+is $customer->say_hello, 'Hello!';
+
 done_testing();
 
 
