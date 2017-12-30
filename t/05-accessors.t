@@ -4,10 +4,6 @@ use strict;
 use warnings;
 use 5.010;
 
-
-
-
-
 package Customer;
 
 use FindBin qw/$Bin/;
@@ -27,6 +23,9 @@ use Test::More;
 
 my $customer = Customer->new;
 
+eval { $customer->id };
+ok ! $@;
+
 ok $customer->id(1);
 is $customer->id, 1;
 
@@ -39,6 +38,15 @@ is $customer->email, 'bill@cleantone.com';
 
 is $customer->_get_table_name, 'customer';
 
+my $c2 = Customer->new(
+	id => 2,
+	first_name => 'Bob',
+	last_name => 'Rock!',
+	email => 'bob@rock.com',
+);
+
+is $c2->id, 2;
+is $c2->first_name, 'Bob';
 
 done_testing();
 

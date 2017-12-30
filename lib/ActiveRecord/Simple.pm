@@ -213,6 +213,14 @@ sub columns {
     $class->_mk_attribute_getter('_get_columns', \@columns_list);
 }
 
+sub make_columns_accessors {
+    my ($class, $flag) = @_;
+
+    $flag //= 1; # default value
+
+    $class->_mk_attribute_getter('_make_columns_accessors', $flag);
+}
+
 sub mixins {
     my ($class, %mixins) = @_;
 
@@ -233,8 +241,6 @@ sub secondary_key {
 
 sub table_name {
     my ($class, $table_name) = @_;
-
-    warn "table_name = $table_name";
 
     $class->_mk_attribute_getter('_get_table_name', $table_name);
 }
@@ -623,12 +629,18 @@ sub _update {
 sub _mk_accessors {
     my ($class, $fields) = @_;
 
-    my $super = caller;
     return unless $fields;
+    return if $class->can('_make_columns_accessors') && $class->_make_columns_accessors == 0;
+
+    # FIXME
+    my @methods;
+    for my $method_name (@$fields) {
+        push @methods, $method_name unless $class->can($method_name);
+    }
 
     eval join "\n", "package $class;", map {
         "sub $_ { if (\@_ > 1) { \$_[0]->{$_} = \$_[1]; return \$_[0] } return \$_[0]->{$_} }"
-    } @$fields;
+    } @methods;
 
     return 1;
 }
@@ -638,7 +650,13 @@ sub _mk_ro_accessors {
     my ($class, $fields) = @_;
 
     return unless $fields;
-    my $super = caller;
+    return if $class->can('_make_columns_accessors') && $class->_make_columns_accessors == 0;
+
+    # FIXME
+    my @methods;
+    for my $method_name (@$fields) {
+        push @methods, $method_name unless $class->can($method_name);
+    }
 
     eval join "\n", "package $class;", map {
         "sub $_ { \$_[0]->{$_} = \$_[1] if \@_ > 1; return \$_[0]->{$_} }";
@@ -970,7 +988,7 @@ L<https://github.com/shootnix/activerecord-simple/wiki>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2013-2017 shootnix.
+Copyright 2013-2018 shootnix.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
