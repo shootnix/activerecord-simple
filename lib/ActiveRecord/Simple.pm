@@ -4,14 +4,11 @@ use 5.010;
 use strict;
 use warnings;
 
-our $VERSION = '0.97';
+our $VERSION = '1.00';
 
 use utf8;
-use Encode;
 use Carp;
-use Storable qw/freeze/;
 use Module::Load;
-use vars qw/$AUTOLOAD/;
 use Scalar::Util qw/blessed/;
 use List::Util qw/any/;
 
@@ -38,14 +35,14 @@ sub new {
     }
     else {
         my $columns = $class->can('_get_columns') ? $class->_get_columns : [];
+
+       # warn "columns: $columns";
+
         $class->_mk_accessors($columns);
     }
 
     # relations
     $class->_mk_relations_accessors if $class->can('_get_relations');
-
-    # FIXME: dirty hack
-    $class->auto_save(0);
 
     return bless $params || {}, $class;
 }
@@ -237,20 +234,9 @@ sub secondary_key {
 sub table_name {
     my ($class, $table_name) = @_;
 
+    warn "table_name = $table_name";
+
     $class->_mk_attribute_getter('_get_table_name', $table_name);
-}
-
-sub auto_save {
-    my ($class, $is_on) = @_;
-
-    $is_on = 1 if not defined $is_on;
-
-    $class->_mk_attribute_getter('_smart_saving_used', $is_on);
-}
-
-sub use_smart_saving {
-    carp '[DEPRECATED] Method "use_smart_saving" is deprecated and will be removed in the future. Please, use "auto_save" method insted.';
-    $_[0]->auto_save;
 }
 
 sub relations {
@@ -280,10 +266,6 @@ sub save {
 
     #return unless $self->dbh;
     croak "Undefined database handler" unless $self->dbh;
-
-    return 1 if $self->_smart_saving_used
-        and defined $self->{snapshoot}
-        and $self->{snapshoot} eq freeze $self->to_hash;
 
     croak 'Object is read-only'
         if exists $self->{read_only} && $self->{read_only} == 1;
@@ -644,25 +626,13 @@ sub _mk_accessors {
     my $super = caller;
     return unless $fields;
 
-    no strict 'refs';
-    FIELD:
-    for my $f (@$fields) {
-        my $pkg_accessor_name = $class . '::' . $f;
-        next FIELD if $class->can($pkg_accessor_name);
-        *{$pkg_accessor_name} = sub {
-            if ( scalar @_ > 1 ) {
-                $_[0]->{$f} = $_[1];
-
-                return $_[0];
-            }
-
-            return $_[0]->{$f};
-        }
-    }
-    use strict 'refs';
+    eval join "\n", "package $class;", map {
+        "sub $_ { if (\@_ > 1) { \$_[0]->{$_} = \$_[1]; return \$_[0] } return \$_[0]->{$_} }"
+    } @$fields;
 
     return 1;
 }
+
 
 sub _mk_ro_accessors {
     my ($class, $fields) = @_;
@@ -670,19 +640,11 @@ sub _mk_ro_accessors {
     return unless $fields;
     my $super = caller;
 
-    no strict 'refs';
-    FIELD:
-    for my $f (@$fields) {
-        my $pkg_accessor_name = $class . '::' . $f;
-        next FIELD if $class->can($pkg_accessor_name);
-        *{$pkg_accessor_name} = sub {
-            croak "You can't change '$f': object is read-only"
-                if scalar @_ > 1;
+    eval join "\n", "package $class;", map {
+        "sub $_ { \$_[0]->{$_} = \$_[1] if \@_ > 1; return \$_[0]->{$_} }";
+    } @$fields;
 
-            return $_[0]->{$f}
-        };
-    }
-    use strict 'refs';
+    return 1;
 }
 
 sub _guess {
@@ -735,12 +697,7 @@ sub _table_name {
 sub _mk_attribute_getter {
     my ($class, $method_name, $return) = @_;
 
-    my $pkg_method_name = $class . '::' . $method_name;
-    if ( !$class->can($pkg_method_name) ) {
-        no strict 'refs';
-        *{$pkg_method_name} = sub { $return };
-        use strict 'refs';
-    }
+    eval "package $class; \n sub $method_name { \$return }";
 }
 
 sub _mk_relations_accessors {
@@ -981,645 +938,7 @@ pattern. It's fast, very simple and very light.
 
 =head1 SYNOPSIS
 
-    package MyModel:Person;
-    use base 'ActiveRecord::Simple';
-
-    __PACKAGE__->auto_load()
-
-    1;
-
-That's it! Now you're ready to use your active-record class in the application:
-
-    use MyModel::Person;
-
-    # to create a new record:
-    my $person = MyModel::Person->new({ name => 'Foo', registered => \'NOW()' })->save();
-    # (use a scalarref to pass non-quoted data to the database, as is).
-
-    # to update the record:
-    $person->name('Bar')->save();
-
-    # to get the record (using primary key):
-    my $person = MyModel::Person->get(1);
-
-    # to get the record with specified fields:
-    my $person = MyModel::Person->find(1)->fields('first_name', 'second_name')->fetch;
-
-    # to find records by parameters:
-    my @persons = MyModel::Person->find({ first_name => 'Foo' })->fetch();
-
-    # to find records by sql-condition:
-    my @persons = MyModel::Person->find('first_name = ?', 'Foo')->fetch();
-
-    # also you can do something like this:
-    my $persons = MyModel::Person->find('first_name = ?', 'Foo');
-    while ( my $person = $persons->next() ) {
-        say $person->name;
-    }
-
-    # You can add any relationships to your tables:
-    __PACKAGE__->has_many(cars => 'MyModel::Car');
-    __PACKAGE__->belongs_to(wife => 'MyModel::Wife');
-
-    # And then, you're ready to go:
-    say $person->cars->fetch->id; # if the relation is one to many
-    say $person->wife->name; # if the relation is one to one
-
-=head1 METHODS
-
-ActiveRecord::Simple provides a variety of techniques to make your work with
-data little easier. It contains set of operations, such as
-search, create, update and delete data.
-
-If you realy need more complicated solution, just try to expand on it with your
-own methods.
-
-=head1 Class Methods
-
-Class methods mean that you can't do something with a separate row of the table,
-but they need to manipulate of the table as a whole object. You may find a row
-in the table or keep database handler etc.
-
-=head2 new
-
-Creates a new object, one row of the data.
-
-    MyModel::Person->new({ name => 'Foo', second_name => 'Bar' });
-
-It's a constructor of your class and it doesn't save a data in the database,
-just creates a new record in memory.
-
-You can pass as a parameter related object, ActiveRecord::Simple will do the rest:
-
-    my $Adam = Customer->find({name => 'Adam'})->fetch;
-
-    my $order = Order->new(sum => 100, customer => $Adam);
-    ### This is the same:
-    my $order = Order->new(sum => 100, customer_id => $Adam->id);
-    ### but here you have to know primary and foreign keys.
-
-    ### much easier using objects:
-    my $order = Order->new(sum => 100, customer => $Adam); # ARS will find all keys automatically
-
-=head2 columns
-
-
-    __PACKAGE__->columns('id_person', 'first_name', 'second_name');
-
-This method is required.
-Set names of the table columns and add accessors to object of the class.
-
-=head2 mixins
-
-Use this method when you need to add optional fields, computed fields etc. Method takes hash, key is a name of field,
-value is a subroutine that returns SQL-code:
-
-    __PACKAGE__->mixins(
-        sum_of_items => sub {
-            my ($class) = @_;
-
-            return 'SUM(`item`)';
-        }
-    );
-
-    # specify mixin as a field in the query:
-    my @items = Model->find->fields('id', 'name', 'sum_of_items')->fetch;
-    say $item->sum_of_items;
-
-You can get access to current class within this coderef.
-
-=head2 primary_key
-
-    __PACKAGE__->primary_key('id_person');
-
-Set name of the primary key. This method is not required to use in the child
-(your model) classes.
-
-=head2 secondary_key
-
-    __PACKAGE__->secondary_key('some_id');
-
-If you don't need to use primary key, but need to insert or update data, using specific
-parameters, you can try this one: secondary key. It doesn't reflect schema, it's just about
-the code.
-
-=head2 table_name
-
-    __PACKAGE__->table_name('persons');
-
-Set name of the table. This method is required to use in the child (your model)
-classes.
-
-=head2 auto_load
-
-Load table info using DBI methods: table_name, primary_key, foreign_key, columns
-
-=head2 load_info
-
-Same as "auto_load". DEPRECATED.
-
-=head2 belongs_to
-
-    __PACKAGE__->belongs_to(home => 'Home');
-
-This method describes one-to-one objects relationship. By default ARS think
-that primary key name is "id", foreign key name is "[table_name]_id".
-You can specify it by parameters:
-
-    __PACKAGE__->belongs_to(home => 'Home', {
-        primary_key => 'id',
-        foreign_key => 'home_id'
-    });
-
-=head2 has_many
-
-    __PACKAGE__->has_many(cars => 'Car');
-    __PACKAGE__->has_many(cars => 'Car', {
-        primary_key => 'id',
-        foreign_key => 'car_id'
-    })
-
-This method describes one-to-many objects relationship.
-
-=head2 has_one
-
-    __PACKAGE__->has_one(wife => 'Wife');
-    __PACKAGE__->has_one(wife => 'Wife', {
-        primary_key => 'id',
-        foreign_key => 'wife_id'
-    });
-
-You can specify one object via another one using "has_one" method. It works like that:
-
-    say $person->wife->name; # SELECT name FROM Wife WHERE person_id = $self._primary_key
-
-=head2 relations
-
-    __PACKAGE__->relations({
-        cars => {
-            class => 'MyModel::Car',
-            key   => 'id_person',
-            type  => 'many'
-        },
-    });
-
-It's not a required method and you don't have to use it if you don't want to use
-any relationships in your tables and objects. However, if you need to,
-just keep this simple schema in youre mind:
-
-    __PACKAGE__->relations({
-        [relation key] => {
-            class => [class name],
-            key   => [column that refferers to the table],
-            type  => [many or one]
-        },
-    })
-
-    [relation key] - this is a key that will be provide the access to instance
-    of the another class (which is specified in the option "class" below),
-    associated with this relationship. Allowed to use as many keys as you need:
-
-    $package_instance->[relation key]->[any method from the related class];
-
-=head2 generic
-
-    __PACKAGE__->generic(photos => { release_date => 'pub_date' });
-
-    Creates a generic relations.
-
-    my $single = Song->find({ type => 'single' })->fetch();
-    my @photos = $single->photos->fetch();  # fetch all photos with pub_date = single.release_date
-
-=head2 auto_save
-
-This method provides two features:
-
-   1. Check the changes of object's data before saving in the database.
-      Won't save if data didn't change.
-
-   2. Automatic save on object destroy (You don't need use "save()" method
-      anymore).
-
-    __PACKAGE__->auto_save;
-
-=head2 use_smart_saving
-
-Same as "auto_save". DEPRECATED.
-
-=head2 find
-
-There are several ways to find someone in your database using ActiveRecord::Simple:
-
-    # by "nothing"
-    # just leave attributes blank to recieve all rows from the database:
-    my @all_persons = MyModel::Person->find->fetch;
-
-    # by primary key:
-    my $person = MyModel::Person->find(1)->fetch;
-
-    # by multiple primary keys
-    my @persons = MyModel::Person->find([1, 2, 5])->fetch;
-
-    # by simple condition:
-    my @persons = MyModel::Person->find({ name => 'Foo' })->fetch;
-
-    # by where-condtions:
-    my @persons = MyModel::Person->find('first_name = ? and id_person > ?', 'Foo', 1);
-
-If you want to get a few instances by primary keys, you should put it as arrayref,
-and then fetch from resultset:
-
-    my @persons = MyModel::Person->find([1, 2])->fetch();
-
-    # you don't have to fetch it immidiatly, of course:
-    my $resultset = MyModel::Person->find([1, 2]);
-    while ( my $person = $resultset->fetch() ) {
-        say $person->first_name;
-    }
-
-To find some rows by simple condition, use a hashref:
-
-    my @persons = MyModel::Person->find({ first_name => 'Foo' })->fetch();
-
-Simple condition means that you can use only this type of it:
-
-    { first_name => 'Foo' } goes to "first_type = 'Foo'";
-    { first_name => 'Foo', id_person => 1 } goes to "first_type = 'Foo' and id_person = 1";
-
-If you want to use a real sql where-condition:
-
-    my $res = MyModel::Person->find('first_name = ? or id_person > ?', 'Foo', 1);
-    # select * from persons where first_name = "Foo" or id_person > 1;
-
-You can use the ordering of results, such as ORDER BY, ASC and DESC:
-
-    my @persons = MyModel::Person->find('age > ?', 21)->order_by('name')->desc->fetch;
-    my @persons = MyModel::Person->find('age > ?', 21)->order_by('name', 'age')->fetch;
-    my @persons = MyModel::Person->find->order_by('age')->desc->order_by('id')->asc->fetch;
-
-
-You can pass objects as a parameters. In this case parameter name is the name of relation.
-For example:
-
-    package Person;
-
-    # some declarations here
-
-    __PACKAGE__->has_many(orders => Order);
-
-    # ...
-
-    package Order;
-
-    # some declarations here
-
-    __PACKAGE__->belongs_to(person => Person);
-
-Now, get person:
-
-    my $Bill = Person->find({ name => 'Bill' })->fetch;
-
-    ### .. and get all his orders:
-    my @bills_orders = Order->find({ customer => $Bill })->fetch;
-
-    ### the same, but not so cool:
-    my @bills_orders = Order->find({ customer_id => $Bill->id })->fetch;
-
-=head2 fetch
-
-When you use the "find" method to get a few rows from the table, you get the
-meta-object with a several objects inside. To use all of them or only a part,
-use the "fetch" method:
-
-    my @persons = MyModel::Person->find('id_person != ?', 1)->fetch();
-
-You can also specify how many objects you want to use at a time:
-
-    my @persons = MyModel::Person->find('id_person != ?', 1)->fetch(2);
-    # fetching only 2 objects.
-
-Another syntax of command "fetch" allows you to make read-only objects:
-
-    my @persons = MyModel::Person->find->fetch({ read_only => 1, limit => 2 });
-    # all two object are read-only
-
-=head2 all
-
-Get all rows. Doesn't take any arguments.
-
-    my @persons = Person->all->fetch; # takes all records in the database.
-
-=head2 sql_fetch_all
-
-Same as a standard DBI method fetchall_arrayref('...', { Slice => {} }), but every
-key of every hash you get becomes accessors:
-
-    my $persons = Person->sql_fetch_all('SELECT first_name, age FORM person WHERE age > ?', 18);
-    say $_->first_name for @$persons; # instead of $_->{first_name} in DBI
-
-=head2 sql_fetch_row
-
-Same as a standard DBI method fetchrow_hashref, but every key of given hash becomes an accessor:
-
-    my $person = Person->sql_fetch_row('SELECT first_name, age FORM person WHERE id = ?', 1);
-    say $person->first_name; # instead of $person->{first_name} in DBI
-
-=head2 select
-
-Yet another way to select data from the database:
-
-    my $criteria = { name => 'Bill' };
-    my $select_options = { order_by => 'id', only => ['name', 'age', 'id'] };
-
-    my @bills = Person->select($criteria, $select_options);
-
-=head2 upload
-
-Loads fetched object into the variable:
-
-    my $finder = Person->find({ name => 'Bill' }); # now $finder isa ARS::Find
-    # you can continue using this variable as an ARS::Find object:
-    $finder->order_by('age');
-    $finder->with('orders');
-    # now, insted of creating yet another variable like this:
-    my $persons = $finder->fetch;
-    # .. you just upload the result into $finder:
-    $finder->upload; # now $finder isa Person
-
-=head2 count
-
-Returns count of records that match the rule:
-
-    say MyModel::Person->find->count;
-    say MyModel::Person->find({ zip => '12345' })->count;
-    say MyModel::Person->find('age > ?', 55)->count;
-    say MyModel::Person->find({city => City->find({ name => 'NY' })->fetch })->count;
-
-=head2 exists
-
-Returns 1 if record is exists in database:
-
-    say "Exists" if MyModel::Person->find({ zip => '12345' })->count;
-    say "Exists" if MyModel::Person->find('age > ?', 55)->count;
-
-=head2 first
-
-Returns the first record (records) ordered by the primary key:
-
-    my $first_person = MyModel::Person->find->first;
-    my @ten_persons  = MyModel::Person->find->first(10);
-
-=head2 last
-
-Returns the last record (records) ordered by the primary key:
-
-    my $last_person = MyModel::Person->find->last;
-    my @ten_persons = MyModel::Person->find->last(10);
-
-=head2 increment
-
-Increment the field value:
-
-    my $person = MyModel::Person->get(1);
-    say $person->age;  # prints e.g. 99
-    $person->increment('age');
-    say $person->age; # prints 100
-
-=head2 decrement
-
-Decrement the field value:
-
-    my $person = MyModel::Person->get(1);
-    say $person->age;  # prints e.g. 100
-    $person->decrement('age');
-    say $person->age; # prints 99
-
-=head2 dbh
-
-Keeps a database connection handler. It's not a class method actually, this is
-an attribute of the base class and you can put your database handler in any
-class:
-
-    Person->dbh($dbh);
-
-Or even rigth in base class:
-
-    ActiveRecord::Simple->dbh($dht);
-
-This decision is up to you. Anyway, this is a singleton value, and keeps only
-once at the session.
-
-=head2 connect
-
-Creates connection to the database and shares with child classes. Simple to use:
-
-    package MyModel;
-
-    use parent 'ActiveRecord::Simple';
-    __PACKAGE__->connect(...);
-
-... and then:
-
-    package MyModel::Product;
-
-    use parent 'MyModel';
-
-... and then:
-
-    my @products = MyModel::Product->find->fetch; ## you don't need to set dbh() anymore!
-
-=head2 with
-
-Left outer join.
-
-    my $artist = MyModel::Artist->find(1)->with('manager')->fetch;
-    say $person->name; # persons.name in DB
-    say $rerson->manager->name; managers.name in DB
-
-The method can take a list of parameters:
-
-    my $person = MyModel::Person->find(1)->with('car', 'home', 'dog')->fetch;
-    say $person->name;
-    say $person->dog->name;
-    say $person->home->addres;
-
-This method allows to use just one request to the database (using left outer join)
-to create the main object with all relations. For example, without "with":
-
-    my $person = MyModel::Person->find(1)->fetch; # Request no 1:
-    # select * from persons where id = ?
-    say $person->name; # no requests, becouse the objects is loaded already
-
-    say $person->dog->name; # request no 2. (to create Dog object):
-    # select * from dogs where person_id = ?
-    say $person->dog->burk; # no requests, the object Dog is loaded too
-
-Using "with":
-
-    my $person = MyModel::Person->find(1)->with('dog')->fetch; # Just one request:
-    # select * fom persons left join dogs on dogs.person_id = perosn.id
-    #     where person.id = ?
-
-    say $person->name; # no requests
-    say $person->dog->name; # no requests too! The object Dog was loaded by "with"
-
-=head2 left_join
-
-Same as "with" method.
-
-=head2 only
-
-Get only those fields that are needed:
-
-    my $person = MyModel::Person->find({ name => 'Alex' })->only('address', 'email')->fetch;
-    ### SQL:
-    ###     SELECT `address`, `email` from `persons` where `name` = "Alex";
-
-=head2 get
-
-This is shortcut method for "find":
-
-    my $person = MyModel::Person->get(1);
-    ### is the same:
-    my $person = MyModel::Person->find(1)->fetch;
-
-=head2 order_by
-
-Order your results by specified fields:
-
-    my @persons = MyModel::Person->find({ city => 'NY' })->order_by('name')->fetch();
-
-This method uses as many fields as you want:
-
-    my @fields = ('name', 'age', 'zip');
-    my @persons = MyModel::Person->find({ city => 'NY' })->order_by(@fields)->fetch();
-
-Use chain "order_by" if you would like to order your data in different ways:
-
-    my @persons = Model->find->order_by('name', 'age')->asc->order_by('zip')->desc->fetch;
-    # This is equal to ... ORDER BY name, age ASC, zip DESC;
-
-=head2 asc
-
-Use this attribute to order your results ascending:
-
-    MyModel::Person->find([1, 3, 5, 2])->order_by('id')->asc->fetch();
-
-=head2 desc
-
-Use this attribute to order your results descending:
-
-    MyModel::Person->find([1, 3, 5, 2])->order_by('id')->desc->fetch();
-
-=head2 limit
-
-Use this attribute to limit results of your requests:
-
-    MyModel::Person->find()->limit(10)->fetch; # select only 10 rows
-
-=head2 offset
-
-Offset of results:
-
-    MyModel::Person->find()->offset(10)->fetch; # all next after 10 rows
-
-=head2 group_by
-
-Group by specified fields:
-
-    Model->find->group_by('name')->fetch;
-
-=head1 Object Methods
-
-Object methods are intended for management of each
-row of your table separately as an object.
-
-=head2 save
-
-To insert or update data in the table, use only one method. It detects
-automatically what do you want to do with it. If your object was created
-by the new method and never has been saved before, method will insert your data.
-
-If you took the object using the find method, "save" will mean "update".
-
-    my $person = MyModel::Person->new({
-        first_name  => 'Foo',
-        second_name => 'Bar',
-    });
-
-    $person->save() # -> insert
-
-    $person->first_name('Baz');
-    $person->save() # -> now it's update!
-
-    ### or
-
-    my $person = MyModel::Person->find(1);
-    $person->first_name('Baz');
-    $person->save() # update
-
-=head2 update
-
-To quick update object's fields, use "update":
-
-    $person->update({
-        first_name  => 'Foo',
-        second_name => 'Bar'
-    });
-    $person->save;
-
-=head2 delete
-
-    $person->delete();
-
-Delete row from the table.
-
-=head2 exists
-
-Checks for a record in the database corresponding to the object:
-
-    my $person = MyModel::Person->new({
-        first_name => 'Foo',
-        secnd_name => 'Bar',
-    });
-
-    $person->save() unless $person->exists;
-
-=head2 to_hash
-
-Convert objects data to the simple perl hash:
-
-    use JSON::XS;
-
-    say encode_json({ person => $peron->to_hash });
-
-=head2 to_sql
-
-Convert aobject to SQL-query:
-
-    my $sql = Person->find({ name => 'Bill' })->limit(1)->to_sql;
-    # select * from persons where name = ? limit 1;
-
-    my ($sql, $binds) = Person->find({ name => 'Bill' })->to_sql;
-    # sql: select * from persons where name = ? limit 1;
-    # binds: ['Bill']
-
-=head2 is_defined
-
-Checks weather an object is defined:
-
-    my $person = MyModel::Person->find(1);
-    return unless $person->is_defined;
-
-=head1 SEE ALSO
-
-    L<DBIx::ActiveRecord>, L<SQL::Translator>
-
-
-=head1 MORE INFO
-
-    perldoc ActiveRecord::Simple::Tutorial
-
+    
 =head1 AUTHOR
 
 shootnix, C<< <shootnix at cpan.org> >>
