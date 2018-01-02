@@ -6,7 +6,6 @@ use warnings;
 use vars qw/$AUTOLOAD/;
 
 use Carp;
-use Storable qw/freeze/;
 use Module::Load;
 
 use parent 'ActiveRecord::Simple';
@@ -99,7 +98,7 @@ sub count {
         s/"//g foreach @group_by;
         my @results;
         foreach my $item ($self->fetch) {
-            push my @line, (count => $item->{'COUNT(*)'}), map {$_ => $item->$_} @group_by;
+            push my @line, (count => $item->{'COUNT(*)'}), map { $_ => $item->{$_} } @group_by;
             push @results, { @line };
         }
         return @results;
@@ -291,53 +290,6 @@ sub offset {
     return $self;
 }
 
-sub abstract {
-    my ($self, $opts) = @_;
-
-    return $self if ! ref $opts && ref $opts ne 'HASH';
-
-    while (my ($method, $param) = each %$opts) {
-        if ($method eq 'order_by') {
-            $self->order_by(@{ $param->{columns} });
-            my $order_direction = (defined $param->{direction}) ? $param->{direction} : undef;
-            $self->$order_direction if $order_direction;
-        }
-        else {
-            my @p = (ref $param) ? @$param : ($param);
-            $self->$method(@p);
-        }
-    }
-
-    return $self;
-}
-
-sub select {
-    my ($self_class, $class, @params) = @_;
-
-    my @find_params;
-    my $abstract_params_hashref;
-
-    my $first_param = shift @params;
-    push @find_params, $first_param if defined $first_param;
-
-    for my $param (@params) {
-        #push @find_params, $param if ref $param ne 'HASH';
-        if (ref $param eq 'HASH') {
-            $abstract_params_hashref = $param;
-            last;
-        }
-        else {
-            push @find_params, $param;
-        }
-    }
-
-    my $finder = $self_class->new($class, @find_params);
-    $finder->abstract($abstract_params_hashref);
-
-    return $finder->fetch;
-}
-
-
 sub _finish_sql_stmt {
     my ($self) = @_;
 
@@ -400,7 +352,6 @@ sub _finish_object_representation {
     }
 
     $obj->{read_only} = 1 if defined $read_only;
-    $obj->{snapshoot} = freeze($object_data) if $obj->can('_smart_saving_used') && $obj->_smart_saving_used;
     $obj->{isin_database} = 1;
 
     return $obj;

@@ -18,7 +18,6 @@ __PACKAGE__->primary_key('id');
 
 package main;
 
-use Data::Dumper;
 use Test::More;
 
 my $customer = Customer->new;

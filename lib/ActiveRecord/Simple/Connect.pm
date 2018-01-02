@@ -40,7 +40,7 @@ sub db_connect {
 			HandleError => sub {
 				my ($a, $b, $c) = @_;
 
-				say 'Simple.Connect.db_connect.HandleError.a = ' . Dumper $a;
+				say 'Simple.Connect.db_connect.HandleError.a = ' . $a;
 			},
 		}
 	) or die DBI->errstr;

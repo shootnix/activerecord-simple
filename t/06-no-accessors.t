@@ -11,7 +11,7 @@ use lib "$Bin/../lib";
 use parent 'ActiveRecord::Simple';
 
 
-__PACKAGE__->no_accessors;
+__PACKAGE__->make_columns_accessors(0);
 
 __PACKAGE__->table_name('customer');
 __PACKAGE__->columns(qw/id first_name last_name email/);
@@ -22,7 +22,6 @@ __PACKAGE__->primary_key('id');
 
 package main;
 
-use Data::Dumper;
 use Test::More;
 
 my $customer = Customer->new(

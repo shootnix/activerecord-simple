@@ -23,6 +23,9 @@ sub new {
     my $class = shift;
     my $params = (scalar @_ > 1) ? {@_} : $_[0];
 
+    # relations
+    $class->_init_relations if $class->can('_get_relations');
+
     return bless $params || {}, $class;
 }
 
@@ -50,11 +53,6 @@ sub auto_load {
     $class->table_name($table_name) if $table_name;
     $class->primary_key($primary_key) if $primary_key;
     $class->columns(@columns) if @columns;
-}
-
-sub load_info {
-    carp '[DEPRECATED] This method is deprecated and will be remowed in the feature. Use method "auto_load" instead.';
-    $_[0]->auto_load;
 }
 
 sub sql_fetch_all {
@@ -135,7 +133,7 @@ sub belongs_to {
     };
 
     $class->_append_relation($rel_name => $new_relation);
-    $class->_mk_relations_accessors;
+    #$class->_mk_relations_accessors;
 }
 
 sub has_many {
@@ -147,7 +145,6 @@ sub has_many {
     };
 
     $params ||= {};
-    #my ($primary_key, $foreign_key);
     my $primary_key = $params->{pk} ||
         $params->{primary_key} ||
         _guess(primary_key => $class);
@@ -164,7 +161,7 @@ sub has_many {
     $new_relation->{via_table} = $params->{via} if $params->{via};
 
     $class->_append_relation($rel_name => $new_relation);
-    $class->_mk_relations_accessors;
+    #$class->_mk_relations_accessors;
 }
 
 sub has_one {
@@ -190,8 +187,8 @@ sub has_one {
         fk => $foreign_key,
     };
 
-    return $class->_append_relation($rel_name => $new_relation);
-    $class->_mk_relations_accessors;
+    $class->_append_relation($rel_name => $new_relation);
+    #$class->_mk_relations_accessors;
 }
 
 sub generic {
@@ -343,7 +340,8 @@ sub delete {
 
     return unless $self->dbh;
 
-    my $table_name = $self->_table_name;
+    #my $table_name = $self->_table_name;
+    my $table_name = _what_is_the_table_name($self);
     my $pkey = $self->_get_primary_key;
 
     return unless $self->{$pkey};
@@ -385,7 +383,7 @@ sub to_hash {
     for my $field (@$field_names) {
         next if ref $field;
         if ( $param && $param->{only_defined_fields} ) {
-            $attrs->{$field} = $self->{$field} if defined $self->$field;
+            $attrs->{$field} = $self->{$field} if defined $self->{$field};
         }
         else {
             $attrs->{$field} = $self->{$field};
@@ -424,7 +422,7 @@ sub decrement {
 sub find   { ActiveRecord::Simple::Find->new(shift, @_) }
 sub all    { shift->find() }
 sub get    { shift->find(@_)->fetch } ### TODO: move to Finder
-sub count  { ActiveRecord::Simple::Find->count(shift, @_) }
+#sub count  { ActiveRecord::Simple::Find->count(shift, @_) }
 
 sub exists {
     my $first_arg = shift;
@@ -449,10 +447,6 @@ sub exists {
         return (defined $class->find(@search_criteria)->fetch) ? 1 : 0;
     }
 }
-
-sub first  { croak '[DEPRECATED] Using method "first" as a class-method is deprecated. Sorry about that. Please, use "first" in this way: "Model->find->first".'; }
-sub last   { croak '[DEPRECATED] Using method "last" as a class-method is deprecated. Sorry about that. Please, use "last" in this way: "Model->find->last".'; }
-sub select { ActiveRecord::Simple::Find->select(shift, @_) }
 
 sub _find_many_to_many { ActiveRecord::Simple::Find->_find_many_to_many(shift, @_) }
 
@@ -481,6 +475,7 @@ sub _get_relation_type {
     my $related_class = _get_related_class($relation);
 
     eval { load $related_class }; ### TODO: check module is loaded
+    #load $related_class;
 
     my $rel_type = undef;
     while (my ($rel_key, $rel_opts) = each %{ $related_class->_get_relations }) {
@@ -532,7 +527,8 @@ sub _insert {
 
     return unless $self->dbh && $param;
 
-    my $table_name  = $self->_table_name;
+    #my $table_name  = $self->_table_name;
+    my $table_name = _what_is_the_table_name($self);
     my @field_names  = grep { defined $param->{$_} } sort keys %$param;
     my $primary_key = ($self->can('_get_primary_key')) ? $self->_get_primary_key :
                       ($self->can('_get_secondary_key')) ? $self->_get_secondary_key : undef;
@@ -589,7 +585,8 @@ sub _insert {
     }
 
     if (defined $primary_key && $self->can($primary_key) && $pkey_val) {
-        $self->$primary_key($pkey_val);
+        #$self->$primary_key($pkey_val);
+        $self->{$primary_key} = $pkey_val;
     }
     $self->{isin_database} = 1;
 
@@ -601,7 +598,8 @@ sub _update {
 
     return unless $self->dbh && $param;
 
-    my $table_name      = $self->_table_name;
+    #my $table_name      = $self->_table_name;
+    my $table_name = _what_is_the_table_name($self);
     my @field_names     = sort keys %$param;
     my $primary_key     = ($self->can('_get_primary_key')) ? $self->_get_primary_key :
                           ($self->can('_get_secondary_key')) ? $self->_get_secondary_key : undef;
@@ -662,10 +660,16 @@ sub _mk_accessors {
         if ($type eq 'rw') {
             $code_string .= "if (\@_ > 1) { \$_[0]->{$method_name} = \$_[1]; return \$_[0] }\n";
         }
+        elsif ($type eq 'ro') {
+            $code_string .= "die 'Object is read-only, sorry' if \@_ > 1;\n";
+        }
         $code_string .= "return \$_[0]->{$method_name};\n }\n";
     }
 
     eval "package $class;\n $code_string" if $code_string;
+
+    say $@ if $@;
+
 }
 
 sub _guess {
@@ -673,9 +677,10 @@ sub _guess {
 
     return 'id' if $what_key eq 'primary_key';
 
-    eval { load $class };
+    eval { load $class }; ### TODO: check class has been loaded 
 
-    my $table_name = $class->_table_name;
+    my $table_name = _what_is_the_table_name($class);
+    
     $table_name =~ s/s$// if $what_key eq 'foreign_key';
 
     return ($what_key eq 'foreign_key') ? "$table_name\_id" : undef;
@@ -702,26 +707,15 @@ sub _append_relation {
     return $rel_hashref;
 }
 
-sub _table_name {
-    my $class = ref $_[0] ? ref $_[0] : $_[0];
-
-    croak 'Invalid data class' if $class =~ /^ActiveRecord::Simple/;
-
-    my $table_name =
-        $class->can('_get_table_name') ?
-            $class->_get_table_name
-            : ActiveRecord::Simple::Utils::class_to_table_name($class);
-
-    return $table_name;
-}
-
 sub _mk_attribute_getter {
     my ($class, $method_name, $return) = @_;
+
+    return if $class->can($method_name);
 
     eval "package $class; \n sub $method_name { \$return }";
 }
 
-sub _mk_relations_accessors {
+sub _init_relations {
     my ($class) = @_;
 
     my $relations = $class->_get_relations;
@@ -752,14 +746,15 @@ sub _mk_relations_accessors {
 
                     $object->save() if ! exists $object->{isin_database} && !$object->{isin_database} == 1;
 
-                    $self->$fk($object->$pk);
+                    #$self->$fk($object->$pk);
+                    $self->{$fk} = $object->{$pk};
                     $self->{$instance_name} = $object;
 
                     return $self;
                 }
                 # else
                 if (!$self->{$instance_name}) {
-                    $self->{$instance_name} = $related_class->get($self->$fk) // $related_class;
+                    $self->{$instance_name} = $related_class->get($self->{$fk}) // $related_class;
                 }
 
                 return $self->{$instance_name};
@@ -770,7 +765,7 @@ sub _mk_relations_accessors {
                 my ($self, @args) = @_;
 
                 if (!$self->{$instance_name}) {
-                    $self->{$instance_name} = $related_class->find("$fk = ?", $self->$pk)->fetch;
+                    $self->{$instance_name} = $related_class->find("$fk = ?", $self->{$pk})->fetch;
                 }
 
                 return $self->{$instance_name};
@@ -791,7 +786,9 @@ sub _mk_relations_accessors {
                         next OBJECT if !blessed $object;
 
                         my $pk = $self->_get_primary_key;
-                        $object->$fk($self->$pk)->save;
+                        #$object->$fk($self->$pk)->save;
+                        $object->{$fk} = $self->{$pk};
+                        $object->save();
                     }
 
                     return $self;
@@ -800,7 +797,7 @@ sub _mk_relations_accessors {
                 return $related_class->new() if not $self->can('_get_primary_key');
 
                 if (!$self->{$instance_name}) {
-                    $self->{$instance_name} = $related_class->find("$fk = ?", $self->$pk);
+                    $self->{$instance_name} = $related_class->find("$fk = ?", $self->{$pk});
                 }
 
                 return $self->{$instance_name};
@@ -840,7 +837,7 @@ sub _mk_relations_accessors {
                         }
 
                         my $pk1_name = $self->_get_primary_key;
-                        my $pk1 = $self->$pk1_name;
+                        my $pk1 = $self->{$pk1_name};
 
                         defined $pk1 or croak 'You are trying to create relations between unsaved objects. Save your ' . $class . ' object first';
 
@@ -849,7 +846,7 @@ sub _mk_relations_accessors {
                             next OBJECT if !blessed $object;
 
                             my $pk2_name = $object->_get_primary_key;
-                            my $pk2 = $object->$pk2_name;
+                            my $pk2 = $object->{$pk2_name};
 
                             $related_subclass->new($fk1 => $pk1, $fk2 => $pk2)->save;
                         }
@@ -861,7 +858,7 @@ sub _mk_relations_accessors {
                         $fk2 = ActiveRecord::Simple::Utils::class_to_table_name($related_class) . '_id';
 
                         my $pk1_name = $self->_get_primary_key;
-                        my $pk1 = $self->$pk1_name;
+                        my $pk1 = $self->{$pk1_name};
 
                         my $via_table = $relation->{via_table};
 
@@ -870,7 +867,7 @@ sub _mk_relations_accessors {
                             next OBJECT if !blessed $object;
 
                             my $pk2_name = $object->_get_primary_key;
-                            my $pk2 = $object->$pk2_name;
+                            my $pk2 = $object->{$pk2_name};
 
                             my $sql = qq/INSERT INTO "$via_table" ("$fk1", "$fk2") VALUES (?, ?)/;
                             $self->dbh->do($sql, undef, $pk1, $pk2);
@@ -900,7 +897,7 @@ sub _mk_relations_accessors {
                 if (!$self->{$instance_name}) {
                     my %find_attrs;
                     while (my ($k, $v) = each %{ $relation->{key} }) {
-                        $find_attrs{$v} = $self->$k;
+                        $find_attrs{$v} = $self->{$k};
                     }
                     $self->{$instance_name} = $related_class->find(\%find_attrs);
                 }
@@ -911,6 +908,19 @@ sub _mk_relations_accessors {
     }
 
     use strict 'refs';
+}
+
+sub _what_is_the_table_name {
+    my $class = ref $_[0] ? ref $_[0] : $_[0];
+
+    croak 'Invalid data class' if $class =~ /^ActiveRecord::Simple/;
+
+    my $table_name =
+        $class->can('_get_table_name') ?
+            $class->_get_table_name
+            : ActiveRecord::Simple::Utils::class_to_table_name($class);
+
+    return $table_name;
 }
 
 1;
@@ -927,6 +937,28 @@ ActiveRecord::Simple is a simple lightweight implementation of ActiveRecord
 pattern. It's fast, very simple and very light.
 
 =head1 SYNOPSIS
+
+package Customer;
+
+use parent 'ActiveRecord::Simple';
+
+__PACKAGE__->auto_load(); # load schema from database
+
+# or
+
+__PACKAGE__->table_name('customer');
+__PACKAGE__->columns(qw/id first_name last_login/);
+__PACKAGE__->primary_key('id');
+
+1;
+
+package main;
+
+my $customer = Customer->get(1);
+
+print $customer->first_name; # prints first name
+$customer->last_login(\'NOW()'); # set last login to sql-based value of NOW()
+$customer->save(); # save in database
 
     
 =head1 AUTHOR
