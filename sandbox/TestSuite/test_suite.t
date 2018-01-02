@@ -12,16 +12,14 @@ unless (eval { require SQL::Translator }) {
     plan(skip_all => 'SQL::Translator is required for this test');
 }
 
-
-
 require Artist;
 require Label;
 require Rating;
 require CD;
-require ArtistCD;
-require CDSong;
+#require ArtistCD;
+#require CDSong;
 require Song;
-require Cvs;
+require CV;
 
 unlink 'test_suite.db';
 
@@ -39,12 +37,12 @@ Artist->dbh($dbh);
     ok my $artist1 = Artist->new(name => 'Metallica', label_id => $label->id);
     ok $artist1->save();
 
-    ok(Cvs->new(artist_name => $artist1->name)->save());
+    ok(CV->new(artist_name => $artist1->name)->save());
 
     ok my $artist2 = Artist->new(name => 'U2', label_id => $label->id);
     ok $artist2->save();
 
-    ok(Cvs->new(artist_name => $artist2->name)->save());
+    ok(CV->new(artist_name => $artist2->name)->save());
 
     ok my $rating = Rating->new();
     ok !$rating->is_defined;
@@ -64,19 +62,27 @@ Artist->dbh($dbh);
     ok my $album4 = CD->new(title => 'Zooropa', release => '1993', label_id => $label->id);
     ok $album4->save();
 
-    ok( ArtistCD->new(artist_id => $artist1->id, cd_id => $album1->id)->save() );
-    ok( ArtistCD->new(artist_id => $artist1->id, cd_id => $album2->id)->save() );
-    ok( ArtistCD->new(artist_id => $artist2->id, cd_id => $album3->id)->save() );
-    ok( ArtistCD->new(artist_id => $artist2->id, cd_id => $album4->id)->save() );
+    #ok( ArtistCD->new(artist_id => $artist1->id, cd_id => $album1->id)->save() );
+    #ok( ArtistCD->new(artist_id => $artist1->id, cd_id => $album2->id)->save() );
+    #ok( ArtistCD->new(artist_id => $artist2->id, cd_id => $album3->id)->save() );
+    #ok( ArtistCD->new(artist_id => $artist2->id, cd_id => $album4->id)->save() );
+
+    ok $artist1->albums($album1, $album2);
+    ok $artist2->albums($album3, $album4);
 
     ok my $song1 = Song->new(title => '2x4');
     ok $song1->save();
     ok my $song2 = Song->new(title => 'Mama Said');
     ok $song2->save();
 
-    ok( CDSong->new(song_id => $song1->id, cd_id => $album1->id)->save() );
-    ok( CDSong->new(song_id => $song1->id, cd_id => $album1->id)->save() );
+    ok $album1->songs($song1, $song2);
+
+    #ok( CDSong->new(song_id => $song1->id, cd_id => $album1->id)->save() );
+    #ok( CDSong->new(song_id => $song1->id, cd_id => $album1->id)->save() );
 };
+
+
+
 {
     pass '~ cd ~';
     ok my $album = CD->find({ title => 'Zooropa' })->fetch;
@@ -111,25 +117,11 @@ Artist->dbh($dbh);
     ok $album->decrement('release')->save();
     is $album->release, '1993';
 
+    ok $album->increment('release')->save();
+    is $album->release, '1994', 'release';
+
     my $a2 = CD->get($album->id);
-    is $a2->release, '1993';
-
-    ok $album->increment('title');
-    is $album->title, 1;
-
-    $album->title('Zooropa');
-    ok $album->decrement('title');
-    is $album->title, -1;
-
-    $album->title('Zooropa');
-
-    $album->increment('release', 'title');
-    is $album->release, '1994';
-    is $album->title, 1;
-
-    $album->decrement('release', 'title');
-    is $album->release, '1993';
-    is $album->title, 0;
+    is $a2->release, '1994';
 }
 
 {
@@ -174,6 +166,7 @@ Artist->dbh($dbh);
     $u2->label->name('EMI');
     $u2->label->save;
 };
+
 {
     pass '~ artist <-> rating ~';
     ok my $artist = Artist->find({ name => 'Metallica' })->fetch;
@@ -187,6 +180,7 @@ Artist->dbh($dbh);
     ok !Rating->find({ range => 3 })->fetch;
 }
 
+
 {
     pass '~ artist <- arist_cd -> cd ~';
     ok my $artist = Artist->find({ name => 'Metallica' })->fetch;
@@ -199,6 +193,7 @@ Artist->dbh($dbh);
     is $u2->name, 'U2';
 }
 
+
 {
     pass '~ song <- cd_song -> cd ~';
     ok my $album = CD->find({ title => 'Load' })->fetch;
@@ -209,6 +204,7 @@ Artist->dbh($dbh);
     ok my $cd = $song->albums->fetch(1);
     is $cd->title, 'Load';
 }
+
 
 {
     pass '~ new fetch ~';
@@ -223,6 +219,7 @@ Artist->dbh($dbh);
     ok my $cd = CD->find(1)->fetch;
     is $cd->title, 'Load';
 }
+
 
 #{
 #    pass '~ use_smart_saving ~';
@@ -250,6 +247,7 @@ Artist->dbh($dbh);
 
     ok $artists_find->fetch, 'fetch 2';
 }
+
 
 {
     pass '~ limit, offset ~';
@@ -365,7 +363,7 @@ Artist->dbh($dbh);
 
 {
     pass '~ cvs ~';
-    ok my @cvs = Cvs->find()->fetch();
+    ok my @cvs = CV->find()->fetch();
     is scalar @cvs, 2;
 }
 
@@ -375,7 +373,7 @@ Artist->dbh($dbh);
     my $artist = Artist->get(1);
 
     ok $artist->cvs->fetch();
-    my $cvs = Cvs->get(1);
+    my $cvs = CV->get(1);
     ok $cvs->artist->fetch();
 }
 
@@ -430,31 +428,15 @@ Artist->dbh($dbh);
 {
     pass '~ update ~';
 
-    my $cv = Cvs->find->first;
+    my $cv = CV->find->first;
 
     ok $cv->update({ n_golds => 10, n_platinums => 10, n_grammies => 10 });
     ok $cv->save;
 
-    my $cv2 = Cvs->get($cv->id);
+    my $cv2 = CV->get($cv->id);
     is $cv2->n_grammies, 10;
     is $cv2->n_platinums, 10;
     is $cv2->n_golds, 10;
 }
 
-{
-    pass '~ abstract ~';
-
-    my $find = Artist->find;
-    $find->abstract({
-        order_by => { column => 'name' },
-        limit => 10,
-        offset => 1,
-        desc => 1
-    });
-    my @artists = $find->fetch;
-}
-
-
-
-
-done_testing;
+done_testing();

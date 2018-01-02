@@ -5,6 +5,8 @@ use warnings;
 
 require Exporter;
 
+use Module::Load;
+
 our @ISA = qw/Exporter/;
 our @EXPORT = qw/class_to_table_name/;
 
@@ -28,11 +30,15 @@ sub quote_sql_stmt {
 }
 
 sub class_to_table_name {
-    my ($class_name) = @_;
+    my ($class) = @_;
 
-    $class_name =~ s/.*:://;
+    load $class;
+
+    return $class->_get_table_name if $class->can('_get_table_name');
+
+    $class =~ s/.*:://;
     #$class_name = lc $class_name;
-    my $table_name = join('_', map {lc} grep {length} split /([A-Z]{1}[^A-Z]*)/, $class_name);
+    my $table_name = join('_', map {lc} grep {length} split /([A-Z]{1}[^A-Z]*)/, $class);
 
     return $table_name;
 }

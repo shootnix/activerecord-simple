@@ -45,7 +45,7 @@ create table rating (
     artist_id  integer references id (artist) on delete cascade
 );
 
-create table cvs (
+create table cv (
     id integer   primary key autoincrement not null,
     artist_name  varchar(255),
     n_grammies   integer default 0 not null,
@@ -53,7 +53,7 @@ create table cvs (
     n_golds      integer default 0 not null
 );
 
-create table managers (
+create table manager (
     id integer primary key autoincrement not null,
     name varchar(255)
 );

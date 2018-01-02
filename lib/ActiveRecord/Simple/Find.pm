@@ -26,7 +26,7 @@ sub new {
     my $pkey       = ($self->{class}->can('_get_primary_key')) ? $self->{class}->_get_primary_key : undef;
 
     croak 'can not get table_name for class ' . $self->{class} unless $table_name;
-    croak 'can not get primary_key for class ' . $self->{class} unless $pkey;
+    #croak 'can not get primary_key for class ' . $self->{class} unless $pkey;
 
     $self->{prep_select_fields} //= [];
     $self->{prep_select_from}   //= [];

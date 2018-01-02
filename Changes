@@ -174,5 +174,8 @@ Revision history for Perl module ActiveRecord::Simple
 
 1.00    2018-XX-XX
         * New faster accessors
+        * Improved tests
+        * Updated sandbox
         + New option "make_columns_accessors"
+        - script/mars
 

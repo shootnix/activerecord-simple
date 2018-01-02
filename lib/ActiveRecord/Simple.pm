@@ -422,7 +422,7 @@ sub decrement {
 sub find   { ActiveRecord::Simple::Find->new(shift, @_) }
 sub all    { shift->find() }
 sub get    { shift->find(@_)->fetch } ### TODO: move to Finder
-#sub count  { ActiveRecord::Simple::Find->count(shift, @_) }
+sub count  { ActiveRecord::Simple::Find->count(shift, @_) }
 
 sub exists {
     my $first_arg = shift;
