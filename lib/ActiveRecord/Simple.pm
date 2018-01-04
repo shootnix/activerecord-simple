@@ -61,11 +61,13 @@ sub sql_fetch_all {
     my $data = $class->dbh->selectall_arrayref($sql, { Slice => {} }, @bind);
     my @list;
     for my $row (@$data) {
-        my @fields;
-        for my $fld (keys %$row) {
-            push @fields, $fld;
-        }
-        $class->_mk_ro_accessors(\@fields);
+        #my @fields;
+        #for my $fld (keys %$row) {
+        #    push @fields, $fld;
+        #}
+        #$class->_mk_ro_accessors(\@fields);
+        $class->_mk_ro_accessors([keys $row]);
+        #    if $class->can('_make_columns_accessors') && $class->_make_columns_accessors != 0;
         bless $row, $class;
         push @list, $row;
     }
@@ -77,11 +79,13 @@ sub sql_fetch_row {
     my ($class, $sql, @bind) = @_;
 
     my $row = $class->dbh->selectrow_hashref($sql, undef, @bind);
-    my @fields;
-    for my $fld (keys %$row) {
-        push @fields, $fld;
-    }
-    $class->_mk_ro_accessors(\@fields);
+    $class->_mk_ro_accessors([keys %$row]);
+    #    if $class->can('_make_columns_accessors') && $class->_make_columns_accessors == 0;
+    #my @fields;
+    #for my $fld (keys %$row) {
+    #    push @fields, $fld;
+    #}
+    #$class->_mk_ro_accessors(\@fields);
     bless $row, $class;
 
     return $row;
@@ -327,7 +331,7 @@ sub update {
         next FIELD if ! exists $params->{$field};
         next FIELD if ! $params->{$field};
 
-        $self->$field($params->{$field});
+        $self->{$field} = $params->{$field};
     }
 
     return $self;
@@ -938,27 +942,266 @@ pattern. It's fast, very simple and very light.
 
 =head1 SYNOPSIS
 
-package Customer;
+package Model;
 
 use parent 'ActiveRecord::Simple';
 
-__PACKAGE__->auto_load(); # load schema from database
+# connect to the database:
+__PACKAGE__->connect($dsn, $opts);
 
-# or
+
+package Customer;
+
+use parent 'Model';
 
 __PACKAGE__->table_name('customer');
 __PACKAGE__->columns(qw/id first_name last_login/);
 __PACKAGE__->primary_key('id');
 
-1;
+__PACKAGE__->has_many(purchases => 'Purchase');
+
+
+package Purchase;
+
+use parent 'Model';
+
+__PACKAGE__->auto_load(); ### load table_name, columns and primary key from the database automatically
+
+__PACKAGE__->belongs_to(customer => 'Customer');
+
 
 package main;
 
+# get customer with id = 1:
+my $customer = Customer->find({ id => 1 })->fetch(); 
+
+# or (the same):
 my $customer = Customer->get(1);
 
-print $customer->first_name; # prints first name
-$customer->last_login(\'NOW()'); # set last login to sql-based value of NOW()
-$customer->save(); # save in database
+print $customer->first_name; # print first name
+$customer->last_login(\'NOW()'); # to use built-in database function just send it as a SCALAR ref
+$customer->save(); # save in the database
+
+# get all purchases of $customer:
+my @purchases = Purchase->find(customer => $customer)->fetch();
+
+# or (the same):
+my @purchases = $customer->purchases->fetch();
+
+# order, group and limit:
+my @purchases = $customer->purchases->order_by('paid')->desc->group_by('kind')->limit(10)->fetch();
+
+=head1 CLASS METHODS
+
+L<ActiveRecord::Simple> implements the following class methods.
+
+=head2 new
+
+Object's constructor.
+
+    my $log = Log->new(message => 'hello', level => 'info');
+
+=head2 connect
+
+Connect to the database, uses DBIx::Connector if installed, if it's not - L<ActiveRecord::Simple::Connect>.
+    
+    __PACKAGE__->connect($dsn, $username, $password, $options);
+
+
+=head2 dbh
+
+Access to the database handler. Undef if it's not connected.
+
+    __PACKAGE__->dbh->do('SELECT 1');
+
+
+=head2 table_name
+
+Set table name.
+
+    __PACKAGE__->table_name('log');
+
+
+=head2 columns
+
+Set columns. Make accessors if make_columns_accessors not 0 (default is 1)
+
+    __PACKAGE__->columns('id', 'time');
+
+
+=head2 primary_key
+
+Set primary key. Optional parameter.
+
+    __PACKAGE__->primary_key('id');
+
+
+=head2 secondary_key
+
+Set secondary key.
+
+    __PACKAGE__->secondary_key('time');
+
+
+=head2 auto_load
+
+Load table_name, columns and primary_key from table_info (automatically from database).
+
+    __PACKAGE__->auto_load();
+
+
+=head2 has_many
+
+Create a ralation to another table (many-to-many, many-to-one).
+
+    Customer->has_many(purchases => 'Purchase');
+    # if you need to set a many-to-many relation, you have to 
+    # specify a third table using "via" key:
+    Pizza->has_many(toppings => 'Topping', { via => 'pizza_topping' });
+
+
+=head2 belongs_to
+
+Create a relation to another table (one-to-many, one-to-one). Foreign key is an optional
+parameter, default is <table tane>_id.
+
+    Purchase->belongs_to(customer => 'Customer');
+    # or
+    Purchase->belong_to(customer => 'Customer', { fk => 'customer_id' });
+
+=head2 has_one
+
+Create a relation to another table (one-to-one).
+
+    Customer->has_one(address => 'Address');
+
+=head2 generic
+
+Create a relation without foreign keys:
+
+    Meal->generic(critical_t => 'Weather', { t_max => 't' });
+
+
+=head2 make_columns_accessors
+
+Set to 0 before method 'columns' if you don't want to make accessors to columns:
+
+    __PACKAGE__->make_columns_accessors(0);
+    __PACKAGE__->columns('id', 'time'); # now you can't get $log->id and $log->time, only $log->{id} and $log->{time};
+
+=head2 mixins
+
+Create calculated fields
+
+    Purchase->mixins(
+        sum_amount => sub {
+            return 'SUM(amount)'
+        }
+    );
+    # and then
+    my $purchase = Purchase->find({ id => 1 })->fields('id', 'title', 'amount', 'sum_amount')->fetch;
+
+
+=head2 relations
+
+Make a relation. The method is aoutdated.
+
+
+=head2 sql_fetch_all
+
+Execute any SQL code and fetch data. Returns list of objects. Accessors for all not specified fields
+will be created as read-only.
+
+    my @values = Purchase->sql_fetch_all('SELECT id, amount FROM purchase WHERE amount > ?', 100);
+    print $_->id, " ", $_->amount for, "\n" @values;
+
+
+=head2 sql_fetch_row
+
+Execute any SQL and fetch data. Returns an object.
+
+    my $customer = Customer->sql_fetch_row('SELECT id, name FORM customer WHERE id = ?', 1);
+    print $customer->name, "\n";
+
+=head2 find
+
+Returns L<ActiveRecord::Simple::Find> object.
+
+    my $finder = Customer->find(); # it's like ActiveRecord::Simple::Find->new();
+    $finder->order_by('id');
+    my @customers = $finder->fetch;
+
+
+=head2 all
+
+Same as __PACKAGE__->find->fetch;
+
+
+=head2 get
+
+Get object by primary_key
+
+    my $customer = Customer->get(1);
+    # same as Customer->find({ id => 1 })->fetch;
+
+
+=head2 count
+
+Get number of rows
+
+    my $cnt = Customer->count('age > ?', 21);
+
+=head2 exists 
+
+Check if row is exists in the database
+
+    warn "Got Barak!" 
+        if Customer->exists({ name => 'Barak Obama' })
+
+
+=head1 OBJECT METHODS
+
+L<ActiveRecord::Simple> implements the following object methods.
+
+
+=head2 is_defined
+
+Check object is defined
+
+
+=head2 save
+
+Save object to the database
+
+
+=head2 delete
+
+Delete object from the database
+
+=head2 update
+
+Update object using hashref
+
+    $user->update({ last_login => \'NOW()' });
+
+
+=head2 to_hash
+
+Unbless object, get naked hash
+
+
+=head2 increment
+
+Increment fields
+    
+    $customer->increment('age')->save;
+
+
+=head2 decrement
+
+Decrement fields
+
+    $customer->decrement('age')->save;
 
     
 =head1 AUTHOR

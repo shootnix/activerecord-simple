@@ -14,14 +14,6 @@ or anything else like that. The implementation of this in a separate module
 would be a mistake, imho. If you want the type checking, just use another programming
 language.
 
-3. Why the module doesn't handle a database connection itself?
---------------------------------------------------------------
-
-We have many ways to handle our database connections, so why we should limit
-our choice? ;-) When you use mod_perl, you can use Apache::DBI. In other systems,
-such as prefork, you may use something else. You can even write the class that
-fit to you perfectly.
-
 4. Can I use just one object to update a several rows?
 ------------------------------------------------------
 
@@ -33,8 +25,8 @@ ActiveRecord::Simple-based class:
 And then in your script:
 
     my $log = MyLog::DB->new();
-    $log->insert({ date => 'now()', 'text' => 'login' });
-    $log->insert({ date => 'now()', 'text' => 'logout' });
+    $log->insert({ date => \'now()', 'text' => 'login' });
+    $log->insert({ date => \'now()', 'text' => 'logout' });
 
 5. May I use the ordering of my searching results?
 --------------------------------------------------

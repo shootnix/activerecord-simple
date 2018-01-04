@@ -16,12 +16,12 @@ package Customer;
 use parent 'ActiveRecord::Simple';
 
 
-__PACKAGE__->table_name('customers');
+__PACKAGE__->table_name('customer');
 __PACKAGE__->primary_key('id');
 __PACKAGE__->columns(qw/id first_name second_name age email/);
 
 __PACKAGE__->has_many('orders' => 'Order');
-__PACKAGE__->has_many(achievements => 'Achievement', { via => 'customers_achievements' });
+__PACKAGE__->has_many(achievements => 'Achievement', { via => 'customer_achievement' });
 
 
 package Order;
@@ -29,7 +29,7 @@ package Order;
 use parent 'ActiveRecord::Simple';
 
 
-__PACKAGE__->table_name('orders');
+__PACKAGE__->table_name('order');
 __PACKAGE__->primary_key('id');
 __PACKAGE__->columns(qw/id title amount customer_id/);
 
@@ -41,11 +41,11 @@ package Achievement;
 use parent 'ActiveRecord::Simple';
 
 
-__PACKAGE__->table_name('achievements');
+__PACKAGE__->table_name('achievement');
 __PACKAGE__->primary_key('id');
 __PACKAGE__->columns(qw/id title/);
 
-__PACKAGE__->has_many(customers => 'Customer', { via => 'customers_achievements' });
+__PACKAGE__->has_many(customers => 'Customer', { via => 'customer_achievement' });
 
 
 package main;
@@ -58,7 +58,7 @@ my $dbh = DBI->connect("dbi:SQLite:dbname=:memory:","","")
 	or die DBI->errstr;
 
 my $_INIT_SQL_CUSTOMERS = q{
-	CREATE TABLE `customers` (
+	CREATE TABLE `customer` (
   		`id` int AUTO_INCREMENT,
   		`first_name` varchar(200) NULL,
   		`second_name` varchar(200) NOT NULL,
@@ -69,7 +69,7 @@ my $_INIT_SQL_CUSTOMERS = q{
 };
 
 my $_DATA_SQL_CUSTOMERS = q{
-	INSERT INTO `customers` (`id`, `first_name`, `second_name`, `age`, `email`)
+	INSERT INTO `customer` (`id`, `first_name`, `second_name`, `age`, `email`)
 	VALUES
 		(1,'Bob','Dylan',NULL,'bob.dylan@aol.com'),
 		(2,'John','Doe',77,'john@doe.com'),
@@ -82,17 +82,17 @@ $dbh->do($_INIT_SQL_CUSTOMERS);
 $dbh->do($_DATA_SQL_CUSTOMERS);
 
 my $_INIT_SQL_ORDERS = q{
-	CREATE TABLE `orders` (
+	CREATE TABLE `order` (
 		`id` int AUTO_INCREMENT,
 		`title` varchar(200) NOT NULL,
 		`amount` decimal(10,2) NOT NULL DEFAULT 0.0,
-		`customer_id` int NOT NULL references `customers` (`id`),
+		`customer_id` int NOT NULL references `customer` (`id`),
 		PRIMARY KEY (`id`)
 	);
 };
 
 my $_DATA_SQL_ORDERS = q{
-	INSERT INTO `orders` (`id`, `title`, `amount`, `customer_id`)
+	INSERT INTO `order` (`id`, `title`, `amount`, `customer_id`)
 	VALUES
 		(1, 'The Order #1', 10, 1),
 		(2, 'The Order #2', 5.66, 2),
@@ -105,7 +105,7 @@ $dbh->do($_INIT_SQL_ORDERS);
 $dbh->do($_DATA_SQL_ORDERS);
 
 my $_INIT_SQL_ACHIEVEMENTS = q{
-	CREATE TABLE `achievements` (
+	CREATE TABLE `achievement` (
 		`id` int AUTO_INCREMENT,
 		`title` varchar(30) NOT NULL,
 		PRIMARY KEY (`id`)
@@ -113,7 +113,7 @@ my $_INIT_SQL_ACHIEVEMENTS = q{
 };
 
 my $_DATA_SQL_ACHEIVEMENTS = q{
-	INSERT INTO `achievements` (`id`, `title`)
+	INSERT INTO `achievement` (`id`, `title`)
 	VALUES
 		(1, 'Bronze'),
 		(2, 'Silver'),
@@ -124,14 +124,14 @@ $dbh->do($_INIT_SQL_ACHIEVEMENTS);
 $dbh->do($_DATA_SQL_ACHEIVEMENTS);
 
 my $_INIT_SQL_CA = q{
-	CREATE TABLE `customers_achievements` (
-		`customer_id` int NOT NULL references customers (id),
-		`achievement_id` int NOT NULL references achievements (id)
+	CREATE TABLE `customer_achievement` (
+		`customer_id` int NOT NULL references customer (id),
+		`achievement_id` int NOT NULL references achievement (id)
 	);
 };
 
 my $_DATA_SQL_CA = q{
-	INSERT INTO `customers_achievements` (`customer_id`, `achievement_id`)
+	INSERT INTO `customer_achievement` (`customer_id`, `achievement_id`)
 	VALUES
 		(1, 1),
 		(1, 2),

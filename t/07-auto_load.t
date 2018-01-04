@@ -32,12 +32,12 @@ BEGIN {
 }
 
 package Customer;
-
+#
 our @ISA = qw/Schema/;
-
+#
 __PACKAGE__->auto_load();
-
-
+#
+#
 package main;
 
 use Test::More;

@@ -12,7 +12,6 @@ WriteMakefile1(
     PREREQ_PM => {
         'Module::Load' => 0,
         'DBI' => 0,
-        'Storable' => 0,
         'DBD::SQLite' => 0,
         'Scalar::Util' => 0,
     },

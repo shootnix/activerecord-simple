@@ -178,4 +178,7 @@ Revision history for Perl module ActiveRecord::Simple
         * Updated sandbox
         + New option "make_columns_accessors"
         - script/mars
+        - "abstract" method
+        - "select" method
+        * Improved documentation
 

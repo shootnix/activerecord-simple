@@ -32,7 +32,7 @@ sub quote_sql_stmt {
 sub class_to_table_name {
     my ($class) = @_;
 
-    load $class;
+    #load $class;
 
     return $class->_get_table_name if $class->can('_get_table_name');
 
