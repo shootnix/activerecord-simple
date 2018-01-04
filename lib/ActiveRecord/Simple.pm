@@ -933,7 +933,7 @@ __END__;
 
 =head1 NAME
 
-ActiveRecord::Simple
+ActiveRecord::Simple - Simple to use lightweight implementation of ActiveRecord pattern.
 
 =head1 DESCRIPTION
 
