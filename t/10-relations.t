@@ -186,7 +186,7 @@ is scalar @achievements, 2;
 
 
 ok my $Bill = Customer->get(3), 'got Bill';
-ok my $achievement = Achievement->new({ title => 'Bill Achievement', id => 4 })->save, 'create achievement';
+ok $achievement = Achievement->new({ title => 'Bill Achievement', id => 4 })->save, 'create achievement';
 
 is $Bill->id, 3;
 is $achievement->id, 4;
@@ -206,13 +206,13 @@ ok my $order = Purchase->get(3), 'order';
 ok $order->customer, 'the order has a customer';
 is $order->customer->id, $bills_orders[0]->id;
 
-ok my @achievements = $Bill->achievements->fetch;#
+ok @achievements = $Bill->achievements->fetch;#
 
 is @achievements, 4;
 isa_ok $achievements[0], 'Achievement';
 
 ok my $a = Achievement->get(1);
-ok my @customers = $a->customers->order_by('id')->fetch;
+ok @customers = $a->customers->order_by('id')->fetch;
 is @customers, 3;
 
 
