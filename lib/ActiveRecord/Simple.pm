@@ -942,54 +942,54 @@ pattern. It's fast, very simple and very light.
 
 =head1 SYNOPSIS
 
-package Model;
+    package Model;
 
-use parent 'ActiveRecord::Simple';
+    use parent 'ActiveRecord::Simple';
 
-# connect to the database:
-__PACKAGE__->connect($dsn, $opts);
-
-
-package Customer;
-
-use parent 'Model';
-
-__PACKAGE__->table_name('customer');
-__PACKAGE__->columns(qw/id first_name last_login/);
-__PACKAGE__->primary_key('id');
-
-__PACKAGE__->has_many(purchases => 'Purchase');
+    # connect to the database:
+    __PACKAGE__->connect($dsn, $opts);
 
 
-package Purchase;
+    package Customer;
 
-use parent 'Model';
+    use parent 'Model';
 
-__PACKAGE__->auto_load(); ### load table_name, columns and primary key from the database automatically
+    __PACKAGE__->table_name('customer');
+    __PACKAGE__->columns(qw/id first_name last_login/);
+    __PACKAGE__->primary_key('id');
 
-__PACKAGE__->belongs_to(customer => 'Customer');
+    __PACKAGE__->has_many(purchases => 'Purchase');
 
 
-package main;
+    package Purchase;
 
-# get customer with id = 1:
-my $customer = Customer->find({ id => 1 })->fetch(); 
+    use parent 'Model';
 
-# or (the same):
-my $customer = Customer->get(1);
+    __PACKAGE__->auto_load(); ### load table_name, columns and primary key from the database automatically
 
-print $customer->first_name; # print first name
-$customer->last_login(\'NOW()'); # to use built-in database function just send it as a SCALAR ref
-$customer->save(); # save in the database
+    __PACKAGE__->belongs_to(customer => 'Customer');
 
-# get all purchases of $customer:
-my @purchases = Purchase->find(customer => $customer)->fetch();
 
-# or (the same):
-my @purchases = $customer->purchases->fetch();
+    package main;
 
-# order, group and limit:
-my @purchases = $customer->purchases->order_by('paid')->desc->group_by('kind')->limit(10)->fetch();
+    # get customer with id = 1:
+    my $customer = Customer->find({ id => 1 })->fetch(); 
+
+    # or (the same):
+    my $customer = Customer->get(1);
+
+    print $customer->first_name; # print first name
+    $customer->last_login(\'NOW()'); # to use built-in database function just send it as a SCALAR ref
+    $customer->save(); # save in the database
+
+    # get all purchases of $customer:
+    my @purchases = Purchase->find(customer => $customer)->fetch();
+
+    # or (the same):
+    my @purchases = $customer->purchases->fetch();
+
+    # order, group and limit:
+    my @purchases = $customer->purchases->order_by('paid')->desc->group_by('kind')->limit(10)->fetch();
 
 =head1 CLASS METHODS
 

@@ -796,7 +796,17 @@ Show SQL-query that genereted by ActiveRecord::Simple::Find class:
 
 =head1 EXAMPLES
 
-    
+    # SELECT * FROM pizza WHERE name = 'pepperoni';
+    Pizza->find({ name => 'pepperoni' });
+
+    # SELECT first_name, last_name FORM customer WHERE age > 21 ORDER BY id DESC LIMIT 100;
+    Customer->find('age > ?', 21)->only('first_name', 'last_name')->order_by('id')->desc->limit(100);
+
+    # SELECT p.filename, p.id, pp.* FROM photo p LEFT JOIN person pp ON p.person_id = pp.id WHERE p.size = '1020x768';
+    Photo->find({ size => '1020x768' })->with('person')->only('filename', 'id');
+
+    # SELECT t.* FROM topping_pizza tp LEFT JOIN topping t ON t.id = tp.topping_id  WHERE tp.pizza_id = <$val>;
+    Pizza->get(<$val>)->toppings();
 
 =head1 AUTHOR
 
