@@ -66,7 +66,7 @@ sub sql_fetch_all {
         #    push @fields, $fld;
         #}
         #$class->_mk_ro_accessors(\@fields);
-        $class->_mk_ro_accessors([keys $row]);
+        $class->_mk_ro_accessors([keys %$row]);
         #    if $class->can('_make_columns_accessors') && $class->_make_columns_accessors != 0;
         bless $row, $class;
         push @list, $row;
