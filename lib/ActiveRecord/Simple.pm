@@ -4,13 +4,12 @@ use 5.010;
 use strict;
 use warnings;
 
-our $VERSION = '1.02';
+our $VERSION = '1.03';
 
 use utf8;
 use Carp;
 use Module::Load;
 use Scalar::Util qw/blessed/;
-use List::Util qw/any/;
 
 use ActiveRecord::Simple::Find;
 use ActiveRecord::Simple::Utils;
@@ -61,13 +60,7 @@ sub sql_fetch_all {
     my $data = $class->dbh->selectall_arrayref($sql, { Slice => {} }, @bind);
     my @list;
     for my $row (@$data) {
-        #my @fields;
-        #for my $fld (keys %$row) {
-        #    push @fields, $fld;
-        #}
-        #$class->_mk_ro_accessors(\@fields);
         $class->_mk_ro_accessors([keys %$row]);
-        #    if $class->can('_make_columns_accessors') && $class->_make_columns_accessors != 0;
         bless $row, $class;
         push @list, $row;
     }
@@ -80,12 +73,6 @@ sub sql_fetch_row {
 
     my $row = $class->dbh->selectrow_hashref($sql, undef, @bind);
     $class->_mk_ro_accessors([keys %$row]);
-    #    if $class->can('_make_columns_accessors') && $class->_make_columns_accessors == 0;
-    #my @fields;
-    #for my $fld (keys %$row) {
-    #    push @fields, $fld;
-    #}
-    #$class->_mk_ro_accessors(\@fields);
     bless $row, $class;
 
     return $row;
@@ -740,7 +727,7 @@ sub _init_relations {
 
         my $instance_name = "relation_instance_$relation_name";
 
-        if (any { $full_relation_type eq $_ } qw/one_to_many one_to_one one_to_only/) {
+        if (grep { $full_relation_type eq $_ } qw/one_to_many one_to_one one_to_only/) {
             *{$pkg_method_name} = sub {
                 my ($self, @args) = @_;
                 if (@args) {
