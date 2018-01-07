@@ -12,7 +12,7 @@ use Module::Load;
 use Scalar::Util qw/blessed/;
 
 use ActiveRecord::Simple::Find;
-use ActiveRecord::Simple::Utils;
+use ActiveRecord::Simple::Utils qw/all_blessed class_to_table_name/;
 use ActiveRecord::Simple::Connect;
 
 our $connector;
@@ -31,7 +31,7 @@ sub new {
 sub auto_load {
    my ($class) = @_;
 
-    my $table_name = ActiveRecord::Simple::Utils::class_to_table_name($class);
+    my $table_name = class_to_table_name($class);
 
     # 0. check the name
     my $table_info_sth = $class->dbh->table_info('', '%', $table_name, 'TABLE');
@@ -767,8 +767,7 @@ sub _init_relations {
                 my ($self, @args) = @_;
 
                 if (@args) {
-
-                    unless (List::Util::all { blessed $_ } @args) {
+                    unless (all_blessed(\@args)) {
                         return $related_class->find(@args)->left_join($self->_get_table_name);
                     }
 
@@ -802,7 +801,7 @@ sub _init_relations {
 
                     my $related_subclass = _get_related_subclass($relation);
 
-                    unless (List::Util::all { blessed $_ } @args) {
+                    unless (all_blessed(\@args)) {
                         return  $related_class->_find_many_to_many({
                             root_class => $class,
                             via_table  => $relation->{via_table},
@@ -846,7 +845,7 @@ sub _init_relations {
                         my ($fk1, $fk2);
                         $fk1 = $fk;
 
-                        $fk2 = ActiveRecord::Simple::Utils::class_to_table_name($related_class) . '_id';
+                        $fk2 = class_to_table_name($related_class) . '_id';
 
                         my $pk1_name = $self->_get_primary_key;
                         my $pk1 = $self->{$pk1_name};
@@ -909,7 +908,7 @@ sub _what_is_the_table_name {
     my $table_name =
         $class->can('_get_table_name') ?
             $class->_get_table_name
-            : ActiveRecord::Simple::Utils::class_to_table_name($class);
+            : class_to_table_name($class);
 
     return $table_name;
 }

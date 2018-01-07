@@ -6,9 +6,10 @@ use warnings;
 require Exporter;
 
 use Module::Load;
+use Scalar::Util qw/blessed/;
 
 our @ISA = qw/Exporter/;
-our @EXPORT = qw/class_to_table_name/;
+our @EXPORT = qw/class_to_table_name all_blessed/;
 
 
 sub quote_sql_stmt {
@@ -58,6 +59,17 @@ sub is_numeric {
     return 1 if is_integer($data_type);
 
     return grep { $data_type eq $_ } qw/numeric decimal/;
+}
+
+sub all_blessed {
+    my ($list) = @_;
+
+    for my $item (@$list) {
+        return unless defined $item;
+        return unless blessed $item;
+    }
+
+    return 1;
 }
 
 1;
