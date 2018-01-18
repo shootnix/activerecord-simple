@@ -1,5 +1,8 @@
 package ActiveRecord::Simple::QueryManager;
 
+use 5.010;
+use strict;
+use warnings;
 use ActiveRecord::Simple::Find;
 
 
