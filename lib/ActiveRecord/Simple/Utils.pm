@@ -77,10 +77,10 @@ sub all_blessed {
 sub load_module {
     my ($module_name) = @_;
 
-    if (!is_loaded $module_name) {
+    #if (!is_loaded $module_name) {
         eval { load $module_name; };
-        mark_as_loaded $module_name;
-    }
+    #    mark_as_loaded $module_name;
+    #}
 }
 
 1;
