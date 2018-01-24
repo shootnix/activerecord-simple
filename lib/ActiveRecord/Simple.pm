@@ -4,7 +4,7 @@ use 5.010;
 use strict;
 use warnings;
 
-our $VERSION = '1.11';
+our $VERSION = '1.12';
 
 use utf8;
 use Carp;
@@ -549,7 +549,7 @@ sub _insert {
 
     if ( $self->dbh->{Driver}{Name} eq 'Pg' ) {
         if ($primary_key) {
-            $sql_stm .= ' RETURNIG ' . $primary_key if $primary_key;
+            $sql_stm .= ' RETURNING ' . $primary_key if $primary_key;
             $sql_stm = ActiveRecord::Simple::Utils::quote_sql_stmt($sql_stm, $self->dbh->{Driver}{Name});
             $pkey_val = $self->dbh->selectrow_array($sql_stm, undef, @bind);
         }
