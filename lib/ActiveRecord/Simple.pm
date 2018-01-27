@@ -274,6 +274,7 @@ sub save {
         my $fk = $relation->{params}{fk};
         my $pk = $relation->{params}{pk};
 
+        $self->{$field}->save() if !$self->{$field}->{isin_database};
         $save_param->{$fk} = $self->{$field}->$pk;
     }
 
